@@ -68,3 +68,11 @@ Aplikace je pořád statická klientská aplikace. To znamená, že po odemčen�
 - Kept application behavior unchanged: `src/app/lifehub-app.js` still owns feature state and rendering.
 - Updated syntax-check script to include the new utility module.
 
+
+
+## 3.1.4 - modularization step 3 / tab-switch lock fix
+
+- Changed tab visibility behavior: switching away from the page no longer immediately locks the vault.
+- The inactivity timer remains active; returning to the page refreshes the timer when the vault is open.
+- `lockApp()` now waits for any pending encrypted save before clearing the runtime key and state.
+- Updated service worker cache name to force clients to pick up the fixed shell.
