@@ -55,3 +55,17 @@ This intentionally does not split feature state yet. The goal is to keep behavio
 During manual GitHub Pages testing, immediate locking on `visibilitychange` was too aggressive: the app locked when the user switched tabs to read instructions. The behavior is now changed so tab switching does not immediately lock the vault. The regular inactivity timeout remains the main automatic lock mechanism.
 
 `lockApp()` is asynchronous now and waits for any pending encrypted save before wiping the runtime key and state. This reduces race risk when the user locks shortly after saving an item.
+
+## Step 4 — core UI helpers
+
+V tomto kroku byly z hlavního souboru `src/app/lifehub-app.js` vytaženy obecné UI helpery do `src/core/ui.js`:
+
+- `toast()`
+- `download()`
+- `modalDialog()`
+- `confirmDialog()`
+- `passwordDialog()`
+
+Cíl kroku: oddělit opakovaně používanou UI infrastrukturu od aplikačních funkcí. Nejde o změnu chování, jen o bezpečný mechanický přesun.
+
+Další vhodný krok: vytažení kryptografických funkcí do `src/security/crypto.js`.

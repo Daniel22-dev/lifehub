@@ -1,13 +1,13 @@
 {
   "name": "lifehub",
-  "version": "3.1.4-modular-step-3",
+  "version": "3.1.5-modular-step-4",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "check:syntax": "node --check src/main.js && node --check src/app/lifehub-app.js && node --check src/config/constants.js && node --check src/core/utils.js && node --check src/pwa/register-sw.js"
+    "check:syntax": "node --check src/main.js && node --check src/app/lifehub-app.js && node --check src/config/constants.js && node --check src/core/utils.js && node --check src/core/ui.js && node --check src/pwa/register-sw.js"
   },
   "devDependencies": {
     "vite": "^7.0.0"
