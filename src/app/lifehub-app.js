@@ -13,6 +13,23 @@ import {
   VAULT_STORE
 } from '../config/constants.js';
 import { registerServiceWorker } from '../pwa/register-sw.js';
+import {
+  $,
+  $$,
+  attr,
+  currentYear,
+  esc,
+  monthNow,
+  number,
+  pad,
+  safeCsvCell,
+  safeId,
+  safeUrl,
+  sanitizeCurrency,
+  strip,
+  today,
+  uid
+} from '../core/utils.js';
 
 export function bootLifeHub(){
     'use strict';
@@ -23,32 +40,6 @@ export function bootLifeHub(){
     const PDF_WORKER_LOCAL = new URL('pdf.worker.min.mjs', VENDOR_BASE_URL).href;
     let pdfJsSource = '';
     let pdfjsLibRef = null;
-    const pad = n => String(n).padStart(2,'0');
-    const today = () => new Date().toISOString().slice(0,10);
-    const currentYear = () => new Date().getFullYear();
-    const monthNow = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}`; };
-    const uid = p => `${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,8)}`;
-    const $ = (s,r=document)=>r.querySelector(s);
-    const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
-    const strip = s => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-    const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
-    const attr = esc;
-    const safeId = (value, prefix='item') => /^[A-Za-z0-9_-]{1,80}$/.test(String(value||'')) ? String(value) : uid(prefix);
-    const safeUrl = value => {
-      const v = String(value || '').trim();
-      if(!v) return '';
-      try{ const u = new URL(v); return ['https:','http:'].includes(u.protocol) ? u.href : ''; }catch(e){ return ''; }
-    };
-    const safeCsvCell = value => {
-      const s = String(value ?? '');
-      return /^[=+\-@]/.test(s.trimStart()) ? "'" + s : s;
-    };
-    const FORBIDDEN_IMPORT_KEYS = new Set(['__proto__','constructor','prototype']);
-    const number = v => Number(String(v||'').replace(/\s/g,'').replace(',','.')) || 0;
-    const sanitizeCurrency = value => {
-      const c = String(value || '').trim();
-      return /^[A-Za-zÀ-ž$€£¥₿₽₩₹čČřŘšŠžŽůŮěĚáÁíÍéÉýÝóÓúÚ .,-]{1,12}$/.test(c) ? c : 'Kč';
-    };
     const fmt = n => `${(Number(n)||0).toLocaleString('cs-CZ',{maximumFractionDigits:0})} ${sanitizeCurrency(state.settings.currency)}`;
     const fmt2 = n => `${(Number(n)||0).toLocaleString('cs-CZ',{maximumFractionDigits:2})} ${sanitizeCurrency(state.settings.currency)}`;
     const monthLabel = m => m ? new Date(`${m}-01T00:00:00`).toLocaleDateString('cs-CZ',{month:'long',year:'numeric'}) : 'bez měsíce';
