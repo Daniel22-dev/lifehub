@@ -273,7 +273,7 @@ export function bootLifeHub(){
       $('#lockForm')?.addEventListener('submit',handleUnlockSubmit);
       $('#wipeEncryptedBtn')?.addEventListener('click',wipeEncryptedVault);
       ['mousemove','keydown','click','touchstart'].forEach(ev=>document.addEventListener(ev,resetAutoLockTimer,{passive:true}));
-      document.addEventListener('visibilitychange',()=>{ if(document.hidden && appReady) lockApp(); });
+      document.addEventListener('visibilitychange',()=>{ if(!document.hidden && appReady) resetAutoLockTimer(); });
       document.addEventListener('keydown',trapLockFocus);
       $('#fullscreenBtn').addEventListener('click',()=> document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.());
       $('#noteForm').addEventListener('submit', saveNote);
@@ -469,8 +469,10 @@ export function bootLifeHub(){
       const results = $('#globalResults'); if(results) results.innerHTML = '';
       setPdfStatus('Zamčeno','warn');
     }
-    function lockApp(){
+    async function lockApp(){
       if(!appReady) return;
+      $('#saveStatus').textContent = 'Zamykám…';
+      try{ await saveInFlight.catch(()=>{}); }catch(e){ console.warn(e); }
       scrubSensitiveRuntime();
       appReady = false;
       vaultKey = null; vaultSalt = null;

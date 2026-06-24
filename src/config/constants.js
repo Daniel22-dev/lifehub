@@ -1,4 +1,4 @@
-export const APP_VERSION = '3.1.2-vite-modular';
+export const APP_VERSION = '3.1.4-modular-step-3';
 export const PUBLIC_BASE_URL = new URL(import.meta.env.BASE_URL || './', document.baseURI);
 
 export const KDF_ITERATIONS = 310000;

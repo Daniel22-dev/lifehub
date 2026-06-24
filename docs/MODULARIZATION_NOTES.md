@@ -48,3 +48,10 @@ The first post-deploy modularization extracts safe, stateless helpers into `src/
 - numeric parsing: `number`
 
 This intentionally does not split feature state yet. The goal is to keep behavior stable while gradually reducing the size of `src/app/lifehub-app.js`.
+
+
+## Step 3 - tab-switch lock fix
+
+During manual GitHub Pages testing, immediate locking on `visibilitychange` was too aggressive: the app locked when the user switched tabs to read instructions. The behavior is now changed so tab switching does not immediately lock the vault. The regular inactivity timeout remains the main automatic lock mechanism.
+
+`lockApp()` is asynchronous now and waits for any pending encrypted save before wiping the runtime key and state. This reduces race risk when the user locks shortly after saving an item.
