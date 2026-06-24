@@ -36,3 +36,15 @@ Doporučený další postup:
 - PDF.js cesty jsou odvozené od `import.meta.env.BASE_URL` přes `PUBLIC_BASE_URL`.
 - Service worker už necachuje pevně `assets/lifehub.js`, protože Vite výstup bude hashovaný.
 - Build publikuje složku `dist` přes GitHub Actions.
+
+
+## Step 2: extracted core utilities
+
+The first post-deploy modularization extracts safe, stateless helpers into `src/core/utils.js`:
+
+- DOM selectors: `$`, `$$`
+- dates and IDs: `today`, `monthNow`, `currentYear`, `uid`
+- escaping and input safety: `esc`, `attr`, `safeId`, `safeUrl`, `safeCsvCell`, `sanitizeCurrency`
+- numeric parsing: `number`
+
+This intentionally does not split feature state yet. The goal is to keep behavior stable while gradually reducing the size of `src/app/lifehub-app.js`.
