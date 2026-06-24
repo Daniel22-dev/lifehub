@@ -31,18 +31,6 @@ import {
   uid
 } from '../core/utils.js';
 import { confirmDialog, download, passwordDialog, toast } from '../core/ui.js';
-import {
-  deriveVaultKey as cryptoDeriveVaultKey,
-  encryptObjectWithKey as cryptoEncryptObjectWithKey,
-  decryptObjectWithKey as cryptoDecryptObjectWithKey,
-  encryptBlobForIdb as cryptoEncryptBlobForIdb,
-  decryptBlobFromIdb as cryptoDecryptBlobFromIdb,
-  bytesToB64 as cryptoBytesToB64,
-  b64ToBytes as cryptoB64ToBytes,
-  deriveBackupKey as cryptoDeriveBackupKey,
-  encryptBackupObject as cryptoEncryptBackupObject,
-  decryptBackupObject as cryptoDecryptBackupObject,
-} from '../security/crypto.js';
 
 export function bootLifeHub(){
     'use strict';
@@ -414,22 +402,36 @@ export function bootLifeHub(){
       $('#lockStatus').textContent = 'Trezor byl smazán. Nyní můžete založit nový.';
       await startSecureGate();
     }
-    async function deriveVaultKey(password, salt, iterations = KDF_ITERATIONS) {
-      return cryptoDeriveVaultKey(password, salt, iterations);
+    async function deriveVaultKey(password, salt, iterations=KDF_ITERATIONS){
+      const rounds = Number.isFinite(Number(iterations)) && Number(iterations) > 0 ? Number(iterations) : KDF_ITERATIONS;
+      const base = await window.crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
+      return window.crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:rounds,hash:'SHA-256'}, base, {name:'AES-GCM',length:256}, false, ['encrypt','decrypt']);
     }
-    async function encryptObjectWithKey(obj, key) {
-      return cryptoEncryptObjectWithKey(obj, key);
+    async function encryptObjectWithKey(obj,key){
+      const iv = window.crypto.getRandomValues(new Uint8Array(12));
+      const bytes = new TextEncoder().encode(JSON.stringify(obj));
+      const cipher = await window.crypto.subtle.encrypt({name:'AES-GCM',iv}, key, bytes);
+      return {iv:bytesToB64(iv), data:bytesToB64(cipher)};
     }
-    async function decryptObjectWithKey(envelope, key) {
-      return cryptoDecryptObjectWithKey(envelope, key);
+    async function decryptObjectWithKey(envelope,key){
+      const iv = b64ToBytes(envelope.crypto?.iv || envelope.iv);
+      const cipher = b64ToBytes(envelope.data);
+      const plain = await window.crypto.subtle.decrypt({name:'AES-GCM',iv}, key, cipher);
+      return JSON.parse(new TextDecoder().decode(plain));
     }
-    async function encryptBlobForIdb(file) {
-      return cryptoEncryptBlobForIdb(file, vaultKey);
+    async function encryptBlobForIdb(file){
+      const iv = window.crypto.getRandomValues(new Uint8Array(12));
+      const buffer = await file.arrayBuffer();
+      const cipher = await window.crypto.subtle.encrypt({name:'AES-GCM',iv}, vaultKey, buffer);
+      return {kind:'LifeHub encrypted blob',version:VERSION,name:file.name||'',type:file.type||'application/octet-stream',size:file.size||buffer.byteLength,lastModified:file.lastModified||Date.now(),crypto:{alg:'AES-GCM',iv:bytesToB64(iv)},data:new Blob([cipher],{type:'application/octet-stream'})};
     }
-    async function decryptBlobFromIdb(record) {
-      return cryptoDecryptBlobFromIdb(record, vaultKey);
+    async function decryptBlobFromIdb(record){
+      if(!vaultKey) throw new Error('Trezor není odemčený.');
+      const cipher = await record.data.arrayBuffer();
+      const plain = await window.crypto.subtle.decrypt({name:'AES-GCM',iv:b64ToBytes(record.crypto?.iv)}, vaultKey, cipher);
+      try{return new File([plain], record.name || 'soubor', {type:record.type||'application/octet-stream', lastModified:record.lastModified||Date.now()});}
+      catch(e){const blob = new Blob([plain], {type:record.type||'application/octet-stream'}); blob.name = record.name || 'soubor'; return blob;}
     }
-
     async function encryptLegacyFiles(){
       let changed = 0;
       for(const p of state.payrolls.filter(x=>x.storedPdf)){
@@ -935,22 +937,40 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
     function shopPriorityLabel(p){return p==='urgent'?'Urgentní':p==='soon'?'Brzy':'Dlouhodobé';}
     function shopStatusLabel(s){return s==='bought'?'Koupeno':s==='paused'?'Odloženo':'Plánováno';}
 
-    function bytesToB64(bytes) {
-      return cryptoBytesToB64(bytes);
+    function bytesToB64(bytes){
+      const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+      let bin='';
+      for(let i=0;i<arr.length;i+=0x8000) bin += String.fromCharCode(...arr.subarray(i,i+0x8000));
+      return btoa(bin);
     }
-    function b64ToBytes(b64) {
-      return cryptoB64ToBytes(b64);
+    function b64ToBytes(b64){
+      const bin = atob(String(b64||''));
+      const arr = new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+      return arr;
     }
-    async function deriveBackupKey(passphrase, salt, iterations = KDF_ITERATIONS) {
-      return cryptoDeriveBackupKey(passphrase, salt, iterations);
+    async function deriveBackupKey(passphrase, salt, iterations=KDF_ITERATIONS){
+      const rounds = Number.isFinite(Number(iterations)) && Number(iterations) > 0 ? Number(iterations) : KDF_ITERATIONS;
+      const enc = new TextEncoder();
+      const baseKey = await window.crypto.subtle.importKey('raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey']);
+      return window.crypto.subtle.deriveKey({name:'PBKDF2', salt, iterations:rounds, hash:'SHA-256'}, baseKey, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
     }
-    async function encryptBackupObject(obj, passphrase) {
-      return cryptoEncryptBackupObject(obj, passphrase);
+    async function encryptBackupObject(obj, passphrase){
+      if(!window.crypto?.subtle) throw new Error('Web Crypto API není dostupné.');
+      const salt = window.crypto.getRandomValues(new Uint8Array(16));
+      const iv = window.crypto.getRandomValues(new Uint8Array(12));
+      const key = await deriveBackupKey(passphrase, salt, Number(obj.crypto?.iterations) || KDF_ITERATIONS);
+      const payload = new TextEncoder().encode(JSON.stringify(obj));
+      const cipher = await window.crypto.subtle.encrypt({name:'AES-GCM', iv}, key, payload);
+      return {kind:'LifeHub encrypted backup',version:VERSION,createdAt:new Date().toISOString(),crypto:{alg:'AES-GCM',kdf:'PBKDF2-SHA256',iterations:KDF_ITERATIONS,salt:bytesToB64(salt),iv:bytesToB64(iv)},data:bytesToB64(cipher)};
     }
-    async function decryptBackupObject(obj, passphrase) {
-      return cryptoDecryptBackupObject(obj, passphrase);
+    async function decryptBackupObject(obj, passphrase){
+      if(obj?.kind !== 'LifeHub encrypted backup') throw new Error('Soubor není šifrovaná LifeHub záloha.');
+      const salt = b64ToBytes(obj.crypto?.salt); const iv = b64ToBytes(obj.crypto?.iv);
+      const key = await deriveBackupKey(passphrase, salt, Number(obj.crypto?.iterations) || KDF_ITERATIONS);
+      const plain = await window.crypto.subtle.decrypt({name:'AES-GCM', iv}, key, b64ToBytes(obj.data));
+      return JSON.parse(new TextDecoder().decode(plain));
     }
-
     async function exportEncryptedJson(){
       try{
         if(!window.crypto?.subtle){ toast('Šifrovaný export vyžaduje Web Crypto API a bezpečný kontext.', 'bad'); return; }
