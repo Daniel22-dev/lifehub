@@ -31,7 +31,7 @@ import {
   uid
 } from '../core/utils.js';
 import { confirmDialog, download, passwordDialog, toast } from '../core/ui.js';
-
+import * as cryptoHelpers from '../security/crypto.js';
 export function bootLifeHub(){
     'use strict';
 
