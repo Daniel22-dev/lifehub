@@ -36,6 +36,7 @@ export function bootLifeHub(){
     'use strict';
 
     const VERSION = APP_VERSION;
+    const FORBIDDEN_IMPORT_KEYS = new Set(['__proto__','constructor','prototype']);
     const VENDOR_BASE_URL = new URL('vendor/', PUBLIC_BASE_URL);
     const PDF_JS_LOCAL = new URL('pdf.min.mjs', VENDOR_BASE_URL).href;
     const PDF_WORKER_LOCAL = new URL('pdf.worker.min.mjs', VENDOR_BASE_URL).href;
@@ -94,7 +95,7 @@ export function bootLifeHub(){
     function merge(base, saved){
       if(!saved || typeof saved !== 'object' || Array.isArray(saved)) return base;
       for(const k of Object.keys(saved)){
-if(['__proto__','constructor','prototype'].includes(k)) continue;
+        if(FORBIDDEN_IMPORT_KEYS.has(k)) continue;
         if(!Object.prototype.hasOwnProperty.call(base, k)) continue;
         const incoming = saved[k];
         const current = base[k];
@@ -984,7 +985,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
     function hasForbiddenKeys(obj, depth=0){
       if(!obj || typeof obj !== 'object' || depth>12) return false;
       for(const key of Object.keys(obj)){
-if(['__proto__','constructor','prototype'].includes(key)) return true;
+        if(FORBIDDEN_IMPORT_KEYS.has(key)) return true;
         if(hasForbiddenKeys(obj[key], depth+1)) return true;
       }
       return false;
