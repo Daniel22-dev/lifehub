@@ -36,6 +36,7 @@ export function bootLifeHub(){
     'use strict';
 
     const VERSION = APP_VERSION;
+    const FORBIDDEN_IMPORT_KEYS = new Set(['__proto__','constructor','prototype']);
     const VENDOR_BASE_URL = new URL('vendor/', PUBLIC_BASE_URL);
     const PDF_JS_LOCAL = new URL('pdf.min.mjs', VENDOR_BASE_URL).href;
     const PDF_WORKER_LOCAL = new URL('pdf.worker.min.mjs', VENDOR_BASE_URL).href;
