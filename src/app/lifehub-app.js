@@ -984,7 +984,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
     function hasForbiddenKeys(obj, depth=0){
       if(!obj || typeof obj !== 'object' || depth>12) return false;
       for(const key of Object.keys(obj)){
-        if(FORBIDDEN_IMPORT_KEYS.has(key)) return true;
+if(['__proto__','constructor','prototype'].includes(key)) return true;
         if(hasForbiddenKeys(obj[key], depth+1)) return true;
       }
       return false;
