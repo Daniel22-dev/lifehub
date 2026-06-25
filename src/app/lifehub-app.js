@@ -94,7 +94,7 @@ export function bootLifeHub(){
     function merge(base, saved){
       if(!saved || typeof saved !== 'object' || Array.isArray(saved)) return base;
       for(const k of Object.keys(saved)){
-        if(FORBIDDEN_IMPORT_KEYS.has(k)) continue;
+if(['__proto__','constructor','prototype'].includes(k)) continue;
         if(!Object.prototype.hasOwnProperty.call(base, k)) continue;
         const incoming = saved[k];
         const current = base[k];
