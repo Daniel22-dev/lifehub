@@ -1,4 +1,4 @@
-# LifeHub 3.1.2 Vite Modular
+# LifeHub 3.2 Vite Modular
 
 Statická osobní aplikace LifeHub připravená pro GitHub Pages přes Vite build a GitHub Actions.
 

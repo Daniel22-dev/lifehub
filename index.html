@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#20134d">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'none'; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
-  <title>LifeHub 3.0 | šifrovaný trezor, poznámky, finance</title>
+  <title>LifeHub 3.2 | šifrovaný trezor, poznámky, finance</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./icon-192.png">
@@ -16,7 +16,7 @@
       <div class="brand">
         <div class="brand-mark">LH</div>
         <div>
-          <h1>LifeHub 3.0</h1>
+          <h1>LifeHub 3.2</h1>
           <p>Poznámky • finance • šifrovaný trezor</p>
         </div>
       </div>
@@ -34,9 +34,11 @@
           <button class="active" data-tab="dashboard" type="button"><span class="emoji">🏠</span><span class="label">Přehled</span></button>
           <button data-tab="notes" type="button"><span class="emoji">🧠</span><span class="label">Poznámky</span></button>
           <button data-tab="finance" type="button"><span class="emoji">💸</span><span class="label">Finance</span></button>
+          <button data-tab="installments" type="button"><span class="emoji">📆</span><span class="label">Splátky</span></button>
           <button data-tab="vault" type="button"><span class="emoji">🗄️</span><span class="label">Archiv</span></button>
           <button data-tab="tasks" type="button"><span class="emoji">✅</span><span class="label">To-do</span></button>
           <button data-tab="shopping" type="button"><span class="emoji">🛒</span><span class="label">Nákupy</span></button>
+          <button data-tab="apps" type="button"><span class="emoji">🧩</span><span class="label">Aplikace</span></button>
           <button data-tab="exports" type="button"><span class="emoji">📦</span><span class="label">Export / Notion</span></button>
           <button data-tab="settings" type="button"><span class="emoji">⚙️</span><span class="label">Nastavení</span></button>
           <button data-tab="help" type="button"><span class="emoji">❔</span><span class="label">Nápověda</span></button>
@@ -52,19 +54,24 @@
             <div class="hero-grid">
               <div>
                 <p class="eyebrow">Osobní pracovní paměť</p>
-                <h2>Jedno barevné centrum pro věci, které nechcete znovu vysvětlovat AI.</h2>
-                <p>Ukládejte poznámky z ChatGPT/Claude, hlídejte měsíční bilanci, importujte PDF výplatní pásky, ukládejte soukromé dokumenty do šifrovaného trezoru, plánujte úkoly a nákupy. Vše běží jako statická aplikace vhodná pro GitHub Pages.</p>
+                <h2 id="dashGreeting">Vítej v LifeHubu</h2>
+                <p>Jedno barevné centrum pro poznámky z AI, finance, výplatní pásky, splátky, dokumenty, úkoly i nákupy. Vše běží jako statická aplikace vhodná pro GitHub Pages.</p>
+                <div class="quick-title">Rychlé přidání</div>
+                <div class="quick-actions">
+                  <button class="quick-btn" data-quick="task" type="button"><span class="q-emoji">✅</span> Nový úkol</button>
+                  <button class="quick-btn" data-quick="shopping" type="button"><span class="q-emoji">🛒</span> Nový nákup</button>
+                  <button class="quick-btn" data-quick="trans" type="button"><span class="q-emoji">💸</span> Příjem / výdaj</button>
+                  <button class="quick-btn" data-quick="note" type="button"><span class="q-emoji">🧠</span> Nová poznámka</button>
+                  <button class="quick-btn" data-quick="installment" type="button"><span class="q-emoji">📆</span> Nová splátka</button>
+                </div>
               </div>
               <div class="hero-actions">
-                <button class="btn primary" data-jump="notes" type="button">+ Uložit poznámku</button>
                 <button class="btn secondary" data-jump="finance" type="button">Načíst výplatní pásku</button>
                 <button class="btn" data-jump="vault" type="button">Uložit dokument</button>
-                <button class="btn" data-action="export-json" type="button">Stáhnout zálohu</button>
                 <button class="btn ok" data-action="export-encrypted-json" type="button">Šifrovaná záloha</button>
               </div>
             </div>
           </div>
-          <div class="alert danger"><strong>Soukromí:</strong> výplatní pásky a osobní dokumenty zůstávají šifrované v lokálním trezoru po odemčení. Veřejný GitHub používejte jen pro samotnou aplikaci nebo anonymizované/šifrované exporty.</div>
           <article class="panel" id="securityPanel"></article>
           <div class="kpis" id="dashboardKpis"></div>
           <div class="grid two">
@@ -73,9 +80,8 @@
                 <div>
                   <p class="eyebrow">Finance</p>
                   <h3>Roční bilance</h3>
-                  <p>Příjmy, výdaje a rozdíl po měsících.</p>
                 </div>
-                <input id="dashYear" type="number" min="2000" max="2100" class="control-max-130">
+                <input id="dashYear" type="number" min="2000" max="2100" class="control-max-130" title="Rok">
               </div>
               <div class="chart" id="dashboardFinanceChart"></div>
             </article>
@@ -84,7 +90,6 @@
                 <div>
                   <p class="eyebrow">Priority</p>
                   <h3>Úkoly a nákupy podle naléhavosti</h3>
-                  <p>Rychlá kontrola, co pálí nejvíc.</p>
                 </div>
               </div>
               <div id="priorityBars" class="bar-list"></div>
@@ -104,134 +109,155 @@
 
         <section class="view" id="notes">
           <div class="section-head">
-            <div>
-              <p class="eyebrow">Znalostní knihovna</p>
-              <h2>Poznámky z AI vláken, webu a vlastních nápadů</h2>
-              <p>Uložte jádro odpovědi, prompt, zdroj, tagy a další krok. Později se k tomu vrátíte bez opakování dlouhého kontextu.</p>
-            </div>
-            <div class="actions">
-              <button class="btn secondary" data-action="export-notes-md" type="button">Export MD</button>
-              <button class="btn" data-action="export-notes-csv" type="button">Export CSV</button>
+            <div class="head-main">
+              <div>
+                <h2 class="tab-title">Znalostní knihovna</h2>
+                <p class="tab-sub">Poznámky z AI vláken, webu a vlastních nápadů</p>
+              </div>
+              <button class="info-dot" type="button" data-tip="Ukládej jádro odpovědi, použitý prompt, zdroj, model, tagy a další krok. Klikni na poznámku pro její zobrazení. Později se k tématu vrátíš bez opakování dlouhého kontextu.">i</button>
             </div>
           </div>
           <article class="panel">
-            <form class="form" id="noteForm">
-              <input type="hidden" id="noteId">
-              <label class="half">Název<input id="noteTitle" required maxlength="180" placeholder="Např. Prompt pro zpětnou vazbu ke slohu"></label>
-              <label>Zdroj<select id="noteSource"><option>ChatGPT</option><option>Claude</option><option>Notion</option><option>Web</option><option>Kniha</option><option>Vlastní</option></select></label>
-              <label>Priorita<select id="notePriority"><option value="5">★★★★★ klíčové</option><option value="4">★★★★ důležité</option><option value="3" selected>★★★ užitečné</option><option value="2">★★ doplňkové</option><option value="1">★ archiv</option></select></label>
-              <label>Typ<select id="noteType"><option>postup</option><option>prompt</option><option>nápad</option><option>zdroj</option><option>shrnutí</option><option>výuka</option><option>finance</option><option>jiné</option></select></label>
-              <label>Model/verze<input id="noteModel" placeholder="GPT-5.5, Claude Sonnet…"></label>
-              <label class="half">URL / odkaz na vlákno<input id="noteUrl" type="url" placeholder="https://…"></label>
-              <label class="wide">Tagy<input id="noteTags" placeholder="ai, maturita, finance, španělština"></label>
-              <label class="wide">Krátké shrnutí<textarea id="noteSummary" rows="3" placeholder="Co je hlavní myšlenka a proč ji chci zachovat?"></textarea></label>
-              <label class="wide">Obsah / prompt / výstup<textarea id="noteContent" rows="8" placeholder="Vložte podstatnou část vlákna nebo vlastní poznámky…"></textarea></label>
-              <label class="wide">Další krok<input id="noteNext" placeholder="Např. převést do pracovního listu, vložit do Notion, ověřit v hodině…"></label>
-              <div class="actions wide">
-                <button class="btn primary" type="submit">Uložit poznámku</button>
-                <button class="btn" id="resetNote" type="button">Vyčistit</button>
-              </div>
-            </form>
-          </article>
-          <article class="panel">
             <div class="filters">
               <input id="noteSearch" type="search" placeholder="Hledat v poznámkách…">
-              <select id="noteSourceFilter"><option value="all">Všechny zdroje</option></select>
-              <select id="noteTypeFilter"><option value="all">Všechny typy</option></select>
-              <select id="noteTagFilter"><option value="all">Všechny tagy</option></select>
-              <select id="noteSort"><option value="new">Nejnovější</option><option value="priority">Priorita</option><option value="title">Název</option></select>
+              <select id="noteSourceFilter" title="Zdroj"><option value="all">Všechny zdroje</option></select>
+              <select id="noteTypeFilter" title="Typ"><option value="all">Všechny typy</option></select>
+              <select id="noteTagFilter" title="Tagy"><option value="all">Všechny tagy</option></select>
+              <select id="noteSort" title="Řazení"><option value="new">Nejnovější</option><option value="priority">Priorita</option><option value="title">Název</option></select>
             </div>
             <div class="list" id="notesList"></div>
           </article>
+          <article class="panel add-card" id="noteAddCard" data-collapsed="true">
+            <button class="add-card-head" type="button" data-toggle-add="noteAddCard"><span>➕ Nová poznámka</span><span class="chev">▾</span></button>
+            <div class="add-card-body">
+              <form class="form" id="noteForm">
+                <input type="hidden" id="noteId">
+                <label class="half">Název<input id="noteTitle" required maxlength="180" placeholder="Např. Prompt pro zpětnou vazbu ke slohu"></label>
+                <label>Zdroj<select id="noteSource"><option>ChatGPT</option><option>Claude</option><option>Notion</option><option>Web</option><option>Kniha</option><option>Vlastní</option></select></label>
+                <label>Priorita<select id="notePriority"><option value="5">★★★★★ klíčové</option><option value="4">★★★★ důležité</option><option value="3" selected>★★★ užitečné</option><option value="2">★★ doplňkové</option><option value="1">★ archiv</option></select></label>
+                <label>Typ<select id="noteType"><option>postup</option><option>prompt</option><option>nápad</option><option>zdroj</option><option>shrnutí</option><option>výuka</option><option>finance</option><option>jiné</option></select></label>
+                <label>Model/verze<input id="noteModel" placeholder="GPT-5.5, Claude Sonnet…"></label>
+                <label class="half">URL / odkaz na vlákno<input id="noteUrl" type="url" placeholder="https://…"></label>
+                <label class="wide">Tagy<input id="noteTags" placeholder="ai, maturita, finance, španělština"></label>
+                <label class="wide">Krátké shrnutí<textarea id="noteSummary" rows="3" placeholder="Co je hlavní myšlenka a proč ji chci zachovat?"></textarea></label>
+                <label class="wide">Obsah / prompt / výstup<textarea id="noteContent" rows="8" placeholder="Vložte podstatnou část vlákna nebo vlastní poznámky…"></textarea></label>
+                <label class="wide">Další krok<input id="noteNext" placeholder="Např. převést do pracovního listu, vložit do Notion, ověřit v hodině…"></label>
+                <div class="actions wide">
+                  <button class="btn primary" type="submit">Uložit poznámku</button>
+                  <button class="btn" id="resetNote" type="button">Vyčistit</button>
+                </div>
+              </form>
+            </div>
+          </article>
+          <div class="section-head-actions">
+            <button class="btn secondary" data-action="export-notes-md" type="button">Export MD</button>
+            <button class="btn" data-action="export-notes-csv" type="button">Export CSV</button>
+            <button class="info-dot" type="button" data-tip="Export MD vytvoří přehledný Markdown se všemi poznámkami (název, zdroj, priorita, shrnutí, obsah, další krok) – vhodné pro Notion. Export CSV vytvoří tabulku stejných polí pro Excel/tabulky. Neobsahuje soubory z trezoru.">i</button>
+          </div>
         </section>
 
         <section class="view" id="finance">
           <div class="section-head">
-            <div>
-              <p class="eyebrow">Finance + výplatní pásky</p>
-              <h2>Měsíční bilance, PDF import a odhad budoucích příjmů</h2>
-              <p>PDF výplatní páska se přečte lokálně v prohlížeči. Nalezené částky vždy zkontrolujte, protože každý zaměstnavatel má jiný formát pásky.</p>
+            <div class="head-main">
+              <div>
+                <h2 class="tab-title">Finance a výplatní pásky</h2>
+                <p class="tab-sub">Měsíční přehled příjmů, výdajů a bilance</p>
+              </div>
+              <button class="info-dot" type="button" data-tip="Měsíční přehled se počítá z transakcí. PDF výplatní pásku lze načíst níže – čte se lokálně v prohlížeči přes PDF.js, čte jen prvních pár stran a má limit 10 MB. Nalezené částky jsou návrh, vždy je zkontroluj.">i</button>
             </div>
             <div class="actions">
-              <input id="financeMonth" type="month" class="control-w-170">
-              <input id="financeYear" type="number" min="2000" max="2100" class="control-w-130">
+              <input id="financeMonth" type="month" class="control-w-170" title="Měsíc">
+              <input id="financeYear" type="number" min="2000" max="2100" class="control-w-130" title="Rok">
             </div>
-          </div>
-
-          <div class="pdf-zone">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">PDF čtečka výplatní pásky</p>
-                <h3>Načíst PDF, vytěžit čistou/hrubou mzdu, slevy a odvody</h3>
-                <p>Funguje pro textová PDF. U naskenovaného obrázku bez textové vrstvy aplikace upozorní, že je potřeba OCR.</p>
-              </div>
-              <span class="status warn" id="pdfStatus">PDF čeká na načtení</span>
-            </div>
-            <div class="grid two">
-              <div class="pdf-drop">
-                <div class="pdf-icon">📄</div>
-                <strong>Vyberte PDF výplatní pásku</strong>
-                <input id="payrollPdf" type="file" accept="application/pdf,.pdf">
-                <div class="actions">
-                  <button class="btn primary" id="parsePayrollBtn" type="button">Přečíst PDF</button>
-                  <button class="btn" id="clearPayrollBtn" type="button">Vyčistit import</button>
-                </div>
-                <p class="small">PDF se neodesílá na server. Text se vytahuje v prohlížeči pomocí PDF.js. Pokud necháte zapnuté lokální uložení, nahrajete pásku jednou a zůstane v archivu tohoto zařízení.</p>
-              </div>
-              <div>
-                <div class="form form-two">
-                  <label>Měsíc výplaty<input id="payMonth" type="month"></label>
-                  <label>Zaměstnavatel<input id="payEmployer" placeholder="Volitelné"></label>
-                  <label class="wide">Poznámka<input id="payNote" placeholder="Např. mimořádné odměny, nemoc, dovolená…"></label>
-                  <label class="checkline wide check-strong"><input id="payStorePdf" type="checkbox">Uložit kopii PDF lokálně v tomto zařízení přes IndexedDB</label>
-                  <label class="checkline wide check-strong"><input id="payStoreText" type="checkbox">Uložit extrahovaný text pro budoucí kontrolu a export</label>
-                  <label class="checkline wide check-strong"><input id="payReplaceMonth" type="checkbox" checked>Nahradit starší mzdový příjem za stejný měsíc</label>
-                </div>
-              </div>
-            </div>
-            <div class="payroll-fields" id="payrollFields"></div>
-            <div class="actions mt-14">
-              <button class="btn ok" id="savePayrollBtn" type="button">Uložit pásku a zapsat příjem</button>
-              <button class="btn" data-action="export-payrolls-csv" type="button">Export pásek CSV</button>
-            </div>
-            <details class="mt-14">
-              <summary>Ukázat extrahovaný text z PDF</summary>
-              <div class="raw-text" id="payrollRawText">Zatím není načteno žádné PDF.</div>
-            </details>
           </div>
 
           <div class="kpis" id="financeKpis"></div>
+
           <div class="grid two">
             <article class="panel">
-              <div class="panel-head">
-                <div>
-                  <p class="eyebrow">Odhad</p>
-                  <h3>Budoucí příjmy podle výplatních pásek</h3>
-                  <p>Počítá se z uložených čistých mezd. Mimořádné odměny nebo nemoc si označte v poznámce.</p>
-                </div>
-              </div>
-              <div id="payrollForecast"></div>
+              <div class="panel-head"><div><p class="eyebrow">Roční graf</p><h3>Příjmy, výdaje, bilance</h3></div></div>
+              <div class="chart" id="annualFinanceChart"></div>
             </article>
             <article class="panel">
-              <div class="panel-head">
-                <div>
-                  <p class="eyebrow">Kategorie</p>
-                  <h3>Výdaje ve vybraném měsíci</h3>
-                </div>
-              </div>
+              <div class="panel-head"><div><p class="eyebrow">Kategorie</p><h3>Výdaje ve vybraném měsíci</h3></div></div>
               <div id="expenseBars" class="bar-list"></div>
             </article>
           </div>
 
-          <div class="split">
+          <article class="panel">
+            <div class="panel-head">
+              <div><p class="eyebrow">Měsíční přehled</p><h3>Transakce</h3></div>
+              <div class="actions"><button class="btn" data-action="export-transactions-csv" type="button">Export CSV</button></div>
+            </div>
+            <div class="filters filter-four">
+              <input id="transSearch" type="search" placeholder="Hledat v transakcích…">
+              <select id="transKindFilter" title="Typ"><option value="all">Vše</option><option value="income">Příjmy</option><option value="expense">Výdaje</option></select>
+              <select id="transSourceFilter" title="Zdroj"><option value="all">Všechny zdroje</option><option value="manual">Ruční</option><option value="payroll">Výplatní pásky</option></select>
+              <select id="transPeriodFilter" title="Období"><option value="selected">Vybraný měsíc</option><option value="year">Celý rok</option><option value="all">Vše</option></select>
+            </div>
+            <div class="list" id="transactionsList"></div>
+          </article>
+
+          <div class="grid two">
             <article class="panel">
-              <div class="panel-head">
-                <div><p class="eyebrow">Roční graf</p><h3>Příjmy, výdaje, bilance</h3></div>
-              </div>
-              <div class="chart" id="annualFinanceChart"></div>
+              <div class="panel-head"><div><p class="eyebrow">Odhad</p><h3>Budoucí příjmy podle pásek</h3></div></div>
+              <div id="payrollForecast"></div>
             </article>
             <article class="panel">
-              <div class="panel-head"><div><p class="eyebrow">Transakce</p><h3>Přidat příjem nebo výdaj</h3></div></div>
+              <div class="panel-head"><div><p class="eyebrow">Archiv pásek</p><h3>Uložené výplatní pásky</h3></div></div>
+              <div class="list" id="payrollList"></div>
+            </article>
+          </div>
+
+          <article class="panel add-card" id="payrollAddCard" data-collapsed="true">
+            <button class="add-card-head" type="button" data-toggle-add="payrollAddCard"><span>📄 Načíst PDF výplatní pásku</span><span class="chev">▾</span></button>
+            <div class="add-card-body">
+              <div class="pdf-zone">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">PDF čtečka výplatní pásky</p>
+                    <h3>Načíst PDF, vytěžit čistou/hrubou mzdu, slevy a odvody</h3>
+                  </div>
+                  <span class="status warn" id="pdfStatus">PDF čeká na načtení</span>
+                </div>
+                <div class="grid two">
+                  <div class="pdf-drop">
+                    <div class="pdf-icon">📄</div>
+                    <strong>Vyberte PDF výplatní pásku</strong>
+                    <input id="payrollPdf" type="file" accept="application/pdf,.pdf">
+                    <div class="actions">
+                      <button class="btn primary" id="parsePayrollBtn" type="button">Přečíst PDF</button>
+                      <button class="btn" id="clearPayrollBtn" type="button">Vyčistit import</button>
+                    </div>
+                    <p class="small">PDF se neodesílá na server. Text se vytahuje v prohlížeči pomocí PDF.js.</p>
+                  </div>
+                  <div>
+                    <div class="form form-two">
+                      <label>Měsíc výplaty<input id="payMonth" type="month"></label>
+                      <label>Zaměstnavatel<input id="payEmployer" placeholder="Volitelné"></label>
+                      <label class="wide">Poznámka<input id="payNote" placeholder="Např. mimořádné odměny, nemoc, dovolená…"></label>
+                      <label class="checkline wide check-strong"><input id="payStorePdf" type="checkbox">Uložit kopii PDF lokálně v tomto zařízení přes IndexedDB</label>
+                      <label class="checkline wide check-strong"><input id="payStoreText" type="checkbox">Uložit extrahovaný text pro budoucí kontrolu a export</label>
+                      <label class="checkline wide check-strong"><input id="payReplaceMonth" type="checkbox" checked>Nahradit starší mzdový příjem za stejný měsíc</label>
+                    </div>
+                  </div>
+                </div>
+                <div class="payroll-fields" id="payrollFields"></div>
+                <div class="actions mt-14">
+                  <button class="btn ok" id="savePayrollBtn" type="button">Uložit pásku a zapsat příjem</button>
+                  <button class="btn" data-action="export-payrolls-csv" type="button">Export pásek CSV</button>
+                </div>
+                <details class="mt-14">
+                  <summary>Ukázat extrahovaný text z PDF</summary>
+                  <div class="raw-text" id="payrollRawText">Zatím není načteno žádné PDF.</div>
+                </details>
+              </div>
+            </div>
+          </article>
+
+          <article class="panel add-card" id="transAddCard" data-collapsed="true">
+            <button class="add-card-head" type="button" data-toggle-add="transAddCard"><span>➕ Přidat příjem nebo výdaj</span><span class="chev">▾</span></button>
+            <div class="add-card-body">
               <form class="form form-two" id="transactionForm">
                 <input type="hidden" id="transId">
                 <label>Datum<input id="transDate" type="date" required></label>
@@ -244,48 +270,77 @@
                   <button class="btn" id="resetTrans" type="button">Vyčistit</button>
                 </div>
               </form>
-            </article>
-          </div>
-
-          <article class="panel">
-            <div class="panel-head">
-              <div><p class="eyebrow">Měsíční přehled</p><h3>Transakce</h3></div>
-              <div class="actions"><button class="btn" data-action="export-transactions-csv" type="button">Export CSV</button></div>
             </div>
-            <div class="filters filter-four">
-              <input id="transSearch" type="search" placeholder="Hledat v transakcích…">
-              <select id="transKindFilter"><option value="all">Vše</option><option value="income">Příjmy</option><option value="expense">Výdaje</option></select>
-              <select id="transSourceFilter"><option value="all">Všechny zdroje</option><option value="manual">Ruční</option><option value="payroll">Výplatní pásky</option></select>
-              <select id="transPeriodFilter"><option value="selected">Vybraný měsíc</option><option value="year">Celý rok</option><option value="all">Vše</option></select>
-            </div>
-            <div class="list" id="transactionsList"></div>
-          </article>
-
-          <article class="panel">
-            <div class="panel-head">
-              <div><p class="eyebrow">Archiv pásek</p><h3>Uložené výplatní pásky a nalezené hodnoty</h3></div>
-            </div>
-            <div class="list" id="payrollList"></div>
           </article>
         </section>
 
+        <section class="view" id="installments">
+          <div class="section-head">
+            <div class="head-main">
+              <div>
+                <h2 class="tab-title">Splátkový kalendář</h2>
+                <p class="tab-sub">Komu splácíš, kolik měsíčně a kolik ještě zbývá</p>
+              </div>
+              <button class="info-dot" type="button" data-tip="Zadej komu splácíš, celkovou částku, měsíční splátku a od kdy. Aplikace dopočítá zbývající částku i měsíc konce. Jednou týdně tě při otevření upozorní na zbývající částky – povol notifikace tlačítkem níže.">i</button>
+            </div>
+            <div class="actions"><button class="btn secondary" id="enableNotifBtn" type="button">Povolit týdenní notifikace</button></div>
+          </div>
+          <div class="kpis" id="installmentKpis"></div>
+          <article class="panel">
+            <div class="panel-head"><div><p class="eyebrow">Přehled</p><h3>Aktivní splátky</h3></div></div>
+            <div class="list" id="installmentsList"></div>
+          </article>
+          <article class="panel add-card" id="instAddCard" data-collapsed="true">
+            <button class="add-card-head" type="button" data-toggle-add="instAddCard"><span>➕ Nový splátkový kalendář</span><span class="chev">▾</span></button>
+            <div class="add-card-body">
+              <form class="form form-two" id="instForm">
+                <input type="hidden" id="instId">
+                <label class="wide">Komu splácím<input id="instCreditor" required placeholder="Např. Hypotéka ČSOB, půjčka na auto, táta…"></label>
+                <label>Celková částka<input id="instTotal" type="number" min="0" step="0.01" required placeholder="0"></label>
+                <label>Měsíční splátka<input id="instMonthly" type="number" min="0" step="0.01" required placeholder="0"></label>
+                <label>Od měsíce<input id="instStart" type="month"></label>
+                <label>Už splaceno<input id="instPaid" type="number" min="0" step="0.01" placeholder="0"></label>
+                <label>Den v měsíci (splatnost)<input id="instDueDay" type="number" min="1" max="31" placeholder="15"></label>
+                <label class="wide">Poznámka<input id="instNote" placeholder="Číslo smlouvy, úrok, poznámka…"></label>
+                <div class="actions wide">
+                  <button class="btn primary" type="submit">Uložit splátkový kalendář</button>
+                  <button class="btn" id="resetInst" type="button">Vyčistit</button>
+                </div>
+              </form>
+            </div>
+          </article>
+        </section>
 
         <section class="view" id="vault">
           <div class="section-head">
-            <div>
-              <p class="eyebrow">Šifrovaný trezor dokumentů</p>
-              <h2>Nahrát lokálně, mít po ruce v tomto zařízení</h2>
-              <p>Sem patří soukromé PDF, obrázky, exporty, faktury nebo jiné podklady. Soubory se ukládají do IndexedDB v prohlížeči, nikoli do GitHub repozitáře. Nejde o šifrovaný archiv, ale o šifrovaný trezor daného zařízení.</p>
+            <div class="head-main">
+              <div>
+                <h2 class="tab-title">Šifrovaný trezor dokumentů</h2>
+                <p class="tab-sub">Nahrát lokálně, mít po ruce v tomto zařízení</p>
+              </div>
+              <button class="info-dot" type="button" data-tip="Soubory se ukládají zašifrovaně (AES‑GCM 256) do IndexedDB v tomto prohlížeči, ne na GitHub. Klíč vzniká z tvého hesla. Kapacitu určuje úložiště prohlížeče – níže vidíš odhad využití. Při smazání dat prohlížeče o obsah přijdeš, drž si i zálohu.">i</button>
             </div>
             <div class="actions">
               <button class="btn secondary" id="requestPersist" type="button">Požádat o trvalé úložiště</button>
               <button class="btn" data-action="export-vault-csv" type="button">Export indexu CSV</button>
             </div>
           </div>
-          <div class="alert warn"><strong>Důležité:</strong> šifrovaný trezor není šifrovaný archiv. Při smazání dat prohlížeče, továrním resetu nebo přístupu jiné osoby k profilu prohlížeče může být obsah ztracený nebo dostupný. Citlivé zálohy ukládejte šifrovaně a mimo veřejný GitHub.</div>
-          <div class="grid two">
-            <article class="panel">
-              <div class="panel-head"><div><p class="eyebrow">Přidat dokument</p><h3>Soubor zůstane lokálně</h3></div></div>
+          <article class="panel">
+            <div class="panel-head"><div><p class="eyebrow">Kapacita</p><h3>Využití lokálního úložiště</h3></div></div>
+            <div id="vaultCapacity" class="capacity-meter"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-head"><div><p class="eyebrow">Archiv</p><h3>Uložené dokumenty</h3></div></div>
+            <div class="filters filter-three">
+              <input id="vaultSearch" type="search" placeholder="Hledat v lokálním archivu…">
+              <select id="vaultCategoryFilter" title="Typ"><option value="all">Všechny typy</option></select>
+              <select id="vaultSort" title="Řazení"><option value="new">Nejnovější</option><option value="title">Název</option><option value="category">Typ</option></select>
+            </div>
+            <div class="list" id="vaultList"></div>
+          </article>
+          <article class="panel add-card" id="vaultAddCard" data-collapsed="true">
+            <button class="add-card-head" type="button" data-toggle-add="vaultAddCard"><span>➕ Přidat dokument do trezoru</span><span class="chev">▾</span></button>
+            <div class="add-card-body">
               <form class="form" id="vaultForm">
                 <input type="hidden" id="vaultId">
                 <label class="half">Název dokumentu<input id="vaultTitle" required placeholder="Např. Výplatní páska 2026-06, faktura, potvrzení…"></label>
@@ -298,74 +353,83 @@
                   <button class="btn" id="resetVault" type="button">Vyčistit</button>
                 </div>
               </form>
-            </article>
-            <article class="panel">
-              <div class="panel-head"><div><p class="eyebrow">Jak s tím pracovat</p><h3>Repozitář ≠ osobní data</h3></div></div>
-              <div class="list">
-                <div class="item"><h4>GitHub</h4><p>Nahrávejte jen aplikaci, demo data nebo anonymizovaný/šifrovaný export. Originální PDF a soukromé JSON zálohy do veřejného repozitáře nepatří.</p></div>
-                <div class="item"><h4>Notion</h4><p>Pro soukromý Notion použijte Markdown/CSV export. Pro veřejné sdílení použijte anonymizovaný export bez jmen, souborů, URL a raw textu.</p></div>
-                <div class="item"><h4>Záloha</h4><p>Archiv je lokální. Pro dlouhodobou archivaci si stáhněte soukromou nebo šifrovanou zálohu a uložte ji do bezpečného úložiště mimo veřejný GitHub.</p></div>
-              </div>
-            </article>
-          </div>
-          <article class="panel">
-            <div class="panel-head"><div><p class="eyebrow">Archiv</p><h3>Uložené dokumenty</h3></div></div>
-            <div class="filters filter-three">
-              <input id="vaultSearch" type="search" placeholder="Hledat v lokálním archivu…">
-              <select id="vaultCategoryFilter"><option value="all">Všechny typy</option></select>
-              <select id="vaultSort"><option value="new">Nejnovější</option><option value="title">Název</option><option value="category">Typ</option></select>
             </div>
-            <div class="list" id="vaultList"></div>
           </article>
         </section>
 
         <section class="view" id="tasks">
           <div class="section-head">
-            <div>
-              <p class="eyebrow">To-do list</p>
-              <h2>Nutné, tento měsíc a dlouhodobé úkoly</h2>
-              <p>Rychle připisujte úkoly, odškrtávejte hotové a filtrujte podle oblasti nebo textu.</p>
+            <div class="head-main">
+              <div>
+                <h2 class="tab-title">To-do list</h2>
+                <p class="tab-sub">Úkoly podle priority a časového horizontu</p>
+              </div>
+              <button class="info-dot" type="button" data-tip="Priorita = jak moc to hoří (vysoká / střední / nízká). Časový horizont = kdy to řešíš (tento týden / tento měsíc / dlouhodobě). Jsou to dvě nezávislé osy – úkol může být vysoce prioritní i dlouhodobý.">i</button>
             </div>
-            <div class="actions"><button class="btn" data-action="export-tasks-csv" type="button">Export CSV</button><button class="btn secondary" data-action="export-tasks-md" type="button">Export MD</button></div>
           </div>
-          <article class="panel">
-            <form class="form" id="taskForm">
-              <input type="hidden" id="taskId">
-              <label class="half">Úkol<input id="taskTitle" required placeholder="Co je potřeba udělat?"></label>
-              <label>Priorita<select id="taskPriority"><option value="urgent">Nutné</option><option value="month">Tento měsíc</option><option value="long">Dlouhodobé</option></select></label>
-              <label>Termín<input id="taskDue" type="date"></label>
-              <label>Oblast<input id="taskArea" placeholder="škola, domácnost, finance…"></label>
-              <label class="wide">Poznámka<input id="taskNote" placeholder="Volitelný detail"></label>
-              <div class="actions wide"><button class="btn primary" type="submit">Uložit úkol</button><button class="btn" id="resetTask" type="button">Vyčistit</button></div>
-            </form>
-          </article>
           <article class="panel">
             <div class="filters filter-four">
               <input id="taskSearch" type="search" placeholder="Hledat v úkolech…">
-              <select id="taskStatusFilter"><option value="open">Nedokončené</option><option value="all">Vše</option><option value="done">Hotové</option></select>
-              <select id="taskAreaFilter"><option value="all">Všechny oblasti</option></select>
-              <select id="taskSort"><option value="priority">Priorita</option><option value="due">Termín</option><option value="new">Nejnovější</option></select>
+              <select id="taskStatusFilter" title="Stav"><option value="open">Nedokončené</option><option value="all">Vše</option><option value="done">Hotové</option></select>
+              <select id="taskAreaFilter" title="Oblast"><option value="all">Všechny oblasti</option></select>
+              <select id="taskSort" title="Řazení"><option value="priority">Priorita</option><option value="due">Termín</option><option value="new">Nejnovější</option></select>
             </div>
             <div class="task-board" id="taskBoard"></div>
           </article>
+          <article class="panel add-card" id="taskAddCard" data-collapsed="true">
+            <button class="add-card-head" type="button" data-toggle-add="taskAddCard"><span>➕ Nový úkol</span><span class="chev">▾</span></button>
+            <div class="add-card-body">
+              <form class="form" id="taskForm">
+                <input type="hidden" id="taskId">
+                <label class="half">Úkol<input id="taskTitle" required placeholder="Co je potřeba udělat?"></label>
+                <label>Priorita<select id="taskPriority"><option value="high">🔴 Vysoká</option><option value="normal" selected>🟡 Střední</option><option value="low">🟢 Nízká</option></select></label>
+                <label>Časový horizont<select id="taskHorizon"><option value="week">Tento týden</option><option value="month" selected>Tento měsíc</option><option value="long">Dlouhodobé</option></select></label>
+                <label>Termín<input id="taskDue" type="date"></label>
+                <label>Oblast<input id="taskArea" placeholder="škola, domácnost, finance…"></label>
+                <label class="wide">Poznámka<input id="taskNote" placeholder="Volitelný detail"></label>
+                <div class="actions wide"><button class="btn primary" type="submit">Uložit úkol</button><button class="btn" id="resetTask" type="button">Vyčistit</button></div>
+              </form>
+            </div>
+          </article>
+          <div class="section-head-actions">
+            <button class="btn" data-action="export-tasks-csv" type="button">Export CSV</button>
+            <button class="btn secondary" data-action="export-tasks-md" type="button">Export MD</button>
+          </div>
         </section>
 
         <section class="view" id="shopping">
           <div class="section-head">
-            <div>
-              <p class="eyebrow">Nákupní plán</p>
-              <h2>Co koupit urgentně, brzy a časem</h2>
-              <p>U každé položky evidujte prioritu, odhad ceny a plánovaný měsíc. Aplikace počítá měsíční i roční zátěž.</p>
+            <div class="head-main">
+              <div>
+                <h2 class="tab-title">Nákupní plán</h2>
+                <p class="tab-sub">Velké nákupy pro dům i běžné potraviny</p>
+              </div>
+              <button class="info-dot" type="button" data-tip="Rozliš velké nákupy pro dům / obecné od běžných potravin. U potravin zvol obchod (Lidl, Albert…). Graf a roční plán počítají s odhadem ceny a plánovaným měsícem – hodí se hlavně pro velké nákupy.">i</button>
             </div>
-            <div class="actions"><button class="btn" data-action="export-shopping-csv" type="button">Export CSV</button><button class="btn secondary" data-action="export-shopping-md" type="button">Export MD</button></div>
           </div>
           <div class="kpis" id="shoppingKpis"></div>
-          <div class="grid two">
-            <article class="panel">
-              <div class="panel-head"><div><p class="eyebrow">Nová položka</p><h3>Přidat nákup</h3></div></div>
+          <article class="panel">
+            <div class="panel-head"><div><p class="eyebrow">Graf</p><h3>Roční nákupní plán (velké nákupy)</h3></div><input id="shoppingYear" type="number" min="2000" max="2100" class="control-w-130" title="Rok"></div>
+            <div class="chart" id="shoppingChart"></div>
+          </article>
+          <article class="panel">
+            <div class="filters filter-five">
+              <input id="shopSearch" type="search" placeholder="Hledat v nákupech…">
+              <select id="shopSegmentFilter" title="Druh"><option value="all">Vše</option><option value="general">Dům / velké</option><option value="groceries">Potraviny</option></select>
+              <select id="shopPriorityFilter" title="Priorita"><option value="all">Všechny priority</option><option value="urgent">Urgentní</option><option value="soon">Brzy</option><option value="later">Dlouhodobé</option></select>
+              <select id="shopStatusFilter" title="Stav"><option value="open">Aktivní</option><option value="all">Vše</option><option value="bought">Koupené</option><option value="paused">Odložené</option></select>
+              <select id="shopSort" title="Řazení"><option value="priority">Priorita</option><option value="month">Měsíc</option><option value="price">Cena</option><option value="new">Nejnovější</option></select>
+            </div>
+            <div class="list" id="shoppingList"></div>
+          </article>
+          <article class="panel add-card" id="shopAddCard" data-collapsed="true">
+            <button class="add-card-head" type="button" data-toggle-add="shopAddCard"><span>➕ Přidat nákup</span><span class="chev">▾</span></button>
+            <div class="add-card-body">
               <form class="form form-two" id="shoppingForm">
                 <input type="hidden" id="shopId">
-                <label class="wide">Název<input id="shopName" required placeholder="Např. nový telefon, oprava auta…"></label>
+                <label class="wide">Název<input id="shopName" required placeholder="Např. nový telefon, mléko, oprava auta…"></label>
+                <label>Druh<select id="shopSegment"><option value="general">Dům / velké nákupy</option><option value="groceries">Potraviny</option></select></label>
+                <label>Obchod<select id="shopStore"><option value="">—</option><option>Lidl</option><option>Albert</option><option>Kaufland</option><option>Billa</option><option>Tesco</option><option>Globus</option><option>Hornbach</option><option>OBI</option><option>Jiný</option></select></label>
                 <label>Priorita<select id="shopPriority"><option value="urgent">Musím urgentně koupit</option><option value="soon">Bylo by dobré brzy</option><option value="later">Dlouhodobější plán</option></select></label>
                 <label>Stav<select id="shopStatus"><option value="planned">Plánováno</option><option value="bought">Koupeno</option><option value="paused">Odloženo</option></select></label>
                 <label>Kategorie<input id="shopCategory" placeholder="elektronika, domácnost…"></label>
@@ -375,30 +439,78 @@
                 <label class="wide">Poznámka<input id="shopNote" placeholder="Proč to chci/potřebuji, alternativa, sleva…"></label>
                 <div class="actions wide"><button class="btn primary" type="submit">Uložit nákup</button><button class="btn" id="resetShop" type="button">Vyčistit</button></div>
               </form>
-            </article>
+            </div>
+          </article>
+          <div class="section-head-actions">
+            <button class="btn" data-action="export-shopping-csv" type="button">Export CSV</button>
+            <button class="btn secondary" data-action="export-shopping-md" type="button">Export MD</button>
+          </div>
+        </section>
+
+        <section class="view" id="apps">
+          <div class="section-head">
+            <div class="head-main">
+              <div>
+                <h2 class="tab-title">Moje aplikace</h2>
+                <p class="tab-sub">Přehled tvých aplikací a nápady ke každé zvlášť</p>
+              </div>
+              <button class="info-dot" type="button" data-tip="Eviduj aplikace, které jsi vytvořil. Po rozkliknutí aplikace přidáš přes + poznámku – nápad, úkol nebo odkaz jen k té jedné aplikaci. Vše máš pěkně pohromadě.">i</button>
+            </div>
+          </div>
+
+          <div id="appsListView">
             <article class="panel">
-              <div class="panel-head"><div><p class="eyebrow">Graf</p><h3>Roční nákupní plán</h3></div><input id="shoppingYear" type="number" min="2000" max="2100" class="control-w-130"></div>
-              <div class="chart" id="shoppingChart"></div>
+              <div class="filters filter-three">
+                <input id="appSearch" type="search" placeholder="Hledat v aplikacích…">
+                <select id="appSort" title="Řazení"><option value="new">Nejnovější</option><option value="name">Název</option><option value="notes">Nejvíc poznámek</option></select>
+                <span></span>
+              </div>
+              <div class="list" id="appsList"></div>
+            </article>
+            <article class="panel add-card" id="appAddCard" data-collapsed="true">
+              <button class="add-card-head" type="button" data-toggle-add="appAddCard"><span>➕ Přidat aplikaci</span><span class="chev">▾</span></button>
+              <div class="add-card-body">
+                <form class="form form-two" id="appForm">
+                  <input type="hidden" id="appId">
+                  <label class="wide">Název aplikace<input id="appName" required placeholder="Např. LUDUS, Generátor testů, Hogwarts Grammar…"></label>
+                  <label>Odkaz / URL<input id="appUrl" type="url" placeholder="https://…"></label>
+                  <label>Štítek<input id="appTag" placeholder="hra, nástroj, výuka…"></label>
+                  <label class="wide">Popis<input id="appNote" placeholder="Krátce k čemu aplikace je"></label>
+                  <div class="actions wide"><button class="btn primary" type="submit">Uložit aplikaci</button><button class="btn" id="resetApp" type="button">Vyčistit</button></div>
+                </form>
+              </div>
             </article>
           </div>
-          <article class="panel">
-            <div class="filters filter-five">
-              <input id="shopSearch" type="search" placeholder="Hledat v nákupech…">
-              <select id="shopPriorityFilter"><option value="all">Všechny priority</option><option value="urgent">Urgentní</option><option value="soon">Brzy</option><option value="later">Dlouhodobé</option></select>
-              <select id="shopStatusFilter"><option value="open">Aktivní</option><option value="all">Vše</option><option value="bought">Koupené</option><option value="paused">Odložené</option></select>
-              <select id="shopCategoryFilter"><option value="all">Všechny kategorie</option></select>
-              <select id="shopSort"><option value="priority">Priorita</option><option value="month">Měsíc</option><option value="price">Cena</option><option value="new">Nejnovější</option></select>
-            </div>
-            <div class="list" id="shoppingList"></div>
-          </article>
+
+          <div id="appDetailView" class="hide">
+            <article class="panel">
+              <div class="app-notes-head">
+                <button class="back-btn" id="appBackBtn" type="button">← Zpět na aplikace</button>
+                <div id="appDetailTitle"></div>
+              </div>
+              <div id="appDetailMeta"></div>
+              <div class="list" id="appNotesList"></div>
+            </article>
+            <article class="panel add-card" id="appNoteAddCard" data-collapsed="true">
+              <button class="add-card-head" type="button" data-toggle-add="appNoteAddCard"><span>➕ Přidat poznámku k aplikaci</span><span class="chev">▾</span></button>
+              <div class="add-card-body">
+                <form class="form" id="appNoteForm">
+                  <label class="wide">Poznámka<textarea id="appNoteText" rows="4" required placeholder="Nápad, úkol, odkaz nebo cokoli k této aplikaci…"></textarea></label>
+                  <div class="actions wide"><button class="btn primary" type="submit">Uložit poznámku</button></div>
+                </form>
+              </div>
+            </article>
+          </div>
         </section>
 
         <section class="view" id="exports">
           <div class="section-head">
-            <div>
-              <p class="eyebrow">Export, záloha a Notion</p>
-              <h2>Stáhnout vše nebo jednotlivé části</h2>
-              <p>Rozlišujte soukromou zálohu, anonymizovaný export a import do Notion. Originální PDF ani jiné soubory se do veřejného exportu nikdy nepřidávají.</p>
+            <div class="head-main">
+              <div>
+                <h2 class="tab-title">Export, záloha a Notion</h2>
+                <p class="tab-sub">Stáhnout vše nebo jednotlivé části</p>
+              </div>
+              <button class="info-dot" type="button" data-tip="Soukromá záloha obsahuje osobní data a používej ji mimo veřejný repozitář. Anonymizovaný export používá kvartály a rozsahy. Pro Notion použij Markdown (dlouhé texty) a CSV (tabulky). Originální PDF a soubory z trezoru se do exportu nikdy nepřidávají.">i</button>
             </div>
           </div>
           <div class="grid two">
@@ -429,8 +541,8 @@
           </div>
           <article class="panel">
             <div class="panel-head"><div><p class="eyebrow">Anonymizace</p><h3>Export pro veřejný GitHub nebo sdílení bez originálů</h3></div></div>
-            <p class="small">Anonymizovaný export neobsahuje PDF, soubory z šifrovaného trezoru, názvy souborů, URL, extrahovaný raw text, poznámkové obsahy ani jména zaměstnavatelů. U financí používá kvartály a finanční rozsahy, aby nebyly veřejně vidět přesné měsíce ani přesné částky.</p>
-            <div class="alert warn"><strong>Pozor:</strong> pokud je export veřejně vedle aplikace s vaším jménem v patičce, nejde o dokonalou anonymitu, ale o výrazné odstranění identifikátorů. Pro opravdu soukromá data používejte soukromou zálohu mimo veřejný repo.</div>
+            <p class="small">Anonymizovaný export neobsahuje PDF, soubory z šifrovaného trezoru, názvy souborů, URL, extrahovaný raw text, poznámkové obsahy ani jména zaměstnavatelů. U financí používá kvartály a finanční rozsahy.</p>
+            <div class="alert warn"><strong>Pozor:</strong> pokud je export veřejně vedle aplikace s vaším jménem v patičce, nejde o dokonalou anonymitu, ale o výrazné odstranění identifikátorů.</div>
             <div class="actions">
               <button class="btn primary" data-action="export-anon-md" type="button">Anonymizovaný Markdown</button>
               <button class="btn secondary" data-action="export-anon-json" type="button">Anonymizovaný JSON</button>
@@ -445,17 +557,20 @@
 
         <section class="view" id="settings">
           <div class="section-head">
-            <div>
-              <p class="eyebrow">Nastavení</p>
-              <h2>Vlastník, vzhled, testy aplikace</h2>
-              <p>Testovací nástroje jsou dole nad patičkou, aby nepřekážely běžnému používání.</p>
+            <div class="head-main">
+              <div>
+                <h2 class="tab-title">Nastavení</h2>
+                <p class="tab-sub">Vlastník, oslovení, vzhled a testy aplikace</p>
+              </div>
+              <button class="info-dot" type="button" data-tip="Jméno pro pozdrav se zobrazí po odemčení a na úvodní stránce. Testovací nástroje jsou dole nad patičkou, aby nepřekážely běžnému používání.">i</button>
             </div>
           </div>
           <div class="grid two">
             <article class="panel">
-              <div class="panel-head"><div><p class="eyebrow">Patička</p><h3>Údaje o vlastníkovi</h3></div></div>
+              <div class="panel-head"><div><p class="eyebrow">Osobní</p><h3>Oslovení a patička</h3></div></div>
               <form class="form form-one" id="settingsForm">
-                <label>Jméno/vlastník<input id="ownerName" placeholder="Např. Mgr. …"></label>
+                <label>Jméno pro pozdrav<input id="greetName" placeholder="Např. Dane"></label>
+                <label>Jméno/vlastník (patička)<input id="ownerName" placeholder="Např. Mgr. …"></label>
                 <label>Text patičky<textarea id="ownerFooter" rows="3" placeholder="Text ve spodní části aplikace"></textarea></label>
                 <label>Měna<input id="currency" placeholder="Kč"></label>
                 <label>Měsíční cíl úspory<input id="savingGoal" type="number" min="0" step="100" placeholder="0"></label>
@@ -482,19 +597,22 @@
 
         <section class="view" id="help">
           <div class="section-head">
-            <div>
-              <p class="eyebrow">Nápověda</p>
-              <h2>Jak LifeHub používat</h2>
+            <div class="head-main">
+              <div>
+                <h2 class="tab-title">Nápověda</h2>
+                <p class="tab-sub">Jak LifeHub používat</p>
+              </div>
             </div>
           </div>
           <article class="panel">
             <h3>Praktický workflow</h3>
             <div class="grid two">
-              <div class="item"><h4>1. AI vlákna</h4><p>Po dobré odpovědi z ChatGPT/Claude uložte název, stručné shrnutí, tagy, použitelný prompt a další krok.</p></div>
-              <div class="item"><h4>2. Výplatní pásky</h4><p>Ve Financích načtěte PDF, zkontrolujte rozpoznané hodnoty a uložte. Čistá mzda se zapíše jako příjem daného měsíce; PDF může zůstat lokálně v archivu.</p></div>
-              <div class="item"><h4>3. Šifrovaný trezor</h4><p>Soukromé dokumenty nahrajte v části Archiv. Budou dostupné z aplikace na daném zařízení, ale nebudou součástí veřejného GitHubu.</p></div>
-              <div class="item"><h4>4. Úkoly a nákupy</h4><p>Rozdělujte podle naléhavosti. Dashboard pak ukáže, co je urgentní a kolik stojí plánované nákupy.</p></div>
-              <div class="item"><h4>5. Zálohy a anonymizace</h4><p>Soukromou JSON zálohu ukládejte mimo veřejný repozitář. Pro GitHub používejte anonymizovaný export bez PDF, názvů souborů a raw textu.</p></div>
+              <div class="item"><h4>1. AI vlákna</h4><p>Po dobré odpovědi z ChatGPT/Claude ulož název, stručné shrnutí, tagy, použitelný prompt a další krok. Poznámku pak otevřeš klikem a přečteš celý obsah.</p></div>
+              <div class="item"><h4>2. Výplatní pásky</h4><p>Ve Financích otevři čtečku PDF (tlačítko dole), zkontroluj rozpoznané hodnoty a ulož. Čistá mzda se zapíše jako příjem daného měsíce.</p></div>
+              <div class="item"><h4>3. Šifrovaný trezor</h4><p>Soukromé dokumenty nahraj v části Archiv. Kapacitu úložiště vidíš nahoře. Nebudou součástí veřejného GitHubu.</p></div>
+              <div class="item"><h4>4. Úkoly a nákupy</h4><p>U úkolů odděl prioritu (jak to hoří) a časový horizont (kdy). U nákupů rozliš dům/velké od potravin.</p></div>
+              <div class="item"><h4>5. Splátky</h4><p>V sekci Splátky si nastav, komu kolik splácíš. Aplikace hlídá, kolik zbývá, a jednou týdně to připomene.</p></div>
+              <div class="item"><h4>6. Aplikace</h4><p>V sekci Aplikace si drž přehled projektů. Ke každé aplikaci přidáš přes + samostatné poznámky.</p></div>
             </div>
           </article>
           <article class="panel">
@@ -508,10 +626,11 @@
     </div>
   </div>
 
+  <button class="fab" id="fab" type="button" hidden aria-label="Rychlé přidání"><span class="fab-label" id="fabLabel"></span>+</button>
 
   <div class="lock-screen active" id="lockScreen" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
     <div class="lock-card">
-      <p class="eyebrow">LifeHub 3.0 secure vault</p>
+      <p class="eyebrow">LifeHub 3.2 secure vault</p>
       <h2 id="lockTitle">Odemknout šifrovaný LifeHub</h2>
       <p id="lockIntro">Data aplikace jsou chráněná heslem. Bez hesla se lokální poznámky, finance ani dokumenty nenačtou.</p>
       <div class="lock-note" id="lockNote">Při prvním spuštění si nastavíte heslo. Starší nešifrovaná data z LifeHub 2.x lze jednorázově převést do šifrovaného úložiště.</div>
