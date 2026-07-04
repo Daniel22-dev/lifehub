@@ -437,3 +437,100 @@
     .w-98{width:98%}
     .w-99{width:99%}
     .w-100{width:100%}
+
+    /* ===== LifeHub 3.2 – nové UI prvky ===== */
+    /* Sjednocená typografie nadpisů: kategorie největší, podtitul menší, pomocný text nejmenší */
+    .section-head h2, .section-head .tab-title{margin:0;font-size:clamp(1.55rem,3vw,2.35rem);font-weight:900;letter-spacing:-.035em;line-height:1.1}
+    .section-head .tab-sub{margin:6px 0 0;font-size:1.02rem;font-weight:700;color:var(--text);line-height:1.4;max-width:850px}
+    .section-head .tab-hint{margin:5px 0 0;font-size:.85rem;font-weight:600;color:var(--muted);line-height:1.4;max-width:850px}
+    .panel-head h3{font-size:1.18rem;font-weight:800}
+    .section-head .head-main{display:flex;align-items:flex-start;gap:9px;min-width:0}
+    .section-head-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:8px}
+
+    /* Info tooltip (technické detaily jako bublina v každé sekci) */
+    .info-dot{
+      flex:0 0 auto;width:24px;height:24px;min-height:24px;padding:0;border-radius:50%;
+      border:1px solid var(--border-strong);background:var(--surface-soft);color:var(--muted);
+      font-weight:900;font-size:.82rem;line-height:1;display:inline-grid;place-items:center;position:relative
+    }
+    .info-dot:hover,.info-dot[data-open="true"]{color:var(--text);border-color:var(--primary)}
+    .info-dot::after{
+      content:attr(data-tip);position:absolute;top:130%;left:50%;transform:translateX(-50%);
+      width:min(74vw,320px);padding:11px 13px;border-radius:14px;border:1px solid var(--border-strong);
+      background:var(--surface-solid);color:var(--text);box-shadow:var(--shadow-soft);
+      font-size:.82rem;font-weight:600;line-height:1.5;text-align:left;white-space:pre-line;
+      z-index:60;opacity:0;visibility:hidden;transition:.14s ease;pointer-events:none
+    }
+    .info-dot::before{
+      content:"";position:absolute;top:118%;left:50%;transform:translateX(-50%) rotate(45deg);
+      width:12px;height:12px;background:var(--surface-solid);border-left:1px solid var(--border-strong);border-top:1px solid var(--border-strong);
+      z-index:61;opacity:0;visibility:hidden;transition:.14s ease
+    }
+    .info-dot[data-open="true"]::after,.info-dot[data-open="true"]::before{opacity:1;visibility:visible}
+    @media(hover:hover){.info-dot:hover::after,.info-dot:hover::before{opacity:1;visibility:visible}}
+    .info-dot.tip-right::after{left:auto;right:0;transform:none}
+    .info-dot.tip-right::before{left:auto;right:6px;transform:rotate(45deg)}
+
+    /* Plovoucí tlačítko + (rychlé přidání dle aktivní záložky) */
+    .fab{
+      position:fixed;right:22px;bottom:22px;z-index:90;width:60px;height:60px;border-radius:50%;
+      border:0;color:#fff;font-size:2rem;font-weight:400;line-height:1;display:grid;place-items:center;
+      background:linear-gradient(135deg,var(--primary),var(--primary-2));
+      box-shadow:0 16px 40px rgba(139,92,246,.42);transition:.18s ease
+    }
+    .fab:hover{transform:translateY(-2px) scale(1.03)}
+    .fab:focus{outline:none;box-shadow:0 0 0 4px rgba(110,231,255,.4),0 16px 40px rgba(139,92,246,.42)}
+    .fab[hidden]{display:none}
+    .fab .fab-label{position:absolute;right:72px;white-space:nowrap;background:var(--surface-solid);color:var(--text);border:1px solid var(--border);border-radius:12px;padding:8px 11px;font-size:.82rem;font-weight:800;box-shadow:var(--shadow-card);opacity:0;visibility:hidden;transition:.16s ease}
+    @media(hover:hover){.fab:hover .fab-label{opacity:1;visibility:visible}}
+    @media(max-width:680px){.fab{right:16px;bottom:16px;width:56px;height:56px}.toast-wrap{bottom:84px}}
+    .toast-wrap{bottom:92px}
+
+    /* Rozbalovací karta pro přidání (formuláře skryté, otevírá je + nebo hlavička) */
+    .add-card{overflow:hidden}
+    .add-card-head{
+      width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;
+      background:linear-gradient(135deg,rgba(139,92,246,.16),rgba(6,182,212,.10));
+      border:1px solid var(--border);border-radius:16px;padding:13px 15px;color:var(--text);font-weight:800;font-size:1.02rem
+    }
+    .add-card-head .chev{transition:.18s ease;font-size:.9rem;color:var(--muted)}
+    .add-card[data-collapsed="false"] .add-card-head .chev{transform:rotate(180deg)}
+    .add-card[data-collapsed="false"] .add-card-head{border-bottom-left-radius:0;border-bottom-right-radius:0}
+    .add-card-body{margin-top:14px}
+    .add-card[data-collapsed="true"] .add-card-body{display:none}
+
+    /* Rychlé přidání na úvodní stránce */
+    .quick-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+    .quick-btn{
+      display:flex;align-items:center;gap:9px;border:1px solid var(--border);border-radius:16px;padding:12px 15px;
+      background:var(--surface);color:var(--text);font-weight:800;box-shadow:var(--shadow-card);transition:.16s ease
+    }
+    .quick-btn:hover{transform:translateY(-1px);border-color:var(--primary)}
+    .quick-btn .q-emoji{font-size:1.25rem}
+    .quick-title{margin:22px 0 2px;font-size:.82rem;font-weight:900;text-transform:uppercase;letter-spacing:.12em;color:var(--primary-2)}
+
+    /* Detail poznámky (čtecí modal) a detail obecně */
+    .detail-modal .modal-card{width:min(760px,100%);max-height:88vh;overflow:auto}
+    .detail-block{border:1px solid var(--border);border-radius:16px;padding:13px 14px;background:var(--surface-soft);margin-top:10px}
+    .detail-block h4{margin:0 0 6px;font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--primary-2)}
+    .detail-block .detail-text{white-space:pre-wrap;line-height:1.55;color:var(--text);margin:0;word-break:break-word}
+    .item.clickable{cursor:pointer}
+    .item .item-open-hint{font-size:.78rem;color:var(--muted-2);font-weight:700}
+
+    /* Ploché výsledky hledání v to-do (aby se nesekaly sloupce) */
+    .task-flat{display:grid;gap:12px}
+    .task-flat .task{margin-bottom:0}
+    .task-horizon-pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:5px 9px;font-size:.74rem;font-weight:900;border:1px solid var(--border);background:var(--surface-soft);color:var(--muted)}
+
+    /* Aplikace a jejich poznámky */
+    .app-notes-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+    .back-btn{border:1px solid var(--border);background:var(--surface-soft);color:var(--text);border-radius:13px;padding:9px 13px;font-weight:800}
+    .back-btn:hover{border-color:var(--primary)}
+    .app-note{border:1px solid var(--border);border-radius:16px;padding:12px 14px;background:var(--surface-soft);display:grid;gap:7px}
+    .app-note .app-note-text{white-space:pre-wrap;line-height:1.5;margin:0}
+    .app-note-date{font-size:.76rem;color:var(--muted-2);font-weight:700}
+
+    /* Splátkový kalendář */
+    .installment-remaining{font-weight:900;font-size:1.15rem}
+    .capacity-meter{display:grid;gap:6px;margin-top:6px}
+    .capacity-note{font-size:.82rem;color:var(--muted);line-height:1.45}
