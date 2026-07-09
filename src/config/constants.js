@@ -1,4 +1,4 @@
-export const APP_VERSION = '3.1.7-modular-step-6';
+export const APP_VERSION = '3.1.8-modular-step-7';
 export const PUBLIC_BASE_URL = new URL(import.meta.env.BASE_URL || './', document.baseURI);
 
 export const KDF_ITERATIONS = 310000;

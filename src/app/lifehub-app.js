@@ -47,6 +47,7 @@ export function bootLifeHub(){
     'use strict';
 
     const VERSION = APP_VERSION;
+    const SHORT_VERSION = String(VERSION).split('-')[0]; // např. "3.1.8" – nadpis, titulek, zámek
     const FORBIDDEN_IMPORT_KEYS = new Set(['__proto__','constructor','prototype']);
     const VENDOR_BASE_URL = new URL('vendor/', PUBLIC_BASE_URL);
     const PDF_JS_LOCAL = new URL('pdf.min.mjs', VENDOR_BASE_URL).href;
@@ -170,6 +171,7 @@ export function bootLifeHub(){
       bind();
       updateFab('dashboard');
       hydrateSettings();
+      applyVersionLabels();
       renderFooter();
       await startSecureGate();
       registerSW();
@@ -1300,10 +1302,17 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
     function saveSettings(e){e.preventDefault(); state.settings.greetName=$('#greetName').value.trim(); state.settings.ownerName=$('#ownerName').value.trim(); state.settings.ownerFooter=$('#ownerFooter').value.trim(); state.settings.currency=sanitizeCurrency($('#currency').value); state.settings.savingGoal=number($('#savingGoal').value); save(); toast('Nastavení uloženo.');}
     // Krátký changelog (nejnovější nahoře, drž ~5 položek). Zobrazí se klepnutím na verzi v patičce.
     const CHANGELOG = [
-      `v${VERSION} · V patičce je vidět číslo verze; klepnutím na něj zobrazíš tyto novinky. Po nasazení nové verze se aplikace sama obnoví (stačí ji mít otevřenou).`,
+      `v${VERSION} · Číslo verze v nadpisu, na zamykací obrazovce i v patičce se teď bere z jednoho zdroje – nadpis a verze tak vždy ladí.`,
+      `v3.1.7 · V patičce je vidět číslo verze; klepnutím na něj zobrazíš tyto novinky. Po nasazení nové verze se aplikace sama obnoví (stačí ji mít otevřenou).`,
       'v3.1.6 · Opraven splátkový kalendář – nová půjčka teď ukazuje celou částku (dřív o jednu splátku méně). Přidáno tlačítko „+ mimořádná“ pro mimořádnou splátku, která posune měsíc konce dřív.'
     ];
     function showChangelog(){ modalDialog({ title:`Novinky · LifeHub ${VERSION}`, message: CHANGELOG.join('\n\n'), confirmText:'Zavřít', cancelText:'Zavřít' }); }
+    // Sjednotí zobrazené číslo verze v nadpisu, na zamykací obrazovce a v titulku karty s APP_VERSION.
+    function applyVersionLabels(){
+      const h=$('#appTitleVersion'); if(h) h.textContent=SHORT_VERSION;
+      const l=$('#lockVersion'); if(l) l.textContent=SHORT_VERSION;
+      try{ document.title=`LifeHub ${SHORT_VERSION} | šifrovaný trezor, poznámky, finance`; }catch(e){}
+    }
     function renderFooter(){ $('#footer').innerHTML=`<strong>${esc(state.settings.ownerName||'Vlastník aplikace: Daniel Baláž · Gymnázium, Ostrava-Hrabůvka')}</strong><br><span>${esc(state.settings.ownerFooter||'© 2026 Daniel Baláž. Všechna práva vyhrazena.')}</span><br><button type="button" class="app-version" data-show-changelog title="Zobrazit novinky">LifeHub v${esc(VERSION)}</button>`;}
     async function runDiagnostics(){
       const rows=[]; const ok=(name,detail,good=true)=>rows.push(`<div class="item"><h4>${good?'✅':'⚠️'} ${esc(name)}</h4><p>${esc(detail)}</p></div>`);
