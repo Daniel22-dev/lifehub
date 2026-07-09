@@ -1302,9 +1302,11 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
     function saveSettings(e){e.preventDefault(); state.settings.greetName=$('#greetName').value.trim(); state.settings.ownerName=$('#ownerName').value.trim(); state.settings.ownerFooter=$('#ownerFooter').value.trim(); state.settings.currency=sanitizeCurrency($('#currency').value); state.settings.savingGoal=number($('#savingGoal').value); save(); toast('Nastavení uloženo.');}
     // Krátký changelog (nejnovější nahoře, drž ~5 položek). Zobrazí se klepnutím na verzi v patičce.
     const CHANGELOG = [
-      `v${VERSION} · Číslo verze v nadpisu, na zamykací obrazovce i v patičce se teď bere z jednoho zdroje – nadpis a verze tak vždy ladí.`,
-      `v3.1.7 · V patičce je vidět číslo verze; klepnutím na něj zobrazíš tyto novinky. Po nasazení nové verze se aplikace sama obnoví (stačí ji mít otevřenou).`,
-      'v3.1.6 · Opraven splátkový kalendář – nová půjčka teď ukazuje celou částku (dřív o jednu splátku méně). Přidáno tlačítko „+ mimořádná“ pro mimořádnou splátku, která posune měsíc konce dřív.'
+      'v3.2.2 · Oprava čísla verze: aplikace se hlásila jako 3.1.8, i když už běžela řada 3.2 – teď hlavička, zámek, titulek i patička ukazují skutečnou verzi. Úklid repozitáře (odstraněny zastaralé kopie souborů v kořeni).',
+      'v3.2.1 · Tlačítka v hlavičce úvodní stránky se na mobilu zarovnávají na celou šířku.',
+      'v3.2.0 · Velká vlna novinek: osobní pozdrav po odemčení, rychlé akce na úvodu, plovoucí „+“ v každé sekci, sbalené formuláře, tooltipy „i“ u nadpisů, čtecí náhled poznámek, To-do s oddělenou prioritou a časovým horizontem (nástěnka), měsíční přehled financí jako první.',
+      'v3.1.8 · Číslo verze v nadpisu, na zamykací obrazovce i v patičce se bere z jednoho zdroje – nadpis a verze tak vždy ladí.',
+      'v3.1.7 · V patičce je vidět číslo verze; klepnutím na něj zobrazíš tyto novinky. Po nasazení nové verze se aplikace sama obnoví (stačí ji mít otevřenou).'
     ];
     function showChangelog(){ modalDialog({ title:`Novinky · LifeHub ${VERSION}`, message: CHANGELOG.join('\n\n'), confirmText:'Zavřít', cancelText:'Zavřít' }); }
     // Sjednotí zobrazené číslo verze v nadpisu, na zamykací obrazovce a v titulku karty s APP_VERSION.
