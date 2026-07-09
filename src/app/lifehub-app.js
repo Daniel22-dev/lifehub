@@ -30,7 +30,7 @@ import {
   today,
   uid
 } from '../core/utils.js';
-import { confirmDialog, download, passwordDialog, toast } from '../core/ui.js';
+import { confirmDialog, modalDialog, download, passwordDialog, toast } from '../core/ui.js';
 import {
   b64ToBytes,
   bytesToB64,
@@ -278,6 +278,8 @@ export function bootLifeHub(){
       const editInst = e.target.closest('[data-edit-inst]')?.dataset.editInst;
       const delInst = e.target.closest('[data-delete-inst]')?.dataset.deleteInst;
       const payInst = e.target.closest('[data-pay-inst]')?.dataset.payInst;
+      const extraInst = e.target.closest('[data-extra-inst]')?.dataset.extraInst;
+      const showChlog = e.target.closest('[data-show-changelog]');
       if(editNote) editNoteForm(editNote); if(delNote) deleteItem('notes',delNote); if(viewNote) openNoteDetail(viewNote);
       if(editTrans) editTransactionForm(editTrans); if(delTrans) deleteItem('transactions',delTrans);
       if(delPayroll) deletePayroll(delPayroll); if(downPayroll) downloadPayrollPdf(downPayroll); if(purgePayroll) purgePayrollPdf(purgePayroll);
@@ -285,7 +287,8 @@ export function bootLifeHub(){
       if(editTask) editTaskForm(editTask); if(delTask) deleteItem('tasks',delTask); if(toggleTask) toggleTaskDone(toggleTask);
       if(editShop) editShoppingForm(editShop); if(delShop) deleteItem('shopping',delShop);
       if(openApp) openApp1(openApp); if(editApp) editApp1(editApp); if(delApp) deleteApp(delApp); if(delAppNote) deleteAppNote(delAppNote);
-      if(editInst) editInstallment(editInst); if(delInst) deleteItem('installments',delInst); if(payInst) recordInstallmentPayment(payInst);
+      if(editInst) editInstallment(editInst); if(delInst) deleteItem('installments',delInst); if(payInst) recordInstallmentPayment(payInst); if(extraInst) recordExtraPayment(extraInst);
+      if(showChlog) showChangelog();
     }
     async function deleteItem(collection,id){
       if(!await confirmDialog('Opravdu smazat tuto položku?', {title:'Smazat položku', confirmText:'Smazat', danger:true})) return;
@@ -1295,7 +1298,13 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
     }
     function hydrateSettings(){ $('#greetName').value=state.settings.greetName||''; $('#ownerName').value=state.settings.ownerName||''; $('#ownerFooter').value=state.settings.ownerFooter||''; $('#currency').value=state.settings.currency||'Kč'; $('#savingGoal').value=state.settings.savingGoal||0; }
     function saveSettings(e){e.preventDefault(); state.settings.greetName=$('#greetName').value.trim(); state.settings.ownerName=$('#ownerName').value.trim(); state.settings.ownerFooter=$('#ownerFooter').value.trim(); state.settings.currency=sanitizeCurrency($('#currency').value); state.settings.savingGoal=number($('#savingGoal').value); save(); toast('Nastavení uloženo.');}
-    function renderFooter(){ $('#footer').innerHTML=`<strong>${esc(state.settings.ownerName||'Vlastník aplikace: Daniel Baláž · Gymnázium, Ostrava-Hrabůvka')}</strong><br><span>${esc(state.settings.ownerFooter||'© 2026 Daniel Baláž. Všechna práva vyhrazena.')}</span>`;}
+    // Krátký changelog (nejnovější nahoře, drž ~5 položek). Zobrazí se klepnutím na verzi v patičce.
+    const CHANGELOG = [
+      `v${VERSION} · V patičce je vidět číslo verze; klepnutím na něj zobrazíš tyto novinky. Po nasazení nové verze se aplikace sama obnoví (stačí ji mít otevřenou).`,
+      'v3.1.6 · Opraven splátkový kalendář – nová půjčka teď ukazuje celou částku (dřív o jednu splátku méně). Přidáno tlačítko „+ mimořádná“ pro mimořádnou splátku, která posune měsíc konce dřív.'
+    ];
+    function showChangelog(){ modalDialog({ title:`Novinky · LifeHub ${VERSION}`, message: CHANGELOG.join('\n\n'), confirmText:'Zavřít', cancelText:'Zavřít' }); }
+    function renderFooter(){ $('#footer').innerHTML=`<strong>${esc(state.settings.ownerName||'Vlastník aplikace: Daniel Baláž · Gymnázium, Ostrava-Hrabůvka')}</strong><br><span>${esc(state.settings.ownerFooter||'© 2026 Daniel Baláž. Všechna práva vyhrazena.')}</span><br><button type="button" class="app-version" data-show-changelog title="Zobrazit novinky">LifeHub v${esc(VERSION)}</button>`;}
     async function runDiagnostics(){
       const rows=[]; const ok=(name,detail,good=true)=>rows.push(`<div class="item"><h4>${good?'✅':'⚠️'} ${esc(name)}</h4><p>${esc(detail)}</p></div>`);
       try{localStorage.setItem('lifehub.test','ok'); localStorage.removeItem('lifehub.test'); ok('localStorage','Zápis a čtení lokálních dat funguje.');}catch(e){ok('localStorage','Lokální ukládání nefunguje: '+e.message,false);}
@@ -1357,18 +1366,18 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
     async function deleteAppNote(noteId){ const app=state.apps.find(a=>a.id===selectedAppId); if(!app) return; if(!await confirmDialog('Smazat tuto poznámku?', {title:'Smazat poznámku', confirmText:'Smazat', danger:true})) return; app.notes=(app.notes||[]).filter(n=>n.id!==noteId); app.updatedAt=new Date().toISOString(); save(); toast('Poznámka smazána.','warn'); }
 
     // ===== Splátkový kalendář =====
-    function monthDiff(fromM, toM){ if(!/^\d{4}-\d{2}$/.test(fromM||'')) return 0; const [fy,fm]=fromM.split('-').map(Number); const t=(/^\d{4}-\d{2}$/.test(toM)?toM:monthNow()); const [ty,tm]=t.split('-').map(Number); return (ty-fy)*12+(tm-fm); }
     function addMonths(m,n){ if(!/^\d{4}-\d{2}$/.test(m||'')) m=monthNow(); let [y,mo]=m.split('-').map(Number); const idx=(y*12+(mo-1))+n; return `${Math.floor(idx/12)}-${pad((idx%12)+1)}`; }
+    function maxMonth(a,b){ const va=/^\d{4}-\d{2}$/.test(a||'')?a:''; const vb=/^\d{4}-\d{2}$/.test(b||'')?b:''; if(!va) return vb||monthNow(); if(!vb) return va; return va>=vb?va:vb; }
     function computeInstallment(i){
-      const total=Math.max(0,number(i.total)), monthly=Math.max(0,number(i.monthly)), manualPaid=Math.max(0,number(i.paid));
+      const total=Math.max(0,number(i.total)), monthly=Math.max(0,number(i.monthly));
+      // "Splaceno" = jen skutecne zaznamenane splatky (bezne + mimoradne). Nova pujcka zacina na 0 -> zbyva cela castka.
+      const paid = Math.min(total, Math.max(0,number(i.paid)));
       const monthsTotal = monthly>0 ? Math.ceil(total/monthly) : 0;
-      const elapsed = i.startMonth ? Math.max(0, monthDiff(i.startMonth, monthNow())+1) : 0;
-      const autoPaid = Math.min(total, monthly*elapsed);
-      const paid = Math.min(total, manualPaid>0 ? manualPaid : autoPaid);
       const remaining = Math.max(0, total-paid);
-      const paidMonths = monthly>0 ? Math.min(monthsTotal, Math.floor(paid/monthly)) : 0;
-      const remainingMonths = Math.max(0, monthsTotal-paidMonths);
-      const endMonth = (i.startMonth && monthsTotal) ? addMonths(i.startMonth, monthsTotal-1) : '';
+      const remainingMonths = monthly>0 ? Math.ceil(remaining/monthly) : 0;
+      // Konec = projekce od pozdejsiho z (pocatek, aktualni mesic); mimoradna splatka ho posune driv.
+      const anchor = maxMonth(i.startMonth, monthNow());
+      const endMonth = (remaining>0 && monthly>0) ? addMonths(anchor, remainingMonths-1) : '';
       const progress = total>0 ? Math.round(paid/total*100) : 0;
       return {total, monthly, monthsTotal, paid, remaining, remainingMonths, endMonth, progress};
     }
@@ -1383,13 +1392,31 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       const sorted=[...computed].sort((a,b)=> (b.c.remaining>0?1:0)-(a.c.remaining>0?1:0) || b.c.remaining-a.c.remaining);
       box.innerHTML=sorted.map(({i,c})=>{
         const done=c.remaining<=0;
-        return `<article class="item"><div class="item-top"><div><h4>${esc(i.creditor)}${done?' ✅':''}</h4><p><span class="installment-remaining ${done?'money-plus':'money-minus'}">${done?'Doplaceno':'Zbývá '+fmt(c.remaining)}</span> • měsíčně ${fmt(i.monthly)} • celkem ${fmt(c.total)}</p>${i.note?`<p>${esc(i.note)}</p>`:''}</div><div class="actions">${done?'':`<button class="mini-btn" data-pay-inst="${attr(i.id)}" type="button">+ splátka</button>`}<button class="mini-btn" data-edit-inst="${attr(i.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-inst="${attr(i.id)}" type="button">Smazat</button></div></div>${barRow(`Splaceno ${fmt(c.paid)} z ${fmt(c.total)}`, c.progress+'%', c.progress)}<div class="meta">${c.endMonth?`<span class="tag">konec ${esc(monthLabel(c.endMonth))}</span>`:''}<span class="tag">zbývá ${c.remainingMonths} měs.</span>${i.startMonth?`<span class="tag">od ${esc(monthLabel(i.startMonth))}</span>`:''}${i.dueDay?`<span class="tag">splatnost ${esc(String(i.dueDay))}. v měsíci</span>`:''}</div></article>`;
+        return `<article class="item"><div class="item-top"><div><h4>${esc(i.creditor)}${done?' ✅':''}</h4><p><span class="installment-remaining ${done?'money-plus':'money-minus'}">${done?'Doplaceno':'Zbývá '+fmt(c.remaining)}</span> • měsíčně ${fmt(i.monthly)} • celkem ${fmt(c.total)}</p>${i.note?`<p>${esc(i.note)}</p>`:''}</div><div class="actions">${done?'':`<button class="mini-btn" data-pay-inst="${attr(i.id)}" type="button">+ splátka</button><button class="mini-btn" data-extra-inst="${attr(i.id)}" type="button">+ mimořádná</button>`}<button class="mini-btn" data-edit-inst="${attr(i.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-inst="${attr(i.id)}" type="button">Smazat</button></div></div>${barRow(`Splaceno ${fmt(c.paid)} z ${fmt(c.total)}`, c.progress+'%', c.progress)}<div class="meta">${c.endMonth?`<span class="tag">konec ${esc(monthLabel(c.endMonth))}</span>`:''}<span class="tag">zbývá ${c.remainingMonths} měs.</span>${i.startMonth?`<span class="tag">od ${esc(monthLabel(i.startMonth))}</span>`:''}${i.dueDay?`<span class="tag">splatnost ${esc(String(i.dueDay))}. v měsíci</span>`:''}</div></article>`;
       }).join('') || empty('Zatím žádné splátky. Přidej první přes tlačítko +.');
     }
     function saveInstallment(e){e.preventDefault(); const id=$('#instId').value||uid('inst'); const existing=state.installments.find(x=>x.id===id); const i={id,creditor:$('#instCreditor').value.trim(),total:number($('#instTotal').value),monthly:number($('#instMonthly').value),startMonth:$('#instStart').value,paid:number($('#instPaid').value),dueDay:Math.min(31,Math.max(0,Math.round(number($('#instDueDay').value)))),note:$('#instNote').value.trim(),createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()}; if(existing)Object.assign(existing,i); else state.installments.unshift(i); save(); resetInstallmentForm(); toast('Splátkový kalendář uložen.');}
     function resetInstallmentForm(){ $('#instForm').reset(); $('#instId').value=''; $('#instStart').value=monthNow(); }
     function editInstallment(id){const i=state.installments.find(x=>x.id===id); if(!i)return; toggleAddCard('instAddCard',true); $('#instId').value=i.id; $('#instCreditor').value=i.creditor; $('#instTotal').value=i.total||''; $('#instMonthly').value=i.monthly||''; $('#instStart').value=i.startMonth||monthNow(); $('#instPaid').value=i.paid||''; $('#instDueDay').value=i.dueDay||''; $('#instNote').value=i.note||''; $('#instCreditor').focus();}
     function recordInstallmentPayment(id){const i=state.installments.find(x=>x.id===id); if(!i)return; const c=computeInstallment(i); const newPaid=Math.min(c.total, c.paid + Math.max(0,number(i.monthly))); i.paid=newPaid; i.updatedAt=new Date().toISOString(); save(); toast(newPaid>=c.total?'Splátka zaznamenána – doplaceno! 🎉':'Splátka zaznamenána.');}
+    async function recordExtraPayment(id){
+      const i=state.installments.find(x=>x.id===id); if(!i)return;
+      const c=computeInstallment(i);
+      if(c.remaining<=0){ toast('Tato splátka je už doplacená.','warn'); return; }
+      const values = await modalDialog({
+        title:'Mimořádná splátka',
+        message:`${i.creditor}: zbývá ${fmt(c.remaining)}. Zadej částku mimořádné splátky (nad rámec běžné měsíční splátky).`,
+        confirmText:'Zaznamenat',
+        fields:[{name:'amount', label:'Částka mimořádné splátky', type:'number', placeholder:String(Math.round(c.remaining))}],
+        validate:v=>{ const n=number(v.amount); if(!(n>0)) return 'Zadej kladnou částku.'; return ''; }
+      });
+      if(!values) return;
+      const amount = Math.min(c.remaining, Math.max(0, number(values.amount)));
+      if(amount<=0) return;
+      i.paid = Math.min(c.total, c.paid + amount); i.updatedAt=new Date().toISOString(); save();
+      const rem = Math.max(0, c.total - i.paid);
+      toast(rem<=0 ? `Mimořádná splátka ${fmt(amount)} zaznamenána – doplaceno! 🎉` : `Mimořádná splátka ${fmt(amount)} zaznamenána. Zbývá ${fmt(rem)}.`);
+    }
     async function enableInstallmentNotifications(){
       if(!('Notification' in window)){ toast('Tento prohlížeč nepodporuje notifikace.','warn'); return; }
       try{

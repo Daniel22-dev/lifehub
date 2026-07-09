@@ -257,8 +257,6 @@
       margin:18px 0 0;padding:18px;border:1px solid var(--border);border-radius:28px;background:var(--surface);backdrop-filter:blur(18px);box-shadow:var(--shadow-card);text-align:center;color:var(--muted);line-height:1.55
     }
     .footer strong{color:var(--text)}
-    .app-version{display:inline-block;margin-top:8px;padding:3px 12px;border:1px solid var(--border);border-radius:999px;background:transparent;color:var(--muted);font-size:.78rem;font-weight:700;letter-spacing:.02em;cursor:pointer;transition:color .15s,border-color .15s,background .15s}
-    .app-version:hover,.app-version:focus-visible{color:var(--text);border-color:var(--accent,#8b5cf6);background:color-mix(in srgb,var(--accent,#8b5cf6) 12%,transparent)}
 
     .lock-screen{
       position:fixed;inset:0;z-index:120;display:none;place-items:center;padding:20px;
@@ -502,10 +500,10 @@
     .add-card[data-collapsed="true"] .add-card-body{display:none}
 
     /* Rychlé přidání na úvodní stránce */
-    .quick-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:16px}
+    .quick-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
     .quick-btn{
       display:flex;align-items:center;gap:9px;border:1px solid var(--border);border-radius:16px;padding:12px 15px;
-      background:var(--surface);color:var(--text);font-weight:800;box-shadow:var(--shadow-card);transition:.16s ease;width:100%
+      background:var(--surface);color:var(--text);font-weight:800;box-shadow:var(--shadow-card);transition:.16s ease
     }
     .quick-btn:hover{transform:translateY(-1px);border-color:var(--primary)}
     .quick-btn .q-emoji{font-size:1.25rem}
@@ -536,9 +534,3 @@
     .installment-remaining{font-weight:900;font-size:1.15rem}
     .capacity-meter{display:grid;gap:6px;margin-top:6px}
     .capacity-note{font-size:.82rem;color:var(--muted);line-height:1.45}
-
-    /* 3.2.1 – zarovnání tlačítek v hlavičce na mobilu */
-    @media(max-width:680px){
-      .hero-actions{width:100%}
-      .hero-actions .btn{width:100%}
-    }

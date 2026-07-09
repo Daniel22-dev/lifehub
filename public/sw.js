@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lifehub-vite-shell-v2';
+const CACHE_NAME = 'lifehub-vite-shell-v3';
 const STATIC_SHELL = [
   './', './index.html', './manifest.json', './icon.svg', './icon-192.png', './icon-512.png',
   './vendor/pdf.min.mjs', './vendor/pdf.worker.min.mjs'
@@ -26,8 +26,13 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (url.origin !== location.origin) return;
 
+  // U navigace (HTML) obcházíme HTTP cache prohlížeče, aby se po nasazení hned načetla
+  // aktuální index.html (a s ní i nové hashované JS/CSS). Ostatní soubory: network-first.
+  const isNavigation = request.mode === 'navigate';
+  const fetchOptions = isNavigation ? { cache: 'no-store' } : undefined;
+
   event.respondWith(
-    fetch(request)
+    fetch(request, fetchOptions)
       .then(response => {
         if (response && response.ok) {
           const copy = response.clone();
