@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#20134d">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'none'; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
-  <title>LifeHub 3.2 | šifrovaný trezor, poznámky, finance</title>
+  <title>LifeHub 4.0 | osobní šifrovaný trezor</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./icon-192.png">
@@ -16,14 +16,14 @@
       <div class="brand">
         <div class="brand-mark">LH</div>
         <div>
-          <h1>LifeHub <span id="appTitleVersion">3.2</span></h1>
+          <h1>LifeHub <span id="appTitleVersion">4.0</span></h1>
           <p>Poznámky • finance • šifrovaný trezor</p>
         </div>
       </div>
       <div class="top-actions">
-        <span class="pill" id="saveStatus">Zamčeno</span>
+        <span class="pill" id="saveStatus" role="status" aria-live="polite">Zamčeno</span>
         <button class="icon-btn" id="lockBtn" type="button" title="Zamknout aplikaci">🔒</button>
-        <button class="icon-btn" id="fullscreenBtn" type="button" title="Full-screen">⛶</button>
+        <button class="icon-btn" id="fullscreenBtn" type="button" title="Celá obrazovka">⛶</button>
         <button class="icon-btn" id="themeBtn" type="button" title="Denní/noční režim">☾</button>
       </div>
     </header>
@@ -39,12 +39,12 @@
           <button data-tab="tasks" type="button"><span class="emoji">✅</span><span class="label">To-do</span></button>
           <button data-tab="shopping" type="button"><span class="emoji">🛒</span><span class="label">Nákupy</span></button>
           <button data-tab="apps" type="button"><span class="emoji">🧩</span><span class="label">Aplikace</span></button>
-          <button data-tab="exports" type="button"><span class="emoji">📦</span><span class="label">Export / Notion</span></button>
+          <button data-tab="exports" type="button"><span class="emoji">📦</span><span class="label">Zálohy / Export</span></button>
           <button data-tab="settings" type="button"><span class="emoji">⚙️</span><span class="label">Nastavení</span></button>
           <button data-tab="help" type="button"><span class="emoji">❔</span><span class="label">Nápověda</span></button>
         </nav>
         <div class="sidebar-footer">
-          Data se po odemčení ukládají šifrovaně v tomto zařízení. Do veřejného GitHubu patří jen aplikace nebo anonymizovaný export, nikdy originální dokumenty.
+          Data se po odemčení ukládají šifrovaně v tomto zařízení. Pro telefon ↔ PC používej kompletní šifrovanou zálohu; do GitHubu nikdy nedávej soukromé exporty.
         </div>
       </aside>
 
@@ -68,7 +68,7 @@
               <div class="hero-actions">
                 <button class="btn secondary" data-jump="finance" type="button">Načíst výplatní pásku</button>
                 <button class="btn" data-jump="vault" type="button">Uložit dokument</button>
-                <button class="btn ok" data-action="export-encrypted-json" type="button">Šifrovaná záloha</button>
+                <button class="btn ok" data-action="export-complete-backup" type="button">Kompletní záloha</button><button class="btn secondary" data-action="export-encrypted-json" type="button">Datová záloha</button>
               </div>
             </div>
           </div>
@@ -507,25 +507,31 @@
           <div class="section-head">
             <div class="head-main">
               <div>
-                <h2 class="tab-title">Export, záloha a Notion</h2>
-                <p class="tab-sub">Stáhnout vše nebo jednotlivé části</p>
+                <h2 class="tab-title">Zálohy, export a Notion</h2>
+                <p class="tab-sub">Přenést telefon ↔ PC, stáhnout data nebo připravit výstupy pro Notion</p>
               </div>
-              <button class="info-dot" type="button" data-tip="Soukromá záloha obsahuje osobní data a používej ji mimo veřejný repozitář. Anonymizovaný export používá kvartály a rozsahy. Pro Notion použij Markdown (dlouhé texty) a CSV (tabulky). Originální PDF a soubory z trezoru se do exportu nikdy nepřidávají.">i</button>
+              <button class="info-dot" type="button" data-tip="Datová záloha je lehká a bez souborů. Kompletní šifrovaná záloha přibalí i PDF a dokumenty z IndexedDB a je určena pro přenos telefon ↔ PC. Anonymizovaný export je pro sdílení bez originálů.">i</button>
             </div>
           </div>
           <div class="grid two">
             <article class="panel">
-              <div class="panel-head"><div><p class="eyebrow">Záloha</p><h3>Celá aplikace</h3></div></div>
+              <div class="panel-head"><div><p class="eyebrow">Zálohy</p><h3>Přenos telefonu ↔ PC</h3></div></div>
               <div class="actions">
-                <button class="btn primary" data-action="export-json" type="button">Soukromá JSON záloha</button>
-                <button class="btn ok" data-action="export-encrypted-json" type="button">Šifrovaná JSON záloha</button>
+                <button class="btn ok" data-action="export-complete-backup" type="button">Kompletní šifrovaná záloha</button>
+                <button class="btn primary" data-action="transfer-wizard" type="button">Průvodce přenosem</button>
+                <button class="btn secondary" data-action="export-encrypted-json" type="button">Šifrovaná datová záloha</button>
+                <button class="btn secondary" data-action="export-json" type="button">Nešifrovaná datová záloha</button>
                 <button class="btn secondary" data-action="export-all-md" type="button">Soukromý Markdown</button>
                 <button class="btn" data-action="export-all-html" type="button">Soukromý HTML přehled</button>
               </div>
-              <p class="small">Soukromé exporty mohou obsahovat osobní finance, poznámky, URL a případně extrahovaný text z pásek. Originální PDF a soubory z šifrovaného trezoru se do JSON/MD exportu nepřibalují, zůstávají v IndexedDB.</p>
+              <p class="small">Kompletní záloha přibalí skutečná PDF a dokumenty z IndexedDB. Datová záloha je lehčí a přenáší jen stav aplikace a metadata. Nešifrovanou datovou zálohu nepoužívej pro přenos citlivých dat.</p>
               <div class="spacer-12"></div>
-              <label>Import JSON zálohy<input id="importJson" type="file" accept="application/json,.json"></label>
-              <p class="small">Import přepíše současná lokální data až po potvrzení. PDF soubory uložené v IndexedDB zůstanou samostatně podle lokálního úložiště.</p>
+              <div id="backupStatus" class="list"></div>
+              <div class="transfer-tools">
+                <label class="file-action">Ověřit zálohu bez importu<input id="verifyBackupFile" type="file" accept="application/json,.json"></label>
+                <label class="file-action danger-zone">Import zálohy<input id="importJson" type="file" accept="application/json,.json"></label>
+              </div>
+              <p class="small">Ověření zálohy soubor jen načte, případně dešifruje, ukáže počty a nic nepřepíše. Import nejdřív nabídne zálohu aktuálního zařízení, ukáže náhled rozdílů a vyžádá textové potvrzení IMPORTOVAT.</p>
             </article>
             <article class="panel">
               <div class="panel-head"><div><p class="eyebrow">Notion</p><h3>Balíček pro Notion</h3></div></div>
@@ -560,9 +566,9 @@
             <div class="head-main">
               <div>
                 <h2 class="tab-title">Nastavení</h2>
-                <p class="tab-sub">Vlastník, oslovení, vzhled a testy aplikace</p>
+                <p class="tab-sub">Vlastník, zařízení, zabezpečení a provozní kontrola</p>
               </div>
-              <button class="info-dot" type="button" data-tip="Jméno pro pozdrav se zobrazí po odemčení a na úvodní stránce. Testovací nástroje jsou dole nad patičkou, aby nepřekážely běžnému používání.">i</button>
+              <button class="info-dot" type="button" data-tip="Jméno pro pozdrav se zobrazí po odemčení a název zařízení se propíše do metadat záloh. Provozní kontrola ověří lokální úložiště, šifrování a základní nastavení aplikace.">i</button>
             </div>
           </div>
           <div class="grid two">
@@ -570,6 +576,7 @@
               <div class="panel-head"><div><p class="eyebrow">Osobní</p><h3>Oslovení a patička</h3></div></div>
               <form class="form form-one" id="settingsForm">
                 <label>Jméno pro pozdrav<input id="greetName" placeholder="Např. Dane"></label>
+                <label>Název zařízení<input id="deviceName" placeholder="Např. Mobil, PC doma, Školní notebook"></label>
                 <label>Jméno/vlastník (patička)<input id="ownerName" placeholder="Např. Mgr. …"></label>
                 <label>Text patičky<textarea id="ownerFooter" rows="3" placeholder="Text ve spodní části aplikace"></textarea></label>
                 <label>Měna<input id="currency" placeholder="Kč"></label>
@@ -580,17 +587,25 @@
             <article class="panel">
               <div class="panel-head"><div><p class="eyebrow">Správa dat</p><h3>Rychlé akce</h3></div></div>
               <div class="actions">
-                <button class="btn secondary" data-action="export-json" type="button">Stáhnout zálohu</button>
-                <button class="btn ok" data-action="export-encrypted-json" type="button">Šifrovaná záloha</button>
+                <button class="btn ok" data-action="export-complete-backup" type="button">Kompletní záloha</button>
+                <button class="btn primary" data-action="transfer-wizard" type="button">Průvodce přenosem</button>
+                <button class="btn secondary" data-action="export-encrypted-json" type="button">Datová záloha</button>
                 <button class="btn" id="requestPersistSettings" type="button">Trvalejší úložiště</button>
+                <button class="btn" id="changeVaultPassword" type="button">Změnit heslo trezoru</button>
+                <button class="btn" data-action="export-diagnostics" type="button">Diagnostika bez osobních dat</button>
                 <button class="btn" id="seedDemo" type="button">Vložit ukázková data</button>
                 <button class="btn danger" id="clearAll" type="button">Smazat lokální data</button>
               </div>
-              <p class="small">Ukázková data pomohou ověřit grafy. Před smazáním aplikace nabídne potvrzení.</p>
+              <p class="small">Ukázková data pomohou ověřit grafy. Před smazáním aplikace nabídne potvrzení. Pro přenos mezi telefonem a PC používej kompletní zálohu.</p>
             </article>
           </div>
+          <article class="panel production-panel">
+            <div class="panel-head"><div><p class="eyebrow">Produkční režim</p><h3>Oficiální osobní nástroj</h3></div><span class="status good">LifeHub 4.0</span></div>
+            <p>Data zůstávají v tomto zařízení a po odemčení se ukládají šifrovaně. Přenos mezi telefonem a počítačem je záměrně ruční přes kompletní šifrovanou zálohu; automatická cloudová synchronizace není součástí aplikace.</p>
+          </article>
           <article class="panel">
-            <div class="panel-head"><div><p class="eyebrow">Testovací nástroje</p><h3>Diagnostika aplikace</h3></div><button class="btn" id="runDiagnostics" type="button">Spustit testy</button></div>
+            <div class="panel-head"><div><p class="eyebrow">Provozní kontrola</p><h3>Stav aplikace</h3></div><div class="actions"><button class="btn" id="runDiagnostics" type="button">Spustit kontrolu</button><button class="btn secondary" data-action="export-diagnostics" type="button">Stáhnout diagnostiku</button></div></div>
+            <p class="small">Kontrola nečte obsah poznámek ani dokumentů. Diagnostický export obsahuje pouze technické počty, stav úložiště a obecné vlastnosti prostředí; neobsahuje název zařízení ani úplný identifikátor prohlížeče.</p>
             <div id="diagnostics" class="list"></div>
           </article>
         </section>
@@ -609,10 +624,30 @@
             <div class="grid two">
               <div class="item"><h4>1. AI vlákna</h4><p>Po dobré odpovědi z ChatGPT/Claude ulož název, stručné shrnutí, tagy, použitelný prompt a další krok. Poznámku pak otevřeš klikem a přečteš celý obsah.</p></div>
               <div class="item"><h4>2. Výplatní pásky</h4><p>Ve Financích otevři čtečku PDF (tlačítko dole), zkontroluj rozpoznané hodnoty a ulož. Čistá mzda se zapíše jako příjem daného měsíce.</p></div>
-              <div class="item"><h4>3. Šifrovaný trezor</h4><p>Soukromé dokumenty nahraj v části Archiv. Kapacitu úložiště vidíš nahoře. Nebudou součástí veřejného GitHubu.</p></div>
+              <div class="item"><h4>3. Šifrovaný trezor</h4><p>Soukromé dokumenty nahraj v části Archiv. Kapacitu úložiště vidíš nahoře. Do GitHubu nepatří; mezi telefonem a PC je přenese pouze kompletní šifrovaná záloha.</p></div>
               <div class="item"><h4>4. Úkoly a nákupy</h4><p>U úkolů odděl prioritu (jak to hoří) a časový horizont (kdy). U nákupů rozliš dům/velké od potravin.</p></div>
               <div class="item"><h4>5. Splátky</h4><p>V sekci Splátky si nastav, komu kolik splácíš. Aplikace hlídá, kolik zbývá, a jednou týdně to připomene.</p></div>
               <div class="item"><h4>6. Aplikace</h4><p>V sekci Aplikace si drž přehled projektů. Ke každé aplikaci přidáš přes + samostatné poznámky.</p></div>
+            </div>
+          </article>
+
+          <article class="panel">
+            <h3>Jak LifeHub funguje s daty</h3>
+            <div class="grid two">
+              <div class="item"><h4>Lokální trezor</h4><p>Telefon i PC mají vlastní lokální úložiště. Data se sama nesynchronizují a aplikace neposílá obsah trezoru na server.</p></div>
+              <div class="item"><h4>Heslo</h4><p>Heslo se neukládá. Když ho zapomeneš, data obnovíš pouze ze šifrované zálohy a se správným heslem k této záloze.</p></div>
+              <div class="item"><h4>Aktualizace</h4><p>Aktualizace kódu přes GitHub Pages nemá mazat localStorage ani IndexedDB. Před větší aktualizací je ale rozumné stáhnout kompletní zálohu.</p></div>
+              <div class="item"><h4>Ověření zálohy</h4><p>Před důležitým importem nebo po vytvoření větší zálohy použij Ověřit zálohu bez importu. Soubor se zkontroluje, ale aktuální data se nepřepíšou.</p></div>
+            </div>
+          </article>
+
+          <article class="panel">
+            <h3>Přenos telefon ↔ PC</h3>
+            <div class="grid two">
+              <div class="item"><h4>Telefon jako hlavní zařízení</h4><p>Na telefonu vytvoř kompletní šifrovanou zálohu. Soubor přenes do PC bezpečným způsobem a v LifeHubu na PC použij Import zálohy.</p></div>
+              <div class="item"><h4>Kdy stačí datová záloha</h4><p>Datová záloha je vhodná pro rychlé přenesení poznámek, financí, úkolů a metadat. Nepřenese PDF výplatních pásek ani dokumenty z archivu.</p></div>
+              <div class="item"><h4>Bezpečný postup</h4><p>Na cílovém zařízení nejdřív ověř zálohu bez importu. Při importu zkontroluj datum, zařízení a počty položek. Pokud aplikace varuje, že je soubor starší, import dobře zvaž.</p></div>
+              <div class="item"><h4>Nejdůležitější pravidlo</h4><p>Před importem si stáhni kompletní zálohu aktuálního zařízení. Když se spleteš, máš možnost návratu.</p></div>
             </div>
           </article>
           <article class="panel">
@@ -630,7 +665,7 @@
 
   <div class="lock-screen active" id="lockScreen" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
     <div class="lock-card">
-      <p class="eyebrow">LifeHub <span id="lockVersion">3.2</span> secure vault</p>
+      <p class="eyebrow">LifeHub <span id="lockVersion">4.0</span> secure vault</p>
       <h2 id="lockTitle">Odemknout šifrovaný LifeHub</h2>
       <p id="lockIntro">Data aplikace jsou chráněná heslem. Bez hesla se lokální poznámky, finance ani dokumenty nenačtou.</p>
       <div class="lock-note" id="lockNote">Při prvním spuštění si nastavíte heslo. Starší nešifrovaná data z LifeHub 2.x lze jednorázově převést do šifrovaného úložiště.</div>

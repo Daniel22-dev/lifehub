@@ -1,7 +1,11 @@
-export const APP_VERSION = '3.2.2';
-export const PUBLIC_BASE_URL = new URL(import.meta.env.BASE_URL || './', document.baseURI);
+export const APP_VERSION = '4.0.0';
+const runtimeBase = import.meta.env?.BASE_URL || './';
+const documentBase = globalThis.document?.baseURI || 'http://localhost/';
+export const PUBLIC_BASE_URL = new URL(runtimeBase, documentBase);
 
 export const KDF_ITERATIONS = 310000;
+export const MIN_KDF_ITERATIONS = 10000;
+export const MAX_KDF_ITERATIONS = 2000000;
 export const MIN_PASSWORD_LENGTH = 14;
 export const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024;
 export const MAX_PDF_PAGES = 5;
@@ -11,3 +15,8 @@ export const AUTO_LOCK_MINUTES = 15;
 export const PDF_DB = 'lifehub-local-archive';
 export const PDF_STORE = 'payrollFiles';
 export const VAULT_STORE = 'vaultFiles';
+export const META_STORE = 'lifehubMeta';
+export const MAX_COMPLETE_BACKUP_FILES = 500;
+export const MAX_COMPLETE_BACKUP_FILE_BYTES = 50 * 1024 * 1024;
+export const MAX_COMPLETE_BACKUP_TOTAL_BYTES = 100 * 1024 * 1024;
+export const MAX_BACKUP_JSON_BYTES = 210 * 1024 * 1024;

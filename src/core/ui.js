@@ -155,6 +155,89 @@ export function confirmDialog(message, {
   return modalDialog({ title, message, confirmText, cancelText, danger }).then(Boolean);
 }
 
+
+
+export function choiceDialog({
+  title = 'Vyberte možnost',
+  message = '',
+  choices = []
+} = {}) {
+  return new Promise(resolve => {
+    const normalized = choices.length ? choices : [{ value: true, text: 'OK', className: 'btn primary' }];
+    const previousFocus = document.activeElement;
+    const screen = document.createElement('div');
+    screen.className = 'modal-screen active';
+    screen.setAttribute('role', 'dialog');
+    screen.setAttribute('aria-modal', 'true');
+
+    const card = document.createElement('div');
+    card.className = 'modal-card';
+
+    const heading = document.createElement('h2');
+    heading.textContent = title;
+    heading.id = uid('modal_title');
+    screen.setAttribute('aria-labelledby', heading.id);
+
+    const text = document.createElement('p');
+    text.className = 'modal-message';
+    text.textContent = message;
+
+    const actions = document.createElement('div');
+    actions.className = 'modal-actions';
+
+    const cleanup = result => {
+      screen.removeEventListener('keydown', onKeydown);
+      screen.remove();
+      try {
+        previousFocus?.focus?.();
+      } catch (error) {
+        // Ignore focus restore issues when the original element disappeared.
+      }
+      resolve(result);
+    };
+
+    const onKeydown = event => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        cleanup(null);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusables = $$('button,input,select,textarea,a[href]', screen).filter(el => !el.disabled && el.offsetParent !== null);
+      if (!focusables.length) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    normalized.forEach(choice => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = choice.className || 'btn';
+      button.textContent = choice.text || String(choice.value ?? 'OK');
+      button.addEventListener('click', () => cleanup(choice.value));
+      actions.appendChild(button);
+    });
+
+    card.append(heading, text, actions);
+    screen.appendChild(card);
+    document.body.appendChild(screen);
+    screen.addEventListener('keydown', onKeydown);
+
+    setTimeout(() => {
+      const preferred = normalized.findIndex(choice => choice.autofocus);
+      const buttons = $$('button', actions);
+      (buttons[preferred >= 0 ? preferred : 0] || buttons[0])?.focus?.();
+    }, 0);
+  });
+}
+
 export function passwordDialog({
   title = 'Heslo',
   message = '',

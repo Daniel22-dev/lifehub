@@ -1,21 +1,34 @@
 export const pad = n => String(n).padStart(2, '0');
 
-export const today = () => new Date().toISOString().slice(0, 10);
+export const localDateParts = (date = new Date()) => ({
+  year: date.getFullYear(),
+  month: date.getMonth() + 1,
+  day: date.getDate()
+});
 
-export const currentYear = () => new Date().getFullYear();
-
-export const monthNow = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+export const today = (date = new Date()) => {
+  const { year, month, day } = localDateParts(date);
+  return `${year}-${pad(month)}-${pad(day)}`;
 };
 
-export const uid = (prefix = 'item') => `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+export const currentYear = (date = new Date()) => date.getFullYear();
+
+export const monthNow = (date = new Date()) => {
+  const { year, month } = localDateParts(date);
+  return `${year}-${pad(month)}`;
+};
+
+export const uid = (prefix = 'item') => {
+  const random = globalThis.crypto?.randomUUID?.().replace(/-/g, '').slice(0, 16)
+    || `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+  return `${prefix}_${random}`;
+};
 
 export const $ = (selector, root = document) => root.querySelector(selector);
 
 export const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
 
-export const strip = value => String(value || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+export const strip = value => String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
 export const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({
   '&': '&amp;',

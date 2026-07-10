@@ -1,4 +1,12 @@
-import { APP_VERSION, KDF_ITERATIONS } from '../config/constants.js';
+import {
+  APP_VERSION,
+  KDF_ITERATIONS,
+  MIN_KDF_ITERATIONS,
+  MAX_KDF_ITERATIONS
+} from '../config/constants.js';
+
+const cryptoApi = () => globalThis.crypto;
+const BASE64_RE = /^[A-Za-z0-9+/]*={0,2}$/;
 
 export function bytesToBase64(bytes){
   const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
@@ -9,8 +17,12 @@ export function bytesToBase64(bytes){
   return btoa(bin);
 }
 
-export function base64ToBytes(b64){
-  const bin = atob(String(b64 || ''));
+export function base64ToBytes(value){
+  const b64 = String(value || '');
+  if(!b64 || b64.length % 4 !== 0 || !BASE64_RE.test(b64)){
+    throw new Error('Šifrovaná data mají neplatný Base64 formát.');
+  }
+  const bin = atob(b64);
   const arr = new Uint8Array(bin.length);
   for(let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
   return arr;
@@ -19,20 +31,31 @@ export function base64ToBytes(b64){
 export const bytesToB64 = bytesToBase64;
 export const b64ToBytes = base64ToBytes;
 
-export async function deriveVaultKey(password, salt, iterations = KDF_ITERATIONS){
-  const rounds = Number.isFinite(Number(iterations)) && Number(iterations) > 0
-    ? Number(iterations)
-    : KDF_ITERATIONS;
+export function validateKdfIterations(value, fallback = KDF_ITERATIONS){
+  const candidate = value === undefined || value === null || value === '' ? fallback : Number(value);
+  if(!Number.isInteger(candidate) || candidate < MIN_KDF_ITERATIONS || candidate > MAX_KDF_ITERATIONS){
+    throw new Error(`Neplatný počet iterací KDF. Povolený rozsah je ${MIN_KDF_ITERATIONS}–${MAX_KDF_ITERATIONS}.`);
+  }
+  return candidate;
+}
 
-  const base = await window.crypto.subtle.importKey(
+function requireCrypto(){
+  const api = cryptoApi();
+  if(!api?.subtle) throw new Error('Web Crypto API není dostupné.');
+  return api;
+}
+
+export async function deriveVaultKey(password, salt, iterations = KDF_ITERATIONS){
+  const api = requireCrypto();
+  const rounds = validateKdfIterations(iterations);
+  const base = await api.subtle.importKey(
     'raw',
-    new TextEncoder().encode(password),
+    new TextEncoder().encode(String(password ?? '')),
     'PBKDF2',
     false,
     ['deriveKey']
   );
-
-  return window.crypto.subtle.deriveKey(
+  return api.subtle.deriveKey(
     { name: 'PBKDF2', salt, iterations: rounds, hash: 'SHA-256' },
     base,
     { name: 'AES-GCM', length: 256 },
@@ -42,16 +65,20 @@ export async function deriveVaultKey(password, salt, iterations = KDF_ITERATIONS
 }
 
 export async function encryptJson(obj, key){
-  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const api = requireCrypto();
+  const iv = api.getRandomValues(new Uint8Array(12));
   const bytes = new TextEncoder().encode(JSON.stringify(obj));
-  const cipher = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, bytes);
+  const cipher = await api.subtle.encrypt({ name: 'AES-GCM', iv }, key, bytes);
   return { iv: bytesToBase64(iv), data: bytesToBase64(cipher) };
 }
 
 export async function decryptJson(envelope, key){
+  const api = requireCrypto();
+  if(!envelope || typeof envelope !== 'object') throw new Error('Šifrovaná obálka chybí nebo je poškozená.');
   const iv = base64ToBytes(envelope.crypto?.iv || envelope.iv);
+  if(iv.byteLength !== 12) throw new Error('Šifrovaná obálka má neplatný inicializační vektor.');
   const cipher = base64ToBytes(envelope.data);
-  const plain = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipher);
+  const plain = await api.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipher);
   return JSON.parse(new TextDecoder().decode(plain));
 }
 
@@ -59,10 +86,11 @@ export const encryptObjectWithKey = encryptJson;
 export const decryptObjectWithKey = decryptJson;
 
 export async function encryptBlobForIdb(file, key, version = APP_VERSION){
+  const api = requireCrypto();
   if(!key) throw new Error('Trezor není odemčený; soubor nelze zašifrovat.');
-  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const iv = api.getRandomValues(new Uint8Array(12));
   const buffer = await file.arrayBuffer();
-  const cipher = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, buffer);
+  const cipher = await api.subtle.encrypt({ name: 'AES-GCM', iv }, key, buffer);
 
   return {
     kind: 'LifeHub encrypted blob',
@@ -77,56 +105,41 @@ export async function encryptBlobForIdb(file, key, version = APP_VERSION){
 }
 
 export async function decryptBlobFromIdb(record, key){
+  const api = requireCrypto();
   if(!key) throw new Error('Trezor není odemčený.');
+  if(record?.kind !== 'LifeHub encrypted blob' || record?.crypto?.alg !== 'AES-GCM' || !(record.data instanceof Blob)){
+    throw new Error('Uložený soubor nemá podporovaný šifrovaný formát.');
+  }
+  const iv = base64ToBytes(record.crypto.iv);
+  if(iv.byteLength !== 12) throw new Error('Uložený soubor má neplatný inicializační vektor.');
   const cipher = await record.data.arrayBuffer();
-  const plain = await window.crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: base64ToBytes(record.crypto?.iv) },
-    key,
-    cipher
-  );
+  const plain = await api.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipher);
 
   try{
     return new File([plain], record.name || 'soubor', {
       type: record.type || 'application/octet-stream',
       lastModified: record.lastModified || Date.now()
     });
-  }catch(e){
+  }catch(error){
     const blob = new Blob([plain], { type: record.type || 'application/octet-stream' });
     blob.name = record.name || 'soubor';
+    blob.lastModified = record.lastModified || Date.now();
     return blob;
   }
 }
 
 export async function deriveBackupKey(passphrase, salt, iterations = KDF_ITERATIONS){
-  const rounds = Number.isFinite(Number(iterations)) && Number(iterations) > 0
-    ? Number(iterations)
-    : KDF_ITERATIONS;
-
-  const enc = new TextEncoder();
-  const baseKey = await window.crypto.subtle.importKey(
-    'raw',
-    enc.encode(passphrase),
-    'PBKDF2',
-    false,
-    ['deriveKey']
-  );
-
-  return window.crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations: rounds, hash: 'SHA-256' },
-    baseKey,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['encrypt', 'decrypt']
-  );
+  return deriveVaultKey(passphrase, salt, iterations);
 }
 
 export async function encryptBackupObject(obj, passphrase, version = APP_VERSION){
-  if(!window.crypto?.subtle) throw new Error('Web Crypto API není dostupné.');
-  const salt = window.crypto.getRandomValues(new Uint8Array(16));
-  const iv = window.crypto.getRandomValues(new Uint8Array(12));
-  const key = await deriveBackupKey(passphrase, salt, Number(obj.crypto?.iterations) || KDF_ITERATIONS);
+  const api = requireCrypto();
+  const iterations = KDF_ITERATIONS;
+  const salt = api.getRandomValues(new Uint8Array(16));
+  const iv = api.getRandomValues(new Uint8Array(12));
+  const key = await deriveBackupKey(passphrase, salt, iterations);
   const payload = new TextEncoder().encode(JSON.stringify(obj));
-  const cipher = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, payload);
+  const cipher = await api.subtle.encrypt({ name: 'AES-GCM', iv }, key, payload);
 
   return {
     kind: 'LifeHub encrypted backup',
@@ -135,7 +148,7 @@ export async function encryptBackupObject(obj, passphrase, version = APP_VERSION
     crypto: {
       alg: 'AES-GCM',
       kdf: 'PBKDF2-SHA256',
-      iterations: KDF_ITERATIONS,
+      iterations,
       salt: bytesToBase64(salt),
       iv: bytesToBase64(iv)
     },
@@ -144,10 +157,14 @@ export async function encryptBackupObject(obj, passphrase, version = APP_VERSION
 }
 
 export async function decryptBackupObject(obj, passphrase){
+  const api = requireCrypto();
   if(obj?.kind !== 'LifeHub encrypted backup') throw new Error('Soubor není šifrovaná LifeHub záloha.');
+  if(obj?.crypto?.alg !== 'AES-GCM' || obj?.crypto?.kdf !== 'PBKDF2-SHA256') throw new Error('Záloha používá nepodporované šifrování.');
+  const iterations = validateKdfIterations(obj.crypto?.iterations);
   const salt = base64ToBytes(obj.crypto?.salt);
   const iv = base64ToBytes(obj.crypto?.iv);
-  const key = await deriveBackupKey(passphrase, salt, Number(obj.crypto?.iterations) || KDF_ITERATIONS);
-  const plain = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, base64ToBytes(obj.data));
+  if(salt.byteLength < 16 || iv.byteLength !== 12) throw new Error('Šifrovaná záloha má neplatné kryptografické parametry.');
+  const key = await deriveBackupKey(passphrase, salt, iterations);
+  const plain = await api.subtle.decrypt({ name: 'AES-GCM', iv }, key, base64ToBytes(obj.data));
   return JSON.parse(new TextDecoder().decode(plain));
 }
