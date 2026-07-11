@@ -1,25 +1,36 @@
-# LifeHub 4.0.0
+# LifeHub 4.3.3
 
-LifeHub je lokální osobní PWA pro poznámky, finance, výplatní pásky, úkoly, nákupy, splátky, přehled aplikací a šifrovaný archiv dokumentů.
+LifeHub je lokální šifrovaná PWA pro osobní a rodinnou správu poznámek, financí, plateb domácnosti, výplatních pásek, úkolů, nákupů, splátek, zahrady, projektů a soukromých dokumentů.
 
 ## Stav projektu
 
-**Verze 4.0 je připravena jako oficiální osobní nástroj pro běžný provoz.** Není označena jako pilot. Má produkční build, automatické testy, GitHub Actions, šifrované lokální ukládání, transakční obnovu záloh a dokumentovaný provozní postup.
+**Verze 4.3.3 je připravena jako oficiální osobní nástroj s bezpečným rodinným náhledem.** Data zůstávají v prohlížeči a po odemčení jsou uložena šifrovaně. LifeHub není cloudová služba: každé zařízení má vlastní trezor a rodinný soubor slouží pouze k zobrazení partnerových vybraných údajů.
 
-Toto vymezení platí pro jednoho uživatele a lokální data v prohlížeči. LifeHub není cloudová služba, týmový systém, správce hesel ani náhrada profesionálně auditovaného DMS. Telefon a PC mají samostatný trezor a data se mezi nimi přenášejí ručně kompletní šifrovanou zálohou.
+## Rodinný náhled 4.3.3
 
-## Hlavní vlastnosti 4.0
+Rodinný soubor je chráněný společným heslem a druhému zařízení zobrazí pouze náhled:
+
+- společných příjmů a výdajů,
+- rozpočtu na jídlo a benzín včetně limitů,
+- plateb domácnosti a historie úhrad,
+- nákupního seznamu,
+- rodinných úkolů,
+- velkých a plánovaných nákupů,
+- splátek včetně běžných a mimořádných plateb,
+- zahradních věcí k pořízení a deníku údržby.
+
+Importovaný obsah je vždy pouze pro čtení. Nezapisuje se do vlastních záložek, neslučuje se s vlastními daty a nelze jej v partnerském náhledu upravovat. Novější partnerův soubor jednoduše nahradí předchozí náhled. Výplatní pásky, PDF, dokumenty, poznámky, AI výkaz, odměny a přehled vyvíjených aplikací se do rodinného souboru nezahrnují.
+
+Rodinné heslo se na každém zařízení zadává pouze jednou. Uloží se uvnitř lokálního šifrovaného trezoru, takže se po automatickém 15minutovém zamknutí nezadává znovu. Export i načtení ho používají automaticky. Heslo lze změnit nebo odstranit v Nastavení. Do samotného rodinného souboru se nikdy neukládá.
+Nešifrovaná datová záloha ho neobsahuje; součástí může být pouze šifrovaná datová nebo kompletní záloha.
+
+## Bezpečnost a zálohy
 
 - AES-GCM šifrování stavu, PDF a dokumentů; klíč se odvozuje z hesla pomocí PBKDF2-SHA256.
-- Bezpečná změna hesla, která znovu zašifruje stav i soubory.
-- Obnova po přerušené změně hesla nebo kompletním importu.
-- Kompletní šifrovaná záloha včetně souborů a lehčí datová záloha bez souborů.
-- Přísná kontrola formátu, skutečné velikosti, duplicit a vazeb souborů při importu.
-- Transakční výměna obsahu IndexedDB: neúspěšný soubor nesmaže původní archiv napůl.
-- Ověření zálohy bez importu, náhled před přepsáním a potvrzení slovem `IMPORTOVAT`.
-- Automatické zamknutí po neaktivitě a kontrola skutečně uplynulého času po návratu do aplikace.
-- PWA pro GitHub Pages s bezpečnou aktualizací bez vynuceného reloadu rozpracovaného formuláře.
-- Jednotkové testy a statický smoke test spouštěné lokálně i v CI.
+- Kompletní šifrovaná záloha přenáší i soubory z IndexedDB.
+- Datová záloha přenáší stav aplikace bez PDF a dokumentů.
+- Rodinný náhledový soubor je samostatný, obsahuje jen sdílené kolekce a po importu nemění vlastní data.
+- Heslo nelze obnovit. Udržuj pravidelnou kompletní zálohu mimo zařízení.
 
 ## Struktura
 
@@ -28,71 +39,48 @@ index.html
 src/
   app/lifehub-app.js
   config/constants.js
-  core/ui.js
-  core/utils.js
-  features/backup.js
-  features/backup-validation.js
-  features/finance.js
-  pwa/register-sw.js
-  security/crypto.js
-  storage/indexed-db.js
-  styles/lifehub.css
+  core/
+  features/
+    backup.js
+    backup-validation.js
+    budget.js
+    family-sync.js
+    finance.js
+    payroll-elanor.js
+  pwa/
+  security/
+  storage/
+  styles/
 public/
-  manifest.json
-  sw.js
-  icon.svg
-  icon-192.png
-  icon-512.png
-  vendor/pdf.min.mjs
-  vendor/pdf.worker.min.mjs
 tests/
-  backup-validation.test.mjs
-  crypto.test.mjs
-  finance.test.mjs
-  utils.test.mjs
-scripts/check-smoke.mjs
-docs/AUDIT_SOL_4_0.md
-docs/PROVOZNI_POSTUP.md
+scripts/
 .github/workflows/
-  ci.yml
-  deploy.yml
 ```
 
-## Lokální spuštění
+## Lokální spuštění a kontrola
 
 ```bash
 npm ci
 npm run dev
-```
-
-## Úplná kontrola projektu
-
-```bash
 npm run check
 ```
 
-Příkaz postupně provede kontrolu syntaxe, jednotkové testy, smoke test a produkční build.
+`npm run check` provede syntax check, všechny jednotkové testy, statický smoke test a produkční build.
 
 ## GitHub Pages
 
 1. Nahraj obsah projektu do kořene repozitáře.
 2. V **Settings → Pages** nastav zdroj **GitHub Actions**.
-3. Push do větve `main` spustí `.github/workflows/deploy.yml`.
-4. Workflow provede `npm ci`, testy, smoke test a build.
-5. Publikuje se pouze výstup `dist` vytvořený během workflow.
+3. Push do větve `main` spustí úplnou kontrolu a nasazení výstupu `dist`.
 
-`vite.config.js` v GitHub Actions nastaví `base` podle názvu repozitáře. Pro vlastní doménu nebo zvláštní cestu lze použít proměnnou `LIFEHUB_BASE`.
+Do veřejného repozitáře nenahrávej exporty, zálohy, PDF ani jiné osobní dokumenty.
 
-## Soukromí a zálohy
+## Interaktivní manuál v aplikaci
 
-Do repozitáře nepatří PDF, osobní dokumenty, exporty ani zálohy. `.gitignore` blokuje běžné citlivé formáty; před commitem je přesto nutné zkontrolovat seznam souborů.
+LifeHub obsahuje soubor `public/manual.html`, který se v produkčním buildu publikuje jako `manual.html`. Otevřeš jej:
 
-Doporučený provoz:
+- tlačítkem `❔` v horní liště,
+- položkou **Manuál** v postranní navigaci,
+- případně tlačítkem **Otevřít na celou obrazovku**.
 
-1. Hlavní zařízení zálohuj kompletní šifrovanou zálohou alespoň jednou týdně a před větší aktualizací.
-2. Novou zálohu občas ověř funkcí **Ověřit zálohu bez importu**.
-3. Před importem na druhém zařízení vytvoř jeho aktuální kompletní zálohu.
-4. Po obnově zkontroluj počet dokumentů, PDF výplatních pásek a datum poslední obnovy.
-5. Heslo trezoru ani heslo zálohy nelze obnovit. Uchovávej je mimo LifeHub.
-
-Podrobnosti jsou v `docs/PROVOZNI_POSTUP.md` a výsledek auditu v `docs/AUDIT_SOL_4_0.md`.
+Manuál funguje offline, je součástí PWA cache a nepracuje s osobními daty trezoru.

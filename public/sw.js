@@ -1,7 +1,7 @@
-const CACHE_NAME = 'lifehub-vite-shell-v4-0';
+const CACHE_NAME = 'lifehub-vite-shell-v4-3-3';
 const STATIC_SHELL = [
   './', './index.html', './manifest.json', './icon.svg', './icon-192.png', './icon-512.png',
-  './vendor/pdf.min.mjs', './vendor/pdf.worker.min.mjs'
+  './vendor/pdf.min.mjs', './vendor/pdf.worker.min.mjs', './manual.html'
 ];
 
 self.addEventListener('install', event => {

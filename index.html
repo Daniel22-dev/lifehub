@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#20134d">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'none'; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
-  <title>LifeHub 4.0 | osobní šifrovaný trezor</title>
+  <title>LifeHub 4.3.3 | osobní šifrovaný trezor</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./icon-192.png">
@@ -22,6 +22,7 @@
       </div>
       <div class="top-actions">
         <span class="pill" id="saveStatus" role="status" aria-live="polite">Zamčeno</span>
+        <button class="icon-btn" id="manualBtn" type="button" title="Otevřít interaktivní manuál" aria-label="Otevřít interaktivní manuál">❔</button>
         <button class="icon-btn" id="lockBtn" type="button" title="Zamknout aplikaci">🔒</button>
         <button class="icon-btn" id="fullscreenBtn" type="button" title="Celá obrazovka">⛶</button>
         <button class="icon-btn" id="themeBtn" type="button" title="Denní/noční režim">☾</button>
@@ -34,14 +35,21 @@
           <button class="active" data-tab="dashboard" type="button"><span class="emoji">🏠</span><span class="label">Přehled</span></button>
           <button data-tab="notes" type="button"><span class="emoji">🧠</span><span class="label">Poznámky</span></button>
           <button data-tab="finance" type="button"><span class="emoji">💸</span><span class="label">Finance</span></button>
+          <button data-tab="budget" type="button"><span class="emoji">⛽</span><span class="label">Jídlo &amp; benzín</span></button>
           <button data-tab="installments" type="button"><span class="emoji">📆</span><span class="label">Splátky</span></button>
+          <button data-tab="payments" type="button"><span class="emoji">🧾</span><span class="label">Platby</span></button>
           <button data-tab="vault" type="button"><span class="emoji">🗄️</span><span class="label">Archiv</span></button>
           <button data-tab="tasks" type="button"><span class="emoji">✅</span><span class="label">To-do</span></button>
-          <button data-tab="shopping" type="button"><span class="emoji">🛒</span><span class="label">Nákupy</span></button>
+          <button data-tab="groceries" type="button"><span class="emoji">🛒</span><span class="label">Nákupní seznam</span></button>
+          <button data-tab="shopping" type="button"><span class="emoji">🏠</span><span class="label">Velké nákupy</span></button>
+          <button data-tab="garden" type="button"><span class="emoji">🌱</span><span class="label">Zahrada</span></button>
+          <button data-tab="ailog" type="button"><span class="emoji">🤖</span><span class="label">AI výkaz</span></button>
+          <button data-tab="rewards" type="button"><span class="emoji">🏅</span><span class="label">Odměny</span></button>
+          <button data-tab="partner" type="button"><span class="emoji">👥</span><span class="label">Rodina</span></button>
           <button data-tab="apps" type="button"><span class="emoji">🧩</span><span class="label">Aplikace</span></button>
           <button data-tab="exports" type="button"><span class="emoji">📦</span><span class="label">Zálohy / Export</span></button>
           <button data-tab="settings" type="button"><span class="emoji">⚙️</span><span class="label">Nastavení</span></button>
-          <button data-tab="help" type="button"><span class="emoji">❔</span><span class="label">Nápověda</span></button>
+          <button data-tab="help" type="button"><span class="emoji">❔</span><span class="label">Manuál</span></button>
         </nav>
         <div class="sidebar-footer">
           Data se po odemčení ukládají šifrovaně v tomto zařízení. Pro telefon ↔ PC používej kompletní šifrovanou zálohu; do GitHubu nikdy nedávej soukromé exporty.
@@ -59,7 +67,9 @@
                 <div class="quick-title">Rychlé přidání</div>
                 <div class="quick-actions">
                   <button class="quick-btn" data-quick="task" type="button"><span class="q-emoji">✅</span> Nový úkol</button>
-                  <button class="quick-btn" data-quick="shopping" type="button"><span class="q-emoji">🛒</span> Nový nákup</button>
+                  <button class="quick-btn" data-quick="grocery" type="button"><span class="q-emoji">🛒</span> Nákupní seznam</button>
+                  <button class="quick-btn" data-quick="budget" type="button"><span class="q-emoji">⛽</span> Jídlo / benzín</button>
+                  <button class="quick-btn" data-quick="shopping" type="button"><span class="q-emoji">🏠</span> Velký nákup</button>
                   <button class="quick-btn" data-quick="trans" type="button"><span class="q-emoji">💸</span> Příjem / výdaj</button>
                   <button class="quick-btn" data-quick="note" type="button"><span class="q-emoji">🧠</span> Nová poznámka</button>
                   <button class="quick-btn" data-quick="installment" type="button"><span class="q-emoji">📆</span> Nová splátka</button>
@@ -245,7 +255,9 @@
                 <div class="payroll-fields" id="payrollFields"></div>
                 <div class="actions mt-14">
                   <button class="btn ok" id="savePayrollBtn" type="button">Uložit pásku a zapsat příjem</button>
+                  <button class="btn" id="importPayrollsBtn" type="button">Import pásek z JSON (přidá k datům)</button>
                   <button class="btn" data-action="export-payrolls-csv" type="button">Export pásek CSV</button>
+                  <input id="importPayrollsFile" type="file" accept="application/json,.json" hidden>
                 </div>
                 <details class="mt-14">
                   <summary>Ukázat extrahovaný text z PDF</summary>
@@ -265,6 +277,7 @@
                 <label>Kategorie<input id="transCategory" required placeholder="mzda, bydlení, jídlo…"></label>
                 <label>Částka<input id="transAmount" type="number" min="0" step="0.01" required placeholder="0"></label>
                 <label class="wide">Popis<input id="transDescription" placeholder="Volitelné"></label>
+                <label class="check-label wide"><input id="transShared" type="checkbox" checked> Zobrazit tuto transakci v rodinném náhledu partnera</label>
                 <div class="actions wide">
                   <button class="btn primary" type="submit">Uložit transakci</button>
                   <button class="btn" id="resetTrans" type="button">Vyčistit</button>
@@ -272,6 +285,72 @@
               </form>
             </div>
           </article>
+        </section>
+
+        <section class="view" id="budget">
+          <div class="section-head">
+            <div class="head-main">
+              <div>
+                <h2 class="tab-title">Jídlo &amp; benzín</h2>
+                <p class="tab-sub">Měsíční limity, útrata a bilance v průběhu roku</p>
+              </div>
+              <button class="info-dot" type="button" data-tip="Samostatné sledování dvou obálek: jídlo a benzín. Zapisuj jednotlivé útraty a aplikace hlídá, kolik ti do měsíčního limitu zbývá. Bilance = limit minus útrata; zelená znamená plus, červená mínus. Roční graf ukazuje vývoj po měsících. Záznamy se nepočítají do záložky Finance – jde o oddělenou evidenci.">i</button>
+            </div>
+            <div class="actions">
+              <input id="budgetMonth" type="month" class="control-w-170" title="Měsíc">
+              <input id="budgetYear" type="number" min="2000" max="2100" class="control-w-130" title="Rok grafu">
+            </div>
+          </div>
+
+          <div class="kpis" id="budgetKpis"></div>
+
+          <div class="grid two">
+            <article class="panel">
+              <div class="panel-head"><div><p class="eyebrow">Vybraný měsíc</p><h3>Čerpání limitů</h3></div></div>
+              <div id="budgetBars" class="bar-list"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-head"><div><p class="eyebrow">Nastavení</p><h3>Měsíční limity</h3></div></div>
+              <form class="form form-two" id="budgetLimitsForm">
+                <label>Limit na jídlo<input id="budgetFoodLimit" type="number" min="0" step="100" placeholder="10 000"></label>
+                <label>Limit na benzín<input id="budgetFuelLimit" type="number" min="0" step="100" placeholder="3 500"></label>
+                <div class="actions wide"><button class="btn primary" type="submit">Uložit limity</button></div>
+              </form>
+              <p class="small">Limity platí pro každý měsíc stejně a promítají se do bilance i ročního grafu.</p>
+            </article>
+          </div>
+
+          <article class="panel">
+            <div class="panel-head"><div><p class="eyebrow">Roční přehled</p><h3>Útrata a bilance po měsících</h3></div></div>
+            <div class="chart" id="budgetChart"></div>
+            <div class="spacer-12"></div>
+            <div id="budgetYearList" class="bar-list"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head"><div><p class="eyebrow">Záznamy</p><h3>Útraty ve vybraném měsíci</h3></div></div>
+            <div class="list" id="budgetList"></div>
+          </article>
+
+          <article class="panel add-card" id="budgetAddCard" data-collapsed="true">
+            <button class="add-card-head" type="button" data-toggle-add="budgetAddCard"><span>➕ Zapsat útratu (jídlo / benzín)</span><span class="chev">▾</span></button>
+            <div class="add-card-body">
+              <form class="form form-two" id="budgetForm">
+                <input type="hidden" id="budgetId">
+                <label>Datum<input id="budgetDate" type="date" required></label>
+                <label>Druh<select id="budgetKind"><option value="food">🍞 Jídlo</option><option value="fuel">⛽ Benzín</option></select></label>
+                <label>Částka<input id="budgetAmount" type="number" min="0" step="0.01" required placeholder="0"></label>
+                <label>Poznámka<input id="budgetNote" placeholder="Např. Lidl, tankování Shell…"></label>
+                <div class="actions wide">
+                  <button class="btn primary" type="submit">Uložit útratu</button>
+                  <button class="btn" id="resetBudget" type="button">Vyčistit</button>
+                </div>
+              </form>
+            </div>
+          </article>
+          <div class="section-head-actions">
+            <button class="btn" data-action="export-budget-csv" type="button">Export CSV</button>
+          </div>
         </section>
 
         <section class="view" id="installments">
@@ -301,6 +380,8 @@
                 <label>Od měsíce<input id="instStart" type="month"></label>
                 <label>Už splaceno<input id="instPaid" type="number" min="0" step="0.01" placeholder="0"></label>
                 <label>Den v měsíci (splatnost)<input id="instDueDay" type="number" min="1" max="31" placeholder="15"></label>
+                <label>Kdo řeší<select id="instAssignedTo"><option value="both">Oba</option><option value="me">Já</option><option value="partner">Partner</option></select></label>
+                <label class="check-label"><input id="instShared" type="checkbox" checked> Sdílet v rodině</label>
                 <label class="wide">Poznámka<input id="instNote" placeholder="Číslo smlouvy, úrok, poznámka…"></label>
                 <div class="actions wide">
                   <button class="btn primary" type="submit">Uložit splátkový kalendář</button>
@@ -309,6 +390,41 @@
               </form>
             </div>
           </article>
+        </section>
+
+        <section class="view" id="payments">
+          <div class="section-head">
+            <div class="head-main">
+              <div>
+                <h2 class="tab-title">Platby domácnosti</h2>
+                <p class="tab-sub">Pravidelné platby, faktury a termíny splatnosti na jednom místě</p>
+              </div>
+              <button class="info-dot" type="button" data-tip="Eviduj elektřinu, plyn, vodu, internet, pojištění, předplatná i jednorázové faktury. U opakované platby tlačítko Zaplaceno automaticky posune další termín. Sdílené platby se zobrazí v šifrovaném rodinném náhledu partnera.">i</button>
+            </div>
+          </div>
+          <div class="kpis" id="paymentKpis"></div>
+          <article class="panel">
+            <div class="panel-head"><div><p class="eyebrow">Závazky</p><h3>Co je potřeba zaplatit</h3></div></div>
+            <div class="list" id="paymentsList"></div>
+          </article>
+          <article class="panel add-card" id="paymentAddCard" data-collapsed="true">
+            <button class="add-card-head" type="button" data-toggle-add="paymentAddCard"><span>➕ Přidat platbu nebo fakturu</span><span class="chev">▾</span></button>
+            <div class="add-card-body">
+              <form class="form form-two" id="paymentForm">
+                <input type="hidden" id="paymentId">
+                <label class="wide">Název platby<input id="paymentTitle" required placeholder="Např. elektřina, internet, pojištění domu…"></label>
+                <label>Kategorie<input id="paymentCategory" placeholder="bydlení, pojištění, služby…"></label>
+                <label>Částka<input id="paymentAmount" type="number" min="0" step="0.01" required placeholder="0"></label>
+                <label>Opakování<select id="paymentFrequency"><option value="once">Jednorázově</option><option value="monthly">Měsíčně</option><option value="quarterly">Čtvrtletně</option><option value="yearly">Ročně</option></select></label>
+                <label>Nejbližší splatnost<input id="paymentDueDate" type="date" required></label>
+                <label>Kdo platí<select id="paymentAssignedTo"><option value="both">Oba / společně</option><option value="me">Já</option><option value="partner">Partner</option></select></label>
+                <label class="check-label"><input id="paymentShared" type="checkbox" checked> Sdílet v rodině</label>
+                <label class="wide">Poznámka<input id="paymentNote" placeholder="Variabilní symbol, účet, smlouva, detail…"></label>
+                <div class="actions wide"><button class="btn primary" type="submit">Uložit platbu</button><button class="btn" id="resetPayment" type="button">Vyčistit</button></div>
+              </form>
+            </div>
+          </article>
+          <div class="section-head-actions"><button class="btn" data-action="export-payments-csv" type="button">Export CSV</button></div>
         </section>
 
         <section class="view" id="vault">
@@ -344,7 +460,7 @@
               <form class="form" id="vaultForm">
                 <input type="hidden" id="vaultId">
                 <label class="half">Název dokumentu<input id="vaultTitle" required placeholder="Např. Výplatní páska 2026-06, faktura, potvrzení…"></label>
-                <label>Typ<select id="vaultCategory"><option value="vyplatni-paska">Výplatní páska</option><option value="finance">Finance</option><option value="skola">Škola/práce</option><option value="smlouva">Smlouva</option><option value="faktura">Faktura</option><option value="export">Export / AI výstup</option><option value="jine">Jiné</option></select></label>
+                <label>Typ<select id="vaultCategory"><option value="vyplatni-paska">Výplatní páska</option><option value="finance">Finance</option><option value="skola">Škola/práce</option><option value="smlouva">Smlouva</option><option value="faktura">Faktura</option><option value="export">Export / AI výstup</option><option value="nakup">Nákupní seznam</option><option value="jine">Jiné</option></select></label>
                 <label>Datum<input id="vaultDate" type="date"></label>
                 <label class="wide">Soubor<input id="vaultFile" type="file"></label>
                 <label class="wide">Poznámka<input id="vaultNote" placeholder="K čemu se dokument hodí, co z něj má být zachováno…"></label>
@@ -386,6 +502,8 @@
                 <label>Časový horizont<select id="taskHorizon"><option value="week">Tento týden</option><option value="month" selected>Tento měsíc</option><option value="long">Dlouhodobé</option></select></label>
                 <label>Termín<input id="taskDue" type="date"></label>
                 <label>Oblast<input id="taskArea" placeholder="škola, domácnost, finance…"></label>
+                <label>Přiřazeno<select id="taskAssignedTo"><option value="both">Oba</option><option value="me">Já</option><option value="partner">Partner</option></select></label>
+                <label class="check-label"><input id="taskShared" type="checkbox" checked> Rodinný úkol</label>
                 <label class="wide">Poznámka<input id="taskNote" placeholder="Volitelný detail"></label>
                 <div class="actions wide"><button class="btn primary" type="submit">Uložit úkol</button><button class="btn" id="resetTask" type="button">Vyčistit</button></div>
               </form>
@@ -397,25 +515,76 @@
           </div>
         </section>
 
+        <section class="view" id="groceries">
+          <div class="section-head">
+            <div class="head-main">
+              <div>
+                <h2 class="tab-title">Nákupní seznam</h2>
+                <p class="tab-sub">Běžné nákupy: co koupit a kde (Lidl, Albert…)</p>
+              </div>
+              <button class="info-dot" type="button" data-tip="Rychlý seznam běžných nákupů oddělený od velkých nákupů pro dům. Položku zapiš ručně a zvol obchod. Když ti žena pošle seznam v SMS/WhatsAppu, zkopíruj text a vlož ho do Hromadného vložení – každý řádek se stane položkou. Screenshot seznamu ulož přes Fotky seznamů: obrázek se automaticky zmenší a uloží šifrovaně jen v tomto zařízení (a přenáší se kompletní zálohou).">i</button>
+            </div>
+          </div>
+
+          <article class="panel">
+            <div class="panel-head"><div><p class="eyebrow">Rychlé přidání</p><h3>Co koupit a kde</h3></div></div>
+            <form class="grocery-add" id="groceryQuickForm">
+              <input id="groceryName" maxlength="160" placeholder="Např. mléko, chleba, prací gel…" autocomplete="off">
+              <select id="groceryStore" title="Obchod"><option value="">Obchod —</option><option>Lidl</option><option>Albert</option><option>Kaufland</option><option>Billa</option><option>Tesco</option><option>Globus</option><option>Jiný</option></select>
+              <button class="btn primary" type="submit">Přidat</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div><p class="eyebrow">Seznam</p><h3>K nákupu</h3></div>
+              <div class="actions"><button class="btn secondary" id="clearBoughtBtn" type="button">Vymazat koupené</button></div>
+            </div>
+            <div id="groceryList"></div>
+          </article>
+
+          <article class="panel add-card" id="groceryBulkCard" data-collapsed="true">
+            <button class="add-card-head" type="button" data-toggle-add="groceryBulkCard"><span>📋 Hromadné vložení (text od ženy)</span><span class="chev">▾</span></button>
+            <div class="add-card-body">
+              <form class="form" id="groceryBulkForm">
+                <label class="wide">Vlož zkopírovaný seznam (každý řádek = jedna položka)<textarea id="groceryBulkText" rows="6" placeholder="mléko&#10;chleba&#10;2x vejce&#10;máslo"></textarea></label>
+                <label>Obchod pro všechny položky<select id="groceryBulkStore"><option value="">Obchod —</option><option>Lidl</option><option>Albert</option><option>Kaufland</option><option>Billa</option><option>Tesco</option><option>Globus</option><option>Jiný</option></select></label>
+                <div class="actions wide"><button class="btn primary" type="submit">Vložit položky</button></div>
+              </form>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div><p class="eyebrow">Screenshoty</p><h3>Fotky seznamů</h3></div>
+              <label class="file-action">Nahrát screenshot / fotku<input id="groceryPhotoInput" type="file" accept="image/*"></label>
+            </div>
+            <p class="small">Obrázek se před uložením automaticky zmenší, uloží se zašifrovaně do lokálního trezoru a přenáší se kompletní šifrovanou zálohou. Klepnutím na náhled ho zobrazíš v plné velikosti.</p>
+            <div class="photo-grid" id="groceryPhotoGrid"></div>
+          </article>
+          <div class="section-head-actions">
+            <button class="btn" data-action="export-groceries-csv" type="button">Export CSV</button>
+          </div>
+        </section>
+
         <section class="view" id="shopping">
           <div class="section-head">
             <div class="head-main">
               <div>
-                <h2 class="tab-title">Nákupní plán</h2>
-                <p class="tab-sub">Velké nákupy pro dům i běžné potraviny</p>
+                <h2 class="tab-title">Velké nákupy</h2>
+                <p class="tab-sub">Plánované větší výdaje pro dům a domácnost</p>
               </div>
-              <button class="info-dot" type="button" data-tip="Rozliš velké nákupy pro dům / obecné od běžných potravin. U potravin zvol obchod (Lidl, Albert…). Graf a roční plán počítají s odhadem ceny a plánovaným měsícem – hodí se hlavně pro velké nákupy.">i</button>
+              <button class="info-dot" type="button" data-tip="Sem patří větší plánované nákupy (spotřebiče, materiál, opravy…). Běžné potraviny mají vlastní záložku Nákupní seznam. Graf a roční plán počítají s odhadem ceny a plánovaným měsícem.">i</button>
             </div>
           </div>
           <div class="kpis" id="shoppingKpis"></div>
           <article class="panel">
-            <div class="panel-head"><div><p class="eyebrow">Graf</p><h3>Roční nákupní plán (velké nákupy)</h3></div><input id="shoppingYear" type="number" min="2000" max="2100" class="control-w-130" title="Rok"></div>
-            <div class="chart" id="shoppingChart"></div>
+            <div class="panel-head"><div><p class="eyebrow">Roční přehled</p><h3>Plán a útraty po měsících</h3></div><input id="shoppingYear" type="number" min="2000" max="2100" class="control-w-130" title="Rok"></div>
+            <div id="shoppingChart" class="bar-list"></div>
           </article>
           <article class="panel">
-            <div class="filters filter-five">
+            <div class="filters filter-four">
               <input id="shopSearch" type="search" placeholder="Hledat v nákupech…">
-              <select id="shopSegmentFilter" title="Druh"><option value="all">Vše</option><option value="general">Dům / velké</option><option value="groceries">Potraviny</option></select>
               <select id="shopPriorityFilter" title="Priorita"><option value="all">Všechny priority</option><option value="urgent">Urgentní</option><option value="soon">Brzy</option><option value="later">Dlouhodobé</option></select>
               <select id="shopStatusFilter" title="Stav"><option value="open">Aktivní</option><option value="all">Vše</option><option value="bought">Koupené</option><option value="paused">Odložené</option></select>
               <select id="shopSort" title="Řazení"><option value="priority">Priorita</option><option value="month">Měsíc</option><option value="price">Cena</option><option value="new">Nejnovější</option></select>
@@ -423,13 +592,12 @@
             <div class="list" id="shoppingList"></div>
           </article>
           <article class="panel add-card" id="shopAddCard" data-collapsed="true">
-            <button class="add-card-head" type="button" data-toggle-add="shopAddCard"><span>➕ Přidat nákup</span><span class="chev">▾</span></button>
+            <button class="add-card-head" type="button" data-toggle-add="shopAddCard"><span>➕ Přidat velký nákup</span><span class="chev">▾</span></button>
             <div class="add-card-body">
               <form class="form form-two" id="shoppingForm">
                 <input type="hidden" id="shopId">
-                <label class="wide">Název<input id="shopName" required placeholder="Např. nový telefon, mléko, oprava auta…"></label>
-                <label>Druh<select id="shopSegment"><option value="general">Dům / velké nákupy</option><option value="groceries">Potraviny</option></select></label>
-                <label>Obchod<select id="shopStore"><option value="">—</option><option>Lidl</option><option>Albert</option><option>Kaufland</option><option>Billa</option><option>Tesco</option><option>Globus</option><option>Hornbach</option><option>OBI</option><option>Jiný</option></select></label>
+                <label class="wide">Název<input id="shopName" required placeholder="Např. nový telefon, sekačka, oprava auta…"></label>
+                <label>Obchod<select id="shopStore"><option value="">—</option><option>Hornbach</option><option>OBI</option><option>Alza</option><option>Datart</option><option>Lidl</option><option>Kaufland</option><option>Globus</option><option>Jiný</option></select></label>
                 <label>Priorita<select id="shopPriority"><option value="urgent">Musím urgentně koupit</option><option value="soon">Bylo by dobré brzy</option><option value="later">Dlouhodobější plán</option></select></label>
                 <label>Stav<select id="shopStatus"><option value="planned">Plánováno</option><option value="bought">Koupeno</option><option value="paused">Odloženo</option></select></label>
                 <label>Kategorie<input id="shopCategory" placeholder="elektronika, domácnost…"></label>
@@ -437,6 +605,7 @@
                 <label>Plánovaný měsíc<input id="shopMonth" type="month"></label>
                 <label>URL<input id="shopUrl" type="url" placeholder="https://…"></label>
                 <label class="wide">Poznámka<input id="shopNote" placeholder="Proč to chci/potřebuji, alternativa, sleva…"></label>
+                <label class="check-label wide"><input id="shopShared" type="checkbox" checked> Sdílet v rodinném plánu nákupů</label>
                 <div class="actions wide"><button class="btn primary" type="submit">Uložit nákup</button><button class="btn" id="resetShop" type="button">Vyčistit</button></div>
               </form>
             </div>
@@ -445,6 +614,199 @@
             <button class="btn" data-action="export-shopping-csv" type="button">Export CSV</button>
             <button class="btn secondary" data-action="export-shopping-md" type="button">Export MD</button>
           </div>
+        </section>
+
+
+        <section class="view" id="garden">
+          <div class="section-head">
+            <div class="head-main">
+              <div>
+                <h2 class="tab-title">Zahrada</h2>
+                <p class="tab-sub">Co pořídit a deník údržby trávníku, techniky a zeleně</p>
+              </div>
+              <button class="info-dot" type="button" data-tip="Nahoře je seznam věcí k pořízení (s odkazem, cenou a horizontem), dole deník údržby: hnojení, vertikutace, aerifikace, servis sekačky a další. U každého typu vidíte, kdy proběhl naposledy.">i</button>
+            </div>
+          </div>
+          <div class="kpis" id="gardenKpis"></div>
+
+          <article class="panel">
+            <div class="panel-head"><div><p class="eyebrow">Údržba</p><h3>Kdy naposledy proběhlo</h3></div></div>
+            <div id="gardenCare" class="bar-list"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head"><div><p class="eyebrow">K pořízení</p><h3>Věci na zahradu</h3></div></div>
+            <div class="list" id="gardenItemsList"></div>
+          </article>
+
+          <article class="panel add-card" id="gardenItemAddCard" data-collapsed="true">
+            <button class="add-card-head" type="button" data-toggle-add="gardenItemAddCard"><span>➕ Přidat věc k pořízení</span><span class="chev">▾</span></button>
+            <div class="add-card-body">
+              <form class="form form-two" id="gardenItemForm">
+                <input type="hidden" id="gardenItemId">
+                <label class="wide">Co pořídit<input id="gardenItemName" required placeholder="Např. hnojivo na podzim, nové ostří do sekačky…"></label>
+                <label>Odhad ceny<input id="gardenItemPrice" type="number" min="0" step="0.01" placeholder="0"></label>
+                <label>Horizont<select id="gardenItemHorizon"><option value="now">Co nejdřív</option><option value="season">Tuto sezónu</option><option value="year">Do roka</option><option value="someday">Někdy / až bude akce</option></select></label>
+                <label class="wide">Odkaz<input id="gardenItemUrl" type="url" placeholder="https://…"></label>
+                <label class="wide">Komentář<input id="gardenItemNote" placeholder="Proč, kde nejlevněji, jaká varianta…"></label>
+                <label class="check-label wide"><input id="gardenItemShared" type="checkbox" checked> Sdílet s rodinou</label>
+                <div class="actions wide"><button class="btn primary" type="submit">Uložit položku</button><button class="btn" id="resetGardenItem" type="button">Vyčistit</button></div>
+              </form>
+            </div>
+          </article>
+
+          <article class="panel add-card" id="gardenLogAddCard" data-collapsed="true">
+            <button class="add-card-head" type="button" data-toggle-add="gardenLogAddCard"><span>🗓️ Zapsat údržbu (hnojení, servis…)</span><span class="chev">▾</span></button>
+            <div class="add-card-body">
+              <form class="form form-two" id="gardenLogForm">
+                <input type="hidden" id="gardenLogId">
+                <label>Datum<input id="gardenLogDate" type="date" required></label>
+                <label>Typ<select id="gardenLogType"><option value="hnojeni">🌿 Hnojení</option><option value="vertikutace">🪒 Vertikutace</option><option value="aerifikace">🕳️ Aerifikace</option><option value="dosev">🌾 Dosev trávníku</option><option value="postrik">💧 Postřik / ochrana</option><option value="sekani">✂️ Sekání</option><option value="zavlaha">🚿 Zásah na závlaze</option><option value="servis">🔧 Servis techniky</option><option value="jine">📌 Jiné</option></select></label>
+                <label>Část zahrady / stroj<input id="gardenLogArea" placeholder="Např. přední trávník, sad, sekačka…"></label>
+                <label class="wide">Poznámka<input id="gardenLogNote" placeholder="Jaký přípravek, dávkování, co se měnilo…"></label>
+                <label class="check-label wide"><input id="gardenLogShared" type="checkbox" checked> Sdílet záznam s rodinou</label>
+                <div class="actions wide"><button class="btn primary" type="submit">Uložit záznam</button><button class="btn" id="resetGardenLog" type="button">Vyčistit</button></div>
+              </form>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head"><div><p class="eyebrow">Deník</p><h3>Historie údržby</h3></div><select id="gardenLogFilter" class="control-w-130" title="Filtr typu"><option value="all">Vše</option><option value="hnojeni">Hnojení</option><option value="vertikutace">Vertikutace</option><option value="aerifikace">Aerifikace</option><option value="dosev">Dosev</option><option value="postrik">Postřik</option><option value="sekani">Sekání</option><option value="zavlaha">Závlaha</option><option value="servis">Servis</option><option value="jine">Jiné</option></select></div>
+            <div class="list" id="gardenLogList"></div>
+          </article>
+
+          <div class="section-head-actions">
+            <button class="btn" data-action="export-garden-csv" type="button">Export položek CSV</button>
+            <button class="btn secondary" data-action="export-gardenlog-csv" type="button">Export údržby CSV</button>
+          </div>
+        </section>
+
+        <section class="view" id="ailog">
+          <div class="section-head">
+            <div class="head-main">
+              <div>
+                <h2 class="tab-title">AI výkaz</h2>
+                <p class="tab-sub">Evidence času stráveného prací s AI pro měsíční výkaz vedení</p>
+              </div>
+              <button class="info-dot" type="button" data-tip="Zapisuj, co jsi s AI dělal a jak dlouho (v minutách). Graf ukazuje celkový čas po měsících. Na konci měsíce měsíc uzavři a vygeneruj výkaz pro ředitelku: tlačítko PDF otevře tiskový náhled – v dialogu zvol Uložit jako PDF. Záložní možností je stažení výkazu jako HTML souboru.">i</button>
+            </div>
+            <div class="actions">
+              <input id="aiMonth" type="month" class="control-w-170" title="Měsíc">
+            </div>
+          </div>
+
+          <div class="kpis" id="aiKpis"></div>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div><p class="eyebrow">Roční přehled</p><h3>Čas nad AI po měsících</h3></div>
+            </div>
+            <div class="chart" id="aiChart"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div><p class="eyebrow">Vybraný měsíc</p><h3>Záznamy činností</h3></div>
+              <div class="actions">
+                <button class="btn secondary" id="aiCloseBtn" type="button">Uzavřít měsíc</button>
+                <button class="btn primary" id="aiPrintBtn" type="button">Vygenerovat PDF (tisk)</button>
+                <button class="btn" id="aiHtmlBtn" type="button">Stáhnout výkaz HTML</button>
+              </div>
+            </div>
+            <div class="list" id="aiList"></div>
+          </article>
+
+          <article class="panel add-card" id="aiAddCard" data-collapsed="true">
+            <button class="add-card-head" type="button" data-toggle-add="aiAddCard"><span>➕ Zapsat činnost s AI</span><span class="chev">▾</span></button>
+            <div class="add-card-body">
+              <form class="form form-two" id="aiForm">
+                <input type="hidden" id="aiId">
+                <label>Datum<input id="aiDate" type="date" required></label>
+                <label>Trvání (minuty)<input id="aiMinutes" type="number" min="1" max="1440" step="1" required placeholder="Např. 90 = 1,5 h"></label>
+                <label class="wide">Činnost<input id="aiActivity" required maxlength="300" placeholder="Např. příprava testu z AJ v generátoru, tvorba hry LUDUS, konzultace metodiky…"></label>
+                <label class="wide">Poznámka<input id="aiNote" placeholder="Volitelný detail (nástroj, předmět, výstup…)"></label>
+                <div class="actions wide">
+                  <button class="btn primary" type="submit">Uložit záznam</button>
+                  <button class="btn" id="resetAi" type="button">Vyčistit</button>
+                </div>
+              </form>
+            </div>
+          </article>
+          <div class="section-head-actions">
+            <button class="btn" data-action="export-ailog-csv" type="button">Export CSV</button>
+          </div>
+        </section>
+
+        <section class="view" id="rewards">
+          <div class="section-head">
+            <div class="head-main">
+              <div>
+                <h2 class="tab-title">Odměny</h2>
+                <p class="tab-sub">Podklady pro odměny vyplácené v létě a na konci roku</p>
+              </div>
+              <button class="info-dot" type="button" data-tip="Průběžně si zapisuj, co si vykážeš na odměnách: činnost a počet hodin. Položky lze kdykoli upravit. Pro každé období (léto / konec roku) vygeneruješ přehledný dokument pro vedení – tlačítko PDF otevře tiskový náhled, v dialogu zvol Uložit jako PDF.">i</button>
+            </div>
+            <div class="actions">
+              <select id="rewardPeriodSelect" class="control-w-170" title="Období"></select>
+            </div>
+          </div>
+
+          <div class="kpis" id="rewardKpis"></div>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div><p class="eyebrow">Vybrané období</p><h3>Vykazované položky</h3></div>
+              <div class="actions">
+                <button class="btn primary" id="rewardPrintBtn" type="button">Vygenerovat PDF (tisk)</button>
+                <button class="btn" id="rewardHtmlBtn" type="button">Stáhnout dokument HTML</button>
+              </div>
+            </div>
+            <div class="list" id="rewardList"></div>
+          </article>
+
+          <article class="panel add-card" id="rewardAddCard" data-collapsed="true">
+            <button class="add-card-head" type="button" data-toggle-add="rewardAddCard"><span>➕ Přidat položku k odměnám</span><span class="chev">▾</span></button>
+            <div class="add-card-body">
+              <form class="form form-two" id="rewardForm">
+                <input type="hidden" id="rewardId">
+                <label>Období<select id="rewardPeriod"></select></label>
+                <label>Počet hodin<input id="rewardHours" type="number" min="0" step="0.5" required placeholder="Např. 4,5"></label>
+                <label class="wide">Co vykazuji<input id="rewardTitle" required maxlength="300" placeholder="Např. vývoj aplikace Generátor testů, příprava maturitních materiálů…"></label>
+                <label class="wide">Poznámka<input id="rewardNote" placeholder="Volitelný detail"></label>
+                <div class="actions wide">
+                  <button class="btn primary" type="submit">Uložit položku</button>
+                  <button class="btn" id="resetReward" type="button">Vyčistit</button>
+                </div>
+              </form>
+            </div>
+          </article>
+          <div class="section-head-actions">
+            <button class="btn" data-action="export-rewards-csv" type="button">Export CSV</button>
+          </div>
+        </section>
+
+
+        <section class="view" id="partner">
+          <div class="section-head">
+            <div class="head-main">
+              <div>
+                <h2 class="tab-title">Rodina</h2>
+                <p class="tab-sub">Šifrovaný náhled partnerových sdílených dat</p>
+              </div>
+              <button class="info-dot" type="button" data-tip="Rodinný soubor je zašifrovaný společným heslem. Přenáší sdílené finance, jídlo a benzín, nákupní seznam, úkoly, velké nákupy, splátky, platby domácnosti a zahradu. Po načtení se zobrazí pouze náhled partnerových dat; vlastní data se nemění a importovaný obsah nelze upravovat.">i</button>
+            </div>
+          </div>
+          <article class="panel">
+            <div class="actions">
+              <button class="btn primary" id="partnerImportBtn" type="button">Načíst rodinný soubor</button>
+              <button class="btn" data-action="export-partner-share" type="button">Vytvořit šifrovaný rodinný soubor</button>
+              <button class="btn danger" id="partnerDeleteBtn" type="button">Odebrat načtený náhled</button>
+              <input id="partnerImportFile" type="file" accept="application/json,.json,.lifehub-family" hidden>
+            </div>
+            <div class="security-item family-password-inline"><strong>Rodinné heslo</strong><span id="familyPasswordStatusPartner" class="status warn">Zatím nenastaveno</span></div>
+            <div id="partnerInfo" class="small"></div>
+          </article>
+          <div id="partnerContent"></div>
         </section>
 
         <section class="view" id="apps">
@@ -599,8 +961,17 @@
               <p class="small">Ukázková data pomohou ověřit grafy. Před smazáním aplikace nabídne potvrzení. Pro přenos mezi telefonem a PC používej kompletní zálohu.</p>
             </article>
           </div>
+          <article class="panel">
+            <div class="panel-head"><div><p class="eyebrow">Rodina</p><h3>Uložené rodinné heslo</h3></div><span id="familyPasswordStatus" class="status warn">Zatím nenastaveno</span></div>
+            <p id="familyPasswordInfo" class="small">Při prvním vytvoření nebo načtení rodinného souboru ho zadáte jednou.</p>
+            <div class="alert good"><strong>Bez opakovaného zadávání:</strong> heslo je součástí šifrovaného trezoru tohoto zařízení. Automatické zamknutí LifeHubu po 15 minutách ho neodstraní; po odemčení hlavního trezoru se znovu použije automaticky.</div>
+            <div class="actions">
+              <button class="btn primary" id="setFamilyPasswordBtn" type="button">Nastavit nebo změnit heslo</button>
+              <button class="btn danger" id="removeFamilyPasswordBtn" type="button">Odstranit uložené heslo</button>
+            </div>
+          </article>
           <article class="panel production-panel">
-            <div class="panel-head"><div><p class="eyebrow">Produkční režim</p><h3>Oficiální osobní nástroj</h3></div><span class="status good">LifeHub 4.0</span></div>
+            <div class="panel-head"><div><p class="eyebrow">Produkční režim</p><h3>Oficiální osobní nástroj</h3></div><span class="status good">LifeHub 4.3</span></div>
             <p>Data zůstávají v tomto zařízení a po odemčení se ukládají šifrovaně. Přenos mezi telefonem a počítačem je záměrně ruční přes kompletní šifrovanou zálohu; automatická cloudová synchronizace není součástí aplikace.</p>
           </article>
           <article class="panel">
@@ -614,46 +985,34 @@
           <div class="section-head">
             <div class="head-main">
               <div>
-                <h2 class="tab-title">Nápověda</h2>
-                <p class="tab-sub">Jak LifeHub používat</p>
+                <p class="eyebrow">Nápověda přímo v aplikaci</p>
+                <h2 class="tab-title">Interaktivní manuál</h2>
+                <p class="tab-sub">Vyhledávání, mapa všech částí, praktické postupy, rodinný náhled, zálohy a bezpečnost.</p>
               </div>
             </div>
+            <div class="actions manual-view-actions">
+              <a class="btn primary" href="./manual.html" target="_blank" rel="noopener">Otevřít na celou obrazovku</a>
+              <button class="btn secondary" id="reloadManualBtn" type="button">Obnovit manuál</button>
+            </div>
           </div>
-          <article class="panel">
-            <h3>Praktický workflow</h3>
-            <div class="grid two">
-              <div class="item"><h4>1. AI vlákna</h4><p>Po dobré odpovědi z ChatGPT/Claude ulož název, stručné shrnutí, tagy, použitelný prompt a další krok. Poznámku pak otevřeš klikem a přečteš celý obsah.</p></div>
-              <div class="item"><h4>2. Výplatní pásky</h4><p>Ve Financích otevři čtečku PDF (tlačítko dole), zkontroluj rozpoznané hodnoty a ulož. Čistá mzda se zapíše jako příjem daného měsíce.</p></div>
-              <div class="item"><h4>3. Šifrovaný trezor</h4><p>Soukromé dokumenty nahraj v části Archiv. Kapacitu úložiště vidíš nahoře. Do GitHubu nepatří; mezi telefonem a PC je přenese pouze kompletní šifrovaná záloha.</p></div>
-              <div class="item"><h4>4. Úkoly a nákupy</h4><p>U úkolů odděl prioritu (jak to hoří) a časový horizont (kdy). U nákupů rozliš dům/velké od potravin.</p></div>
-              <div class="item"><h4>5. Splátky</h4><p>V sekci Splátky si nastav, komu kolik splácíš. Aplikace hlídá, kolik zbývá, a jednou týdně to připomene.</p></div>
-              <div class="item"><h4>6. Aplikace</h4><p>V sekci Aplikace si drž přehled projektů. Ke každé aplikaci přidáš přes + samostatné poznámky.</p></div>
+          <article class="panel manual-intro-panel">
+            <div>
+              <p class="eyebrow">LifeHub 4.3.3</p>
+              <h3>Celá aplikace vysvětlená na jednom místě</h3>
+              <p class="small">Manuál je součástí instalačního balíčku, funguje i offline a nečte žádná osobní data z tvého trezoru. Níže ho můžeš používat přímo uvnitř LifeHubu.</p>
+            </div>
+            <div class="manual-feature-chips" aria-label="Funkce manuálu">
+              <span>⌕ Vyhledávání</span><span>🧭 17 částí</span><span>🪄 Postupy krok za krokem</span><span>👥 Rodinné sdílení</span><span>🛡️ Zálohy</span>
             </div>
           </article>
-
-          <article class="panel">
-            <h3>Jak LifeHub funguje s daty</h3>
-            <div class="grid two">
-              <div class="item"><h4>Lokální trezor</h4><p>Telefon i PC mají vlastní lokální úložiště. Data se sama nesynchronizují a aplikace neposílá obsah trezoru na server.</p></div>
-              <div class="item"><h4>Heslo</h4><p>Heslo se neukládá. Když ho zapomeneš, data obnovíš pouze ze šifrované zálohy a se správným heslem k této záloze.</p></div>
-              <div class="item"><h4>Aktualizace</h4><p>Aktualizace kódu přes GitHub Pages nemá mazat localStorage ani IndexedDB. Před větší aktualizací je ale rozumné stáhnout kompletní zálohu.</p></div>
-              <div class="item"><h4>Ověření zálohy</h4><p>Před důležitým importem nebo po vytvoření větší zálohy použij Ověřit zálohu bez importu. Soubor se zkontroluje, ale aktuální data se nepřepíšou.</p></div>
+          <div class="manual-frame-shell">
+            <div class="manual-frame-bar">
+              <span><strong>LifeHub manuál</strong> · vestavěný offline průvodce</span>
+              <span class="status good">Bez osobních dat</span>
             </div>
-          </article>
-
-          <article class="panel">
-            <h3>Přenos telefon ↔ PC</h3>
-            <div class="grid two">
-              <div class="item"><h4>Telefon jako hlavní zařízení</h4><p>Na telefonu vytvoř kompletní šifrovanou zálohu. Soubor přenes do PC bezpečným způsobem a v LifeHubu na PC použij Import zálohy.</p></div>
-              <div class="item"><h4>Kdy stačí datová záloha</h4><p>Datová záloha je vhodná pro rychlé přenesení poznámek, financí, úkolů a metadat. Nepřenese PDF výplatních pásek ani dokumenty z archivu.</p></div>
-              <div class="item"><h4>Bezpečný postup</h4><p>Na cílovém zařízení nejdřív ověř zálohu bez importu. Při importu zkontroluj datum, zařízení a počty položek. Pokud aplikace varuje, že je soubor starší, import dobře zvaž.</p></div>
-              <div class="item"><h4>Nejdůležitější pravidlo</h4><p>Před importem si stáhni kompletní zálohu aktuálního zařízení. Když se spleteš, máš možnost návratu.</p></div>
-            </div>
-          </article>
-          <article class="panel">
-            <h3>Omezení PDF importu</h3>
-            <p class="small">Aplikace čte textovou vrstvu PDF. Pokud zaměstnavatel posílá sken nebo obrázek v PDF, je nutné nejdříve použít OCR. PDF import čte jen prvních několik stran a má bezpečnostní limity. Rozpoznané částky jsou návrh; před uložením je zkontrolujte.</p>
-          </article>
+            <iframe id="manualFrame" class="manual-frame" src="./manual.html" title="Interaktivní uživatelský manuál LifeHubu" loading="lazy"></iframe>
+          </div>
+          <p class="small manual-fallback">Pokud se vložený manuál v konkrétním prohlížeči nezobrazí, použij tlačítko <strong>Otevřít na celou obrazovku</strong>.</p>
         </section>
 
         <footer class="footer" id="footer"></footer>
@@ -683,6 +1042,8 @@
       </form>
     </div>
   </div>
+
+  <div id="printReport" class="print-report" hidden aria-hidden="true"></div>
 
   <div class="toast-wrap" id="toastWrap" aria-live="polite" aria-atomic="true"></div>
   <script type="module" src="/src/main.js"></script>

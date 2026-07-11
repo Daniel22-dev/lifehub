@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="cs" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="description" content="Interaktivní uživatelský manuál k aplikaci LifeHub 4.3.3">
+  <meta name="theme-color" content="#101326">
+  <title>LifeHub 4.3.3 – interaktivní manuál</title>
+  <style>
+    :root{
+      --font:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      --radius-xl:28px;--radius-lg:21px;--radius:16px;--radius-sm:12px;
+      --primary:#8b5cf6;--cyan:#06b6d4;--pink:#f43f8b;--orange:#f97316;
+      --ok:#33d69f;--warn:#ffbd4a;--danger:#ff4d6d;--info:#6ee7ff;
+      --shadow:0 22px 70px rgba(8,12,34,.28);--shadow-card:0 14px 42px rgba(8,12,34,.19);
+      --max:1540px;
+    }
+    html[data-theme="dark"]{
+      --bg:#090b1a;--bg2:#13152d;--surface:rgba(22,25,52,.82);--surface-solid:#171b39;
+      --soft:rgba(255,255,255,.065);--border:rgba(255,255,255,.12);--strong:rgba(255,255,255,.23);
+      --text:#f7f8ff;--muted:#aeb7d8;--muted2:#7f89ad;--input:rgba(255,255,255,.08);--top:rgba(9,11,26,.78);
+    }
+    html[data-theme="light"]{
+      --bg:#f7f2ff;--bg2:#edf8ff;--surface:rgba(255,255,255,.86);--surface-solid:#fff;
+      --soft:rgba(69,49,122,.065);--border:rgba(51,38,94,.13);--strong:rgba(51,38,94,.24);
+      --text:#101326;--muted:#566078;--muted2:#7b8398;--input:rgba(255,255,255,.95);--top:rgba(255,255,255,.84);
+      --shadow:0 22px 70px rgba(64,54,112,.17);--shadow-card:0 14px 42px rgba(64,54,112,.12);
+    }
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;font-family:var(--font);color:var(--text);background:
+      radial-gradient(circle at 0 0,rgba(139,92,246,.42),transparent 35rem),
+      radial-gradient(circle at 92% 8%,rgba(6,182,212,.32),transparent 31rem),
+      radial-gradient(circle at 72% 88%,rgba(244,63,139,.21),transparent 34rem),
+      linear-gradient(135deg,var(--bg),var(--bg2));background-attachment:fixed;overflow-x:hidden}
+    body:before{content:"";position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:58px 58px;mask-image:linear-gradient(to bottom,rgba(0,0,0,.52),transparent 72%);z-index:-1}
+    button,input{font:inherit}.app{width:min(var(--max),calc(100% - 26px));margin:auto;padding:14px 0 35px}
+    .topbar{position:sticky;top:9px;z-index:50;display:flex;align-items:center;gap:14px;padding:12px 14px;border:1px solid var(--border);background:var(--top);backdrop-filter:blur(24px);border-radius:25px;box-shadow:var(--shadow-card)}
+    .brand{display:flex;align-items:center;gap:12px;min-width:220px}.brand-mark{width:52px;height:52px;flex:0 0 52px;border-radius:17px;display:grid;place-items:center;background:linear-gradient(135deg,var(--primary),var(--cyan) 55%,var(--pink));box-shadow:0 13px 28px rgba(6,182,212,.25)}
+    .brand-mark svg{width:38px;height:38px}.brand h1{font-size:1.12rem;margin:0;letter-spacing:-.03em}.brand p{margin:4px 0 0;color:var(--muted);font-size:.8rem}
+    .top-search{flex:1;position:relative}.top-search input{width:100%;min-height:46px;border:1px solid var(--border);background:var(--input);color:var(--text);border-radius:15px;padding:11px 44px 11px 15px;outline:none}.top-search input:focus{border-color:var(--info);box-shadow:0 0 0 4px rgba(110,231,255,.17)}.search-key{position:absolute;right:12px;top:11px;color:var(--muted2);font-size:.78rem;border:1px solid var(--border);border-radius:8px;padding:3px 6px}
+    .top-actions{display:flex;gap:8px}.btn,.icon-btn{border:1px solid var(--border);background:var(--soft);color:var(--text);border-radius:14px;min-height:42px;padding:10px 13px;font-weight:750;cursor:pointer;transition:.18s}.icon-btn{width:44px;padding:0;display:grid;place-items:center}.btn:hover,.icon-btn:hover{transform:translateY(-1px);border-color:var(--strong);background:rgba(255,255,255,.1)}.btn.primary{border:0;color:#fff;background:linear-gradient(135deg,var(--primary),var(--cyan));box-shadow:0 12px 28px rgba(139,92,246,.27)}.btn.ok{color:#a7f3d0;background:rgba(51,214,159,.12);border-color:rgba(51,214,159,.3)}html[data-theme="light"] .btn.ok{color:#047857}.btn.small{min-height:36px;padding:8px 10px;font-size:.82rem}
+    .layout{display:grid;grid-template-columns:268px minmax(0,1fr);gap:18px;margin-top:18px;align-items:start}.sidebar{position:sticky;top:91px;max-height:calc(100vh - 106px);overflow:auto;border:1px solid var(--border);border-radius:var(--radius-xl);padding:12px;background:var(--surface);backdrop-filter:blur(20px);box-shadow:var(--shadow-card);scrollbar-width:thin}.nav-group-title{margin:10px 9px 6px;color:var(--muted2);font-size:.68rem;text-transform:uppercase;letter-spacing:.13em;font-weight:900}.nav{display:grid;gap:6px}.nav button{width:100%;display:flex;align-items:center;gap:10px;text-align:left;border:1px solid transparent;border-radius:15px;padding:10px 11px;background:transparent;color:var(--muted);font-weight:760;cursor:pointer}.nav button:hover{background:var(--soft);color:var(--text)}.nav button.active{background:linear-gradient(135deg,rgba(139,92,246,.26),rgba(6,182,212,.13));color:var(--text);border-color:rgba(139,92,246,.34)}.nav .emoji{width:25px;text-align:center;font-size:1.08rem}.side-note{margin-top:12px;padding:12px;border-radius:18px;background:linear-gradient(135deg,rgba(244,63,139,.12),rgba(249,115,22,.1));color:var(--muted);font-size:.8rem;line-height:1.45}
+    main{min-width:0}.section{display:none;animation:fade .22s ease}.section.active{display:block}@keyframes fade{from{opacity:.35;transform:translateY(8px)}to{opacity:1;transform:none}}
+    .hero{position:relative;overflow:hidden;border:1px solid var(--border);border-radius:34px;padding:31px;background:radial-gradient(circle at 15% 10%,rgba(110,231,255,.27),transparent 22rem),radial-gradient(circle at 82% 32%,rgba(244,63,139,.19),transparent 24rem),linear-gradient(135deg,rgba(255,255,255,.12),rgba(255,255,255,.045));box-shadow:var(--shadow);backdrop-filter:blur(20px)}.hero:after{content:"";position:absolute;right:-105px;top:-135px;width:330px;height:330px;border-radius:50%;background:linear-gradient(135deg,rgba(139,92,246,.4),rgba(6,182,212,.09));filter:blur(3px)}.hero-inner{position:relative;z-index:1;display:grid;grid-template-columns:1.4fr .6fr;gap:24px;align-items:end}.eyebrow{margin:0 0 8px;color:var(--cyan);font-size:.76rem;text-transform:uppercase;font-weight:900;letter-spacing:.13em}.hero h2{margin:0;font-size:clamp(2.3rem,5.3vw,5.25rem);line-height:.98;letter-spacing:-.055em;max-width:950px}.hero p{color:var(--muted);font-size:1.04rem;line-height:1.65;max-width:860px}.hero-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}.version-pill{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border-radius:999px;border:1px solid var(--border);background:var(--soft);font-size:.78rem;color:var(--muted);font-weight:800}.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 5px rgba(51,214,159,.1)}
+    .section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin:2px 0 15px;padding:3px 2px;flex-wrap:wrap}.section-head h2{margin:0;font-size:clamp(1.85rem,3vw,3rem);letter-spacing:-.045em}.section-head p{margin:8px 0 0;color:var(--muted);line-height:1.5;max-width:900px}.panel,.card{border:1px solid var(--border);background:var(--surface);backdrop-filter:blur(18px);border-radius:var(--radius-xl);box-shadow:var(--shadow-card)}.panel{padding:19px;margin-bottom:16px}.panel h3{margin:0 0 9px;font-size:1.35rem;letter-spacing:-.035em}.panel p{color:var(--muted);line-height:1.58}.grid{display:grid;gap:15px}.grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}.grid.four{grid-template-columns:repeat(4,minmax(0,1fr))}.stat{padding:16px;position:relative;overflow:hidden}.stat:before{content:"";position:absolute;inset:0 auto 0 0;width:5px;background:linear-gradient(to bottom,var(--primary),var(--cyan),var(--pink))}.stat strong{display:block;font-size:1.75rem;letter-spacing:-.045em;margin-top:5px}.stat span{color:var(--muted);font-size:.82rem;line-height:1.35}.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:16px 0}.callout{border:1px solid var(--border);border-radius:20px;padding:15px;background:rgba(255,189,74,.1);line-height:1.55;color:var(--muted)}.callout strong{color:var(--warn)}.callout.good{background:rgba(51,214,159,.1)}.callout.good strong{color:var(--ok)}.callout.info{background:rgba(110,231,255,.09)}.callout.info strong{color:var(--info)}.callout.danger{background:rgba(255,77,109,.1)}.callout.danger strong{color:var(--danger)}
+    .quick-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.quick-card{border:1px solid var(--border);border-radius:21px;padding:15px;background:linear-gradient(135deg,rgba(255,255,255,.08),rgba(255,255,255,.03));cursor:pointer;transition:.18s}.quick-card:hover{transform:translateY(-2px);border-color:var(--strong)}.quick-card .ico{font-size:1.8rem}.quick-card h4{margin:10px 0 5px;font-size:1rem}.quick-card p{margin:0;font-size:.83rem;line-height:1.45}.quick-card .arrow{float:right;color:var(--cyan);font-weight:900}
+    .module-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.module-card{position:relative;overflow:hidden;padding:17px;min-height:228px}.module-card:before{content:"";position:absolute;right:-58px;top:-70px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,.19),transparent 67%)}.module-top{position:relative;display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.module-icon{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;font-size:1.48rem;background:linear-gradient(135deg,rgba(139,92,246,.24),rgba(6,182,212,.16));border:1px solid var(--border)}.module-card h3{position:relative;margin:12px 0 6px;font-size:1.16rem}.module-card p{position:relative;margin:0;font-size:.86rem;line-height:1.5}.chips{position:relative;display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}.chip{display:inline-flex;align-items:center;padding:5px 8px;border-radius:999px;border:1px solid var(--border);background:var(--soft);font-size:.69rem;color:var(--muted);font-weight:800}.module-actions{position:relative;margin-top:14px;display:flex;justify-content:space-between;align-items:center}.module-actions button{border:0;background:transparent;color:var(--cyan);font-weight:850;cursor:pointer;padding:4px}.share-badge{font-size:.68rem;font-weight:850;padding:5px 8px;border-radius:999px;background:rgba(51,214,159,.1);color:var(--ok);border:1px solid rgba(51,214,159,.22)}.private-badge{background:rgba(244,63,139,.09);color:#ff91bd;border-color:rgba(244,63,139,.22)}html[data-theme="light"] .private-badge{color:#be185d}
+    .steps{counter-reset:step;display:grid;gap:12px}.step{position:relative;padding:16px 16px 16px 66px;border:1px solid var(--border);border-radius:21px;background:var(--soft);min-height:74px}.step:before{counter-increment:step;content:counter(step);position:absolute;left:16px;top:15px;width:36px;height:36px;border-radius:13px;display:grid;place-items:center;color:#fff;font-weight:900;background:linear-gradient(135deg,var(--primary),var(--cyan))}.step h4{margin:0 0 5px}.step p{margin:0;font-size:.88rem}.step-check{position:absolute;right:14px;top:14px}.step-check input{width:21px;height:21px;accent-color:var(--ok)}.step.completed{opacity:.64}.step.completed h4{text-decoration:line-through}
+    .workflow-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.workflow-tabs button{border:1px solid var(--border);background:var(--soft);color:var(--muted);border-radius:999px;padding:8px 11px;font-weight:800;cursor:pointer}.workflow-tabs button.active{background:linear-gradient(135deg,rgba(139,92,246,.28),rgba(6,182,212,.14));color:var(--text);border-color:rgba(139,92,246,.35)}.workflow-panel{display:none}.workflow-panel.active{display:block}.flow{display:flex;align-items:stretch;gap:10px;overflow:auto;padding-bottom:5px}.flow-node{flex:1 0 190px;min-height:120px;border:1px solid var(--border);border-radius:20px;padding:14px;background:var(--soft)}.flow-node b{display:block;margin:8px 0 5px}.flow-node p{font-size:.82rem;margin:0}.flow-arrow{align-self:center;color:var(--cyan);font-size:1.5rem;font-weight:900}
+    .family-stage{display:grid;grid-template-columns:1fr 100px 1fr;align-items:stretch;gap:12px}.person-card{border:1px solid var(--border);border-radius:24px;padding:17px;background:var(--soft)}.person-head{display:flex;gap:11px;align-items:center}.avatar{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;font-size:1.4rem;background:linear-gradient(135deg,rgba(139,92,246,.25),rgba(244,63,139,.15));border:1px solid var(--border)}.person-card h4{margin:0}.person-card ul{margin:14px 0 0;padding-left:20px;color:var(--muted);line-height:1.7;font-size:.88rem}.file-bridge{display:grid;place-items:center;text-align:center;color:var(--muted);font-size:.76rem}.file-icon{width:70px;height:82px;border-radius:17px;display:grid;place-items:center;font-size:1.8rem;background:linear-gradient(135deg,rgba(6,182,212,.19),rgba(139,92,246,.2));border:1px solid var(--border);position:relative}.file-icon:after{content:"🔒";position:absolute;right:-8px;bottom:-8px;width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:var(--surface-solid);border:1px solid var(--border);font-size:.9rem}.readonly{display:inline-flex;gap:7px;align-items:center;margin-top:12px;padding:7px 10px;border-radius:999px;background:rgba(110,231,255,.08);border:1px solid rgba(110,231,255,.22);color:var(--info);font-size:.78rem;font-weight:850}
+    .compare{overflow:auto;border:1px solid var(--border);border-radius:21px}.compare table{width:100%;border-collapse:collapse;min-width:790px;background:var(--soft)}.compare th,.compare td{padding:12px 13px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}.compare th{font-size:.73rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);background:rgba(255,255,255,.045)}.compare td{font-size:.86rem;color:var(--muted);line-height:1.45}.compare td:first-child{color:var(--text);font-weight:850}.yes{color:var(--ok);font-weight:900}.no{color:var(--danger);font-weight:900}.partial{color:var(--warn);font-weight:900}
+    details.faq{border:1px solid var(--border);border-radius:18px;padding:0 14px;background:var(--soft);margin-bottom:10px}details.faq summary{cursor:pointer;padding:14px 2px;font-weight:850;list-style:none;display:flex;justify-content:space-between;gap:10px}details.faq summary:after{content:"＋";color:var(--cyan)}details.faq[open] summary:after{content:"−"}details.faq p{margin:0;padding:0 2px 15px;font-size:.9rem}
+    .search-empty{display:none;padding:30px;text-align:center;color:var(--muted);border:1px dashed var(--strong);border-radius:22px}.search-empty.show{display:block}.highlight{background:rgba(255,189,74,.26);color:inherit;border-radius:4px;padding:0 2px}
+    .tour-overlay{position:fixed;inset:0;z-index:100;background:rgba(4,6,18,.72);backdrop-filter:blur(9px);display:none;align-items:center;justify-content:center;padding:18px}.tour-overlay.open{display:flex}.tour-card{width:min(720px,100%);border:1px solid var(--border);border-radius:30px;background:var(--surface-solid);box-shadow:var(--shadow);padding:22px}.tour-progress{height:7px;border-radius:999px;background:var(--soft);overflow:hidden;margin-bottom:18px}.tour-progress span{display:block;height:100%;background:linear-gradient(90deg,var(--primary),var(--cyan),var(--pink));transition:.25s}.tour-icon{font-size:3rem}.tour-card h3{font-size:1.8rem;margin:10px 0}.tour-card p{color:var(--muted);line-height:1.65}.tour-actions{display:flex;justify-content:space-between;gap:10px;margin-top:20px}.tour-counter{color:var(--muted);font-size:.82rem;margin-top:12px}.close-x{float:right}
+    .modal{position:fixed;inset:0;z-index:90;background:rgba(4,6,18,.68);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:18px}.modal.open{display:flex}.modal-card{width:min(840px,100%);max-height:88vh;overflow:auto;border:1px solid var(--border);border-radius:28px;background:var(--surface-solid);padding:21px;box-shadow:var(--shadow)}.modal-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}.modal-card h2{margin:0;font-size:2rem}.modal-body h3{margin-top:20px}.modal-body ul{color:var(--muted);line-height:1.7}.modal-body .field-list{display:flex;flex-wrap:wrap;gap:7px}.modal-body .field-list span{padding:6px 9px;border:1px solid var(--border);border-radius:999px;background:var(--soft);font-size:.78rem;color:var(--muted)}
+    .footer{margin-top:18px;padding:18px;text-align:center;border:1px solid var(--border);border-radius:27px;background:var(--surface);color:var(--muted);line-height:1.55;box-shadow:var(--shadow-card)}.footer strong{color:var(--text)}
+    .mobile-nav-btn{display:none}.print-only{display:none}
+    @media(max-width:1150px){.module-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.quick-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid.four{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:850px){.app{width:min(100% - 16px,100%)}.topbar{top:5px}.brand{min-width:0}.brand p{display:none}.top-search{display:none}.mobile-nav-btn{display:grid}.layout{display:block}.sidebar{display:none;position:fixed;left:8px;right:8px;top:76px;z-index:60;max-height:calc(100vh - 90px)}.sidebar.open{display:block}.hero{padding:23px}.hero-inner{grid-template-columns:1fr}.hero-actions{justify-content:flex-start}.grid.two,.grid.three,.module-grid{grid-template-columns:1fr}.family-stage{grid-template-columns:1fr}.file-bridge{padding:14px}.flow-arrow{transform:rotate(90deg)}.flow{flex-direction:column}.quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:520px){.brand h1{font-size:.96rem}.brand-mark{width:44px;height:44px;flex-basis:44px}.top-actions .btn{display:none}.hero h2{font-size:2.35rem}.kpis,.quick-grid,.grid.four{grid-template-columns:1fr}.panel{padding:15px}.tour-card,.modal-card{padding:17px}.tour-actions{flex-wrap:wrap}.topbar{padding:9px}.module-card{min-height:auto}}
+    @media print{body{background:#fff;color:#111}.topbar,.sidebar,.hero-actions,.workflow-tabs,.btn,.icon-btn,.module-actions,.step-check{display:none!important}.layout{display:block}.section{display:block!important;break-before:page}.hero,.panel,.card{box-shadow:none;background:#fff;border:1px solid #ddd;color:#111}.hero p,.panel p,.module-card p,.callout,.compare td,.side-note{color:#444}.module-grid{grid-template-columns:repeat(2,1fr)}.print-only{display:block}.app{width:100%;padding:0}.footer{box-shadow:none}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <button class="icon-btn mobile-nav-btn" id="mobileNav" aria-label="Otevřít navigaci">☰</button>
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 512 512"><text x="245" y="325" text-anchor="middle" font-family="Arial,sans-serif" font-size="182" font-weight="900" fill="white" letter-spacing="-18">LH</text></svg></div>
+      <div><h1>LifeHub – interaktivní manuál</h1><p>Uživatelská příručka pro verzi 4.3.3</p></div>
+    </div>
+    <div class="top-search"><input id="globalSearch" type="search" placeholder="Hledat modul, funkci nebo otázku…" aria-label="Hledat v manuálu"><span class="search-key">Ctrl K</span></div>
+    <div class="top-actions">
+      <button class="btn primary" id="startTour">▶ Prohlídka</button>
+      <button class="icon-btn" id="printBtn" title="Vytisknout / uložit jako PDF" aria-label="Vytisknout">🖨️</button>
+      <button class="icon-btn" id="themeBtn" title="Přepnout vzhled" aria-label="Přepnout vzhled">☀️</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="nav-group-title">Začínáme</div>
+      <nav class="nav">
+        <button class="active" data-section="home"><span class="emoji">🏠</span>Přehled</button>
+        <button data-section="start"><span class="emoji">🚀</span>První spuštění</button>
+        <button data-section="modules"><span class="emoji">🧭</span>Mapa aplikace</button>
+      </nav>
+      <div class="nav-group-title">Hlavní postupy</div>
+      <nav class="nav">
+        <button data-section="workflows"><span class="emoji">🪄</span>Pracovní scénáře</button>
+        <button data-section="family"><span class="emoji">👥</span>Rodinný náhled</button>
+        <button data-section="backup"><span class="emoji">🛡️</span>Zálohy a přenos</button>
+        <button data-section="security"><span class="emoji">🔐</span>Bezpečnost</button>
+      </nav>
+      <div class="nav-group-title">Pomoc</div>
+      <nav class="nav">
+        <button data-section="faq"><span class="emoji">❓</span>Časté otázky</button>
+        <button data-section="checklist"><span class="emoji">✅</span>Kontrolní seznam</button>
+      </nav>
+      <div class="side-note"><strong>Offline manuál</strong><br>Tento soubor je samostatný. Funguje bez internetu a nic neposílá mimo zařízení.</div>
+    </aside>
+
+    <main>
+      <section class="section active" id="home">
+        <div class="hero">
+          <div class="hero-inner">
+            <div>
+              <p class="eyebrow">Celý LifeHub na jednom místě</p>
+              <h2>Osobní trezor, finance i domácnost.</h2>
+              <p>LifeHub je lokální šifrovaná aplikace pro poznámky, finance, výplatní pásky, platby, úkoly, nákupy, zahradu, pracovní výkazy a soukromé dokumenty. Tento manuál ukazuje nejen co která část dělá, ale hlavně jak ji prakticky používat.</p>
+              <span class="version-pill"><span class="dot"></span> Ověřeno pro LifeHub 4.3.3</span>
+            </div>
+            <div class="hero-actions">
+              <button class="btn primary" data-go="start">Začít od prvního spuštění</button>
+              <button class="btn" data-go="modules">Prohlédnout všechny moduly</button>
+              <button class="btn ok" data-go="family">Jak funguje Rodina</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="kpis">
+          <div class="card stat"><span>Hlavní části</span><strong>17</strong><span>od dashboardu po nápovědu</span></div>
+          <div class="card stat"><span>Úložiště</span><strong>Lokální</strong><span>data zůstávají v zařízení</span></div>
+          <div class="card stat"><span>Rodinné sdílení</span><strong>Náhled</strong><span>pouze pro čtení</span></div>
+          <div class="card stat"><span>Automatické zamknutí</span><strong>15 min</strong><span>rodinné heslo se nezapomene</span></div>
+        </div>
+
+        <article class="panel">
+          <p class="eyebrow">Nejrychlejší orientace</p><h3>Co potřebuji právě udělat?</h3>
+          <div class="quick-grid">
+            <div class="quick-card" data-open-module="notes"><span class="arrow">→</span><div class="ico">🧠</div><h4>Uložit důležitou odpověď AI</h4><p>Znalostní knihovna, prompt, shrnutí, tagy a další krok.</p></div>
+            <div class="quick-card" data-open-module="finance"><span class="arrow">→</span><div class="ico">💸</div><h4>Zapsat příjem nebo výdaj</h4><p>Měsíční přehled, kategorie, grafy a výplatní pásky.</p></div>
+            <div class="quick-card" data-open-module="payments"><span class="arrow">→</span><div class="ico">🧾</div><h4>Hlídání účtů domácnosti</h4><p>Termín, opakování, odpovědnost a historie úhrad.</p></div>
+            <div class="quick-card" data-open-module="groceries"><span class="arrow">→</span><div class="ico">🛒</div><h4>Přidat nákup</h4><p>Rychlý seznam, obchody, hromadné vložení a fotky seznamů.</p></div>
+            <div class="quick-card" data-go="family"><span class="arrow">→</span><div class="ico">👥</div><h4>Ukázat seznam manželce</h4><p>Šifrovaný rodinný soubor a náhled bez zásahu do jejích dat.</p></div>
+            <div class="quick-card" data-go="backup"><span class="arrow">→</span><div class="ico">🛡️</div><h4>Zálohovat nebo přenést do PC</h4><p>Kompletní záloha včetně PDF, dokumentů a fotek.</p></div>
+            <div class="quick-card" data-open-module="garden"><span class="arrow">→</span><div class="ico">🌱</div><h4>Zapsat práci na zahradě</h4><p>Údržba, věci k pořízení a přehled „kdy naposledy“.</p></div>
+            <div class="quick-card" data-open-module="ailog"><span class="arrow">→</span><div class="ico">🤖</div><h4>Připravit výkaz pro vedení</h4><p>Čas nad AI, uzavření měsíce a výstup pro tisk/PDF.</p></div>
+          </div>
+        </article>
+
+        <div class="grid two">
+          <article class="panel"><p class="eyebrow">Základní princip</p><h3>Každé zařízení má svůj trezor</h3><p>Telefon a počítač nejsou automaticky propojené. Každé zařízení ukládá vlastní šifrovaná data. Přenos se provádí ručně pomocí kompletní šifrované zálohy.</p><button class="btn small" data-go="security">Jak je trezor chráněný</button></article>
+          <article class="panel"><p class="eyebrow">Rodina</p><h3>Partner vidí poslední odeslaný stav</h3><p>Rodinný soubor vytvoří náhled vybraných společných údajů. Příjemce je může prohlížet, ale nemůže je upravovat, odškrtávat ani převzít do vlastních dat.</p><button class="btn small" data-go="family">Zobrazit celý postup</button></article>
+        </div>
+      </section>
+
+      <section class="section" id="start">
+        <div class="section-head"><div><p class="eyebrow">První spuštění</p><h2>Nastavení LifeHubu krok za krokem</h2><p>Po prvním otevření stačí projít několik základních kroků. Zaškrtnutí se ukládá pouze v tomto manuálu.</p></div><button class="btn small" id="resetProgress">Obnovit checklist</button></div>
+        <article class="panel">
+          <div class="steps" id="startSteps">
+            <div class="step" data-progress="vault"><label class="step-check"><input type="checkbox" aria-label="Hotovo"></label><h4>Vytvoř hlavní heslo trezoru</h4><p>Heslo odemyká lokální data LifeHubu. Nikam se neposílá a nelze ho obnovit. Zvol heslo, které nezapomeneš.</p></div>
+            <div class="step" data-progress="profile"><label class="step-check"><input type="checkbox" aria-label="Hotovo"></label><h4>Vyplň Nastavení</h4><p>Nastav oslovení, název zařízení, měnu, vlastníka/patičku a případně měsíční cíl úspory.</p></div>
+            <div class="step" data-progress="storage"><label class="step-check"><input type="checkbox" aria-label="Hotovo"></label><h4>Požádej o trvalejší úložiště</h4><p>V Nastavení nebo Trezoru klikni na „Trvalejší úložiště“. Prohlížeč pak méně pravděpodobně odstraní data při nedostatku místa.</p></div>
+            <div class="step" data-progress="backup"><label class="step-check"><input type="checkbox" aria-label="Hotovo"></label><h4>Vytvoř první kompletní zálohu</h4><p>Kompletní šifrovaná záloha zahrnuje také PDF, dokumenty a fotky. Ulož ji mimo zařízení a heslo k ní si pamatuj.</p></div>
+            <div class="step" data-progress="verify"><label class="step-check"><input type="checkbox" aria-label="Hotovo"></label><h4>Ověř zálohu bez importu</h4><p>V části Zálohy vyber vytvořený soubor a použij ověření. LifeHub zkontroluje obsah, ale nepřepíše současná data.</p></div>
+            <div class="step" data-progress="family"><label class="step-check"><input type="checkbox" aria-label="Hotovo"></label><h4>Nastav rodinné heslo</h4><p>Stačí jednou na každém zařízení. Uloží se uvnitř šifrovaného trezoru a po běžném 15minutovém zamknutí se nezadává znovu.</p></div>
+          </div>
+        </article>
+        <div class="callout danger"><strong>Nejdůležitější pravidlo:</strong> Bez správného hlavního hesla nebo hesla k záloze nelze zašifrovaná data obnovit. Hesla se nikam neodesílají a LifeHub je neumí resetovat.</div>
+      </section>
+
+      <section class="section" id="modules">
+        <div class="section-head"><div><p class="eyebrow">Mapa aplikace</p><h2>Co LifeHub obsahuje</h2><p>Kliknutím na modul otevřeš podrobný popis, běžný postup, důležitá pole a vztah k rodinnému náhledu.</p></div><div class="version-pill"><span class="dot"></span> 17 částí</div></div>
+        <div class="module-grid" id="moduleGrid"></div>
+        <div class="search-empty" id="moduleEmpty"><strong>Nic jsme nenašli.</strong><br>Zkus jiný výraz nebo vymaž hledání.</div>
+      </section>
+
+      <section class="section" id="workflows">
+        <div class="section-head"><div><p class="eyebrow">Praktické scénáře</p><h2>Jak se LifeHub používá v reálném životě</h2><p>Vyber situaci a projdi celý tok od zápisu po výsledek.</p></div></div>
+        <article class="panel">
+          <div class="workflow-tabs" id="workflowTabs"></div>
+          <div id="workflowContent"></div>
+        </article>
+      </section>
+
+      <section class="section" id="family">
+        <div class="section-head"><div><p class="eyebrow">Rodinný náhled</p><h2>Jak ukázat partnerovi aktuální stav</h2><p>Rodina v LifeHubu je bezpečný přenos náhledu, nikoli společná online databáze.</p></div></div>
+        <article class="panel">
+          <div class="family-stage">
+            <div class="person-card"><div class="person-head"><div class="avatar">👨</div><div><p class="eyebrow">Tvoje zařízení</p><h4>Vytvoří rodinný soubor</h4></div></div><ul><li>Vybere pouze údaje povolené pro rodinný náhled.</li><li>Zašifruje je uloženým rodinným heslem.</li><li>Stáhne soubor <code>.lifehub-family</code>.</li></ul></div>
+            <div class="file-bridge"><div><div class="file-icon">📦</div><p>pošleš bezpečným způsobem</p></div></div>
+            <div class="person-card"><div class="person-head"><div class="avatar">👩</div><div><p class="eyebrow">Zařízení partnerky</p><h4>Zobrazí poslední náhled</h4></div></div><ul><li>Při prvním načtení jednou zadá stejné rodinné heslo.</li><li>Uvidí obsah v záložce Rodina.</li><li>Novější soubor nahradí předchozí náhled.</li></ul><span class="readonly">👁️ Pouze pro čtení</span></div>
+          </div>
+        </article>
+        <div class="grid two">
+          <article class="panel"><p class="eyebrow">Co partnerka uvidí</p><h3>Vybrané společné informace</h3><ul class="muted-list"><li>společné příjmy a výdaje označené ke sdílení,</li><li>limity a útraty Jídlo &amp; benzín,</li><li>platby domácnosti a historii úhrad,</li><li>nákupní seznam,</li><li>rodinné úkoly, velké nákupy a splátky,</li><li>zahradní věci a sdílené záznamy údržby.</li></ul></article>
+          <article class="panel"><p class="eyebrow">Do čeho nemůže zasahovat</p><h3>Náhled nic nepřepisuje</h3><ul class="muted-list"><li>nemůže položku přidat, upravit ani smazat,</li><li>nemůže nákup odškrtnout jako koupený,</li><li>nemůže označit úkol nebo platbu jako hotovou,</li><li>nic se nekopíruje do jejích vlastních záložek,</li><li>načtení nikdy nemění její vlastní data.</li></ul></article>
+        </div>
+        <article class="panel">
+          <p class="eyebrow">První použití</p><h3>Rodinné heslo se zadává pouze jednou</h3>
+          <div class="steps">
+            <div class="step"><h4>Ty vytvoříš první soubor</h4><p>LifeHub tě vyzve k zadání a potvrzení rodinného hesla o minimálně osmi znacích. Heslo se uloží uvnitř tvého šifrovaného trezoru.</p></div>
+            <div class="step"><h4>Partnerka soubor poprvé načte</h4><p>Zadá stejné heslo. Po úspěšném otevření se uloží uvnitř jejího trezoru.</p></div>
+            <div class="step"><h4>Další soubory už bez vypisování</h4><p>Export i import použijí uložené heslo automaticky. Automatické zamknutí aplikace po 15 minutách ho nemaže.</p></div>
+          </div>
+        </article>
+        <div class="callout info"><strong>Co to není:</strong> Nejde o živou synchronizaci. Nová položka se partnerce zobrazí až poté, co vytvoříš a pošleš nový rodinný soubor a ona ho načte.</div>
+        <div class="callout danger"><strong>Soukromé vždy zůstává:</strong> výplatní pásky, PDF a dokumenty z trezoru, poznámky, AI výkaz, odměny a přehled vyvíjených aplikací.</div>
+      </section>
+
+      <section class="section" id="backup">
+        <div class="section-head"><div><p class="eyebrow">Zálohy a přenos</p><h2>Který soubor použít a kdy</h2><p>LifeHub nabízí více typů exportů. Nejsou zaměnitelné.</p></div></div>
+        <article class="panel">
+          <div class="compare"><table><thead><tr><th>Typ</th><th>Obsah</th><th>Šifrování</th><th>Typické použití</th><th>Pozor</th></tr></thead><tbody>
+            <tr><td>Kompletní šifrovaná záloha</td><td>Veškerý stav + PDF, dokumenty a fotky uložené v IndexedDB</td><td><span class="yes">Ano</span></td><td>Obnova po havárii, přenos telefon ↔ PC, pojistka před aktualizací</td><td>Nejdůležitější záloha. Uchovávej mimo zařízení.</td></tr>
+            <tr><td>Šifrovaná datová záloha</td><td>Poznámky, finance, úkoly, nastavení a další datový stav; bez binárních souborů</td><td><span class="yes">Ano</span></td><td>Rychlý přenos dat bez PDF a dokumentů</td><td>Archivní soubory a fotky nepřenese.</td></tr>
+            <tr><td>Nešifrovaná datová záloha</td><td>Datový stav bez PDF a dokumentů; rodinné heslo je záměrně vynecháno</td><td><span class="no">Ne</span></td><td>Technická kompatibilita, kontrolovaný export</td><td>Obsah může být čitelný. Nesdílej veřejně.</td></tr>
+            <tr><td>Rodinný soubor</td><td>Pouze vybrané společné údaje pro náhled partnera</td><td><span class="yes">Ano</span></td><td>Zobrazení posledního stavu partnerovi</td><td>Není to záloha ani synchronizace.</td></tr>
+            <tr><td>Anonymizované exporty</td><td>Výstupy očištěné od originálů a citlivých detailů</td><td><span class="partial">Podle formátu</span></td><td>Veřejný GitHub nebo bezpečnější ukázka struktury</td><td>Před zveřejněním obsah vždy zkontroluj.</td></tr>
+          </tbody></table></div>
+        </article>
+        <div class="grid two">
+          <article class="panel"><p class="eyebrow">Před aktualizací aplikace</p><h3>Stačí vytvořit pojistku</h3><div class="steps"><div class="step"><h4>Na hlavním zařízení vytvoř kompletní zálohu</h4><p>Obsahuje také dokumenty, PDF a fotky.</p></div><div class="step"><h4>Soubor bezpečně ulož</h4><p>Nenahrávej ho do veřejného GitHub repozitáře.</p></div><div class="step"><h4>Nahraj novou verzi aplikace</h4><p>Aktualizace kódu nemá mazat lokální data, záloha je pojistka.</p></div><div class="step"><h4>Po aktualizaci data zkontroluj</h4><p>Zálohu neimportuj, pokud je vše v pořádku.</p></div></div></article>
+          <article class="panel"><p class="eyebrow">Telefon ↔ PC</p><h3>Bezpečný přenos hlavního trezoru</h3><div class="steps"><div class="step"><h4>Vytvoř kompletní zálohu na zdrojovém zařízení</h4><p>Ideálně tam, kde máš nejaktuálnější data.</p></div><div class="step"><h4>Na cíli nejprve použij „Ověřit zálohu“</h4><p>Zkontroluj datum, zařízení, počty položek a souborů.</p></div><div class="step"><h4>Před importem zálohuj i cílové zařízení</h4><p>Import cílový trezor nahrazuje.</p></div><div class="step"><h4>Proveď import a ověř obsah</h4><p>PDF a dokumenty se přenesou pouze kompletní zálohou.</p></div></div></article>
+        </div>
+      </section>
+
+      <section class="section" id="security">
+        <div class="section-head"><div><p class="eyebrow">Bezpečnost</p><h2>Jak LifeHub chrání data</h2><p>Ochrana stojí na lokálním ukládání, šifrovaném trezoru a ručním přenosu.</p></div></div>
+        <div class="grid three">
+          <article class="panel"><div class="module-icon">🔒</div><h3>Šifrovaný stav</h3><p>Data aplikace jsou po odemčení ukládána šifrovaně. Dokumenty a PDF jsou vedeny odděleně v lokální databázi.</p></article>
+          <article class="panel"><div class="module-icon">📴</div><h3>Bez automatického cloudu</h3><p>Obsah trezoru se sám neposílá na server. Telefon a PC mají vlastní lokální kopii.</p></article>
+          <article class="panel"><div class="module-icon">⏱️</div><h3>Automatické zamknutí</h3><p>Po přibližně 15 minutách neaktivity se aplikace zamkne. Po odemčení se uložené rodinné heslo znovu použije automaticky.</p></article>
+          <article class="panel"><div class="module-icon">🧬</div><h3>AES-GCM a PBKDF2</h3><p>Trezor používá AES-GCM; klíč se odvozuje z hesla pomocí PBKDF2-SHA256.</p></article>
+          <article class="panel"><div class="module-icon">🗃️</div><h3>LocalStorage + IndexedDB</h3><p>Běžný stav a velké soubory se ukládají lokálně. Kompletní záloha musí zahrnout obě části.</p></article>
+          <article class="panel"><div class="module-icon">🩺</div><h3>Diagnostika bez obsahu</h3><p>Technický export obsahuje počty a stav prostředí, ne text poznámek, částky ani názvy dokumentů.</p></article>
+        </div>
+        <div class="callout danger"><strong>Heslo nelze obnovit:</strong> Pokud zapomeneš hlavní heslo a nemáš použitelnou zálohu se správným heslem, data nelze dešifrovat.</div>
+        <article class="panel"><p class="eyebrow">Doporučená rutina</p><h3>Jednou měsíčně</h3><div class="grid four"><div class="quick-card"><div class="ico">💾</div><h4>Kompletní záloha</h4><p>Po větší změně nebo nejméně jednou měsíčně.</p></div><div class="quick-card"><div class="ico">✅</div><h4>Ověření zálohy</h4><p>Zkontrolovat bez přepsání současných dat.</p></div><div class="quick-card"><div class="ico">📦</div><h4>Druhé bezpečné místo</h4><p>Uložit mimo zařízení, ne do veřejného repozitáře.</p></div><div class="quick-card"><div class="ico">🩺</div><h4>Provozní kontrola</h4><p>Spustit diagnostiku v Nastavení.</p></div></div></article>
+      </section>
+
+      <section class="section" id="faq">
+        <div class="section-head"><div><p class="eyebrow">Časté otázky</p><h2>Když si nejsi jistý</h2><p>Odpovědi na nejčastější situace při používání LifeHubu.</p></div></div>
+        <div id="faqList"></div><div class="search-empty" id="faqEmpty"><strong>Žádná odpověď neodpovídá hledání.</strong></div>
+      </section>
+
+      <section class="section" id="checklist">
+        <div class="section-head"><div><p class="eyebrow">Provozní checklist</p><h2>Je LifeHub správně nastavený?</h2><p>Krátká kontrola bezpečného a pohodlného používání.</p></div></div>
+        <article class="panel"><div class="steps" id="finalChecklist">
+          <div class="step" data-progress="c-main"><label class="step-check"><input type="checkbox"></label><h4>Znám hlavní heslo trezoru</h4><p>Je dostatečně silné a mám ho bezpečně uložené ve své paměti nebo správci hesel.</p></div>
+          <div class="step" data-progress="c-complete"><label class="step-check"><input type="checkbox"></label><h4>Mám aktuální kompletní šifrovanou zálohu</h4><p>Nejen datovou zálohu bez dokumentů.</p></div>
+          <div class="step" data-progress="c-verify"><label class="step-check"><input type="checkbox"></label><h4>Zálohu jsem ověřil bez importu</h4><p>LifeHub zobrazil očekávané počty dat a souborů.</p></div>
+          <div class="step" data-progress="c-storage"><label class="step-check"><input type="checkbox"></label><h4>Požádal jsem o trvalejší úložiště</h4><p>Stav lze zkontrolovat v Nastavení nebo Trezoru.</p></div>
+          <div class="step" data-progress="c-family"><label class="step-check"><input type="checkbox"></label><h4>Rodinné heslo je stejné na obou zařízeních</h4><p>Po prvním zadání se používá automaticky.</p></div>
+          <div class="step" data-progress="c-private"><label class="step-check"><input type="checkbox"></label><h4>Soukromé exporty nenahrávám na GitHub</h4><p>Zálohy, PDF, dokumenty, CSV a rodinné soubory patří pouze do bezpečného soukromého úložiště.</p></div>
+        </div></article>
+      </section>
+
+      <footer class="footer"><strong>LifeHub 4.3.3 – interaktivní manuál</strong><br>Vytvořeno podle skutečných funkcí aktuální aplikace. Manuál neobsahuje osobní data a funguje samostatně bez připojení k internetu.</footer>
+    </main>
+  </div>
+</div>
+
+<div class="modal" id="moduleModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal-card"><div class="modal-head"><div><p class="eyebrow" id="modalEyebrow">Modul</p><h2 id="modalTitle"></h2></div><button class="icon-btn" id="closeModal" aria-label="Zavřít">✕</button></div><div class="modal-body" id="modalBody"></div></div>
+</div>
+
+<div class="tour-overlay" id="tourOverlay" role="dialog" aria-modal="true" aria-labelledby="tourTitle">
+  <div class="tour-card"><button class="icon-btn close-x" id="closeTour" aria-label="Zavřít">✕</button><div class="tour-progress"><span id="tourBar"></span></div><div class="tour-icon" id="tourIcon"></div><h3 id="tourTitle"></h3><p id="tourText"></p><div class="tour-counter" id="tourCounter"></div><div class="tour-actions"><button class="btn" id="tourPrev">← Zpět</button><button class="btn primary" id="tourNext">Další →</button></div></div>
+</div>
+
+<script>
+const modules = [
+ {id:'dashboard',icon:'🏠',title:'Dashboard',sub:'Úvodní přehled a rychlé akce',share:'private',desc:'Souhrn hlavních informací, roční finanční bilance, priority a hledání napříč aplikací.',fields:['KPI přehledy','Roční bilance','Naléhavé úkoly a nákupy','Globální hledání','Rychlé přidání'],steps:['Po odemčení zkontroluj bezpečnostní panel a hlavní ukazatele.','Rychlými tlačítky otevři formulář pro úkol, nákup, útratu, transakci, poznámku nebo splátku.','Pomocí globálního hledání najdi obsah napříč poznámkami, financemi, úkoly a dalšími částmi.'],tip:'Dashboard je nejlepší výchozí bod při každém otevření.'},
+ {id:'notes',icon:'🧠',title:'Poznámky',sub:'Znalostní knihovna',share:'private',desc:'Ukládání důležitých AI vláken, promptů, zdrojů a vlastních nápadů včetně dalšího kroku.',fields:['Název','Zdroj','Priorita','Typ','Model/verze','URL','Tagy','Shrnutí','Obsah','Další krok'],steps:['Vytvoř výstižný název.','Ulož pouze podstatné jádro odpovědi nebo promptu.','Přidej tagy a další krok, aby poznámka nebyla jen archivem.','Později filtruj podle zdroje, typu, tagu nebo priority.'],tip:'Export MD je vhodný pro Notion; CSV pro tabulkové zpracování.'},
+ {id:'finance',icon:'💸',title:'Finance a výplatní pásky',sub:'Příjmy, výdaje a mzda',share:'mixed',desc:'Měsíční a roční přehled transakcí, grafy, kategorie a lokální čtení výplatních pásek z PDF.',fields:['Datum','Příjem/výdaj','Kategorie','Částka','Popis','Sdílet v rodině','Měsíc pásky','Zaměstnavatel','PDF a extrahovaný text'],steps:['Zapiš ruční příjem nebo výdaj, případně načti PDF pásku.','U vytěžené pásky vždy zkontroluj rozpoznané hodnoty.','Čistá mzda se po uložení zapíše jako příjem daného měsíce.','U ruční transakce můžeš určit, zda ji partner uvidí v rodinném náhledu.'],tip:'Skenované PDF bez textové vrstvy je nutné nejprve převést pomocí OCR.'},
+ {id:'budget',icon:'⛽',title:'Jídlo & benzín',sub:'Dvě měsíční obálky',share:'shared',desc:'Oddělené sledování útrat za jídlo a benzín, měsíční limity, bilance a roční vývoj.',fields:['Limit na jídlo','Limit na benzín','Datum','Druh útraty','Částka','Poznámka'],steps:['Nastav měsíční limity.','Každou útratu zapiš jako jídlo nebo benzín.','Sleduj čerpání a bilanci limit minus útrata.','Roční graf ukáže vývoj po měsících.'],tip:'Tato evidence je oddělená od hlavních Financí.'},
+ {id:'installments',icon:'📆',title:'Splátky',sub:'Splátkový kalendář',share:'mixed',desc:'Evidence půjček a závazků, běžných i mimořádných splátek, zbývající částky a historie.',fields:['Komu splácím','Celková částka','Měsíční splátka','Začátek','Už splaceno','Den splatnosti','Odpovědnost','Sdílet v rodině','Poznámka'],steps:['Zadej základní parametry závazku.','Běžnou úhradu zaznamenej jako standardní splátku.','Mimořádnou splátku zapiš samostatně.','Sleduj zbývající částku a odhad konce.'],tip:'Jednou týdně může LifeHub upozornit na zbývající závazky.'},
+ {id:'payments',icon:'🧾',title:'Platby domácnosti',sub:'Účty, faktury a předplatná',share:'mixed',desc:'Jednorázové a pravidelné platby s termínem, odpovědnou osobou, opakováním a historií úhrad.',fields:['Název','Kategorie','Částka','Opakování','Nejbližší splatnost','Kdo platí','Sdílet v rodině','Poznámka'],steps:['Přidej platbu a nastav frekvenci.','Urči, kdo ji řeší.','Po úhradě zaznamenej zaplacení.','U pravidelné platby se další termín automaticky posune.'],tip:'Používej pro energie, internet, pojištění, předplatná i jednorázové faktury.'},
+ {id:'vault',icon:'🔐',title:'Trezor dokumentů',sub:'Soukromý archiv souborů',share:'private',desc:'Lokální šifrované ukládání smluv, faktur, potvrzení, výplatních pásek a dalších souborů.',fields:['Název dokumentu','Kategorie','Datum','Soubor','Poznámka','Využití úložiště'],steps:['Zvol srozumitelný název a kategorii.','Nahraj soubor a přidej datum nebo poznámku.','Sleduj využití lokálního úložiště.','Pro přenos na jiné zařízení použij pouze kompletní zálohu.'],tip:'Datová záloha bez souborů dokumenty ani PDF nepřenese.'},
+ {id:'tasks',icon:'✅',title:'Úkoly',sub:'To-do list podle priority a času',share:'mixed',desc:'Úkoly rozdělené podle priority, časového horizontu, termínu, oblasti a odpovědné osoby.',fields:['Úkol','Priorita','Časový horizont','Termín','Oblast','Přiřazeno','Rodinný úkol','Poznámka'],steps:['Odděl prioritu od časového horizontu.','Případně nastav přesný termín a oblast.','Rodinný úkol označ ke sdílení.','Hotový úkol odškrtni nebo později vyfiltruj.'],tip:'Priorita říká, jak moc úkol hoří; horizont říká, kdy ho plánuješ řešit.'},
+ {id:'groceries',icon:'🛒',title:'Nákupní seznam',sub:'Co koupit a kde',share:'shared',desc:'Rychlý seznam běžných nákupů, seskupení podle obchodu, hromadné vložení textu a fotky seznamů.',fields:['Položka','Obchod','Koupeno','Hromadný text','Screenshot nebo fotka'],steps:['Přidej jednotlivou položku nebo vlož více řádků najednou.','Vyber obchod pro lepší seskupení.','V obchodě odškrtávej koupené položky.','Po nákupu můžeš hromadně odstranit koupené.'],tip:'Fotky a screenshoty se přenesou pouze kompletní zálohou.'},
+ {id:'shopping',icon:'🏠',title:'Velké nákupy',sub:'Plánované vybavení a investice',share:'mixed',desc:'Dlouhodobý plán spotřebičů, materiálu, oprav a dalších větších výdajů s cenou a termínem.',fields:['Název','Obchod','Priorita','Stav','Kategorie','Odhad ceny','Plánovaný měsíc','URL','Poznámka','Sdílet v rodině'],steps:['Zapiš plánovanou položku a odhad ceny.','Nastav prioritu a plánovaný měsíc.','Po nákupu změň stav na Koupeno.','Roční přehled porovná plán a skutečnost.'],tip:'Běžné potraviny patří do Nákupního seznamu, ne sem.'},
+ {id:'garden',icon:'🌱',title:'Zahrada',sub:'Nákupy a deník údržby',share:'mixed',desc:'Seznam zahradních věcí k pořízení a historie hnojení, sekání, postřiků, závlahy či servisu.',fields:['Věc k pořízení','Cena','Horizont','Odkaz','Komentář','Typ údržby','Datum','Část zahrady/stroj','Sdílet s rodinou'],steps:['Věci k pořízení zapisuj s cenou a horizontem.','Každý zásah zapiš do deníku údržby.','Uveď část zahrady nebo konkrétní stroj.','Přehled nahoře ukáže, kdy daná činnost proběhla naposledy.'],tip:'Vhodné pro hnojení, vertikutaci, aerifikaci, dosev, postřik, sekání, závlahu a servis techniky.'},
+ {id:'ailog',icon:'🤖',title:'AI výkaz',sub:'Evidence práce s AI',share:'private',desc:'Záznam činností a času stráveného nad AI, měsíční uzávěrka a výkaz pro vedení.',fields:['Datum','Trvání v minutách','Činnost','Poznámka','Stav měsíce'],steps:['Průběžně zapisuj konkrétní činnosti a čas.','Na konci období zkontroluj přehled.','Uzavři měsíc.','Vygeneruj tiskový dokument/PDF nebo HTML.'],tip:'Uzavřený měsíc lze znovu otevřít, když je potřeba oprava.'},
+ {id:'rewards',icon:'🏅',title:'Odměny',sub:'Podklady pro pracovní odměny',share:'private',desc:'Evidence vykazovaných činností a hodin pro letní nebo koncoroční období.',fields:['Období','Počet hodin','Co vykazuji','Poznámka'],steps:['Vyber období.','Zapiš činnost a počet hodin.','Průběžně doplňuj podklady.','Vygeneruj dokument pro tisk/PDF nebo HTML.'],tip:'Drž položky konkrétní a doložitelné.'},
+ {id:'partner',icon:'👥',title:'Rodina',sub:'Šifrovaný náhled partnerových dat',share:'shared',desc:'Vytvoření a načtení šifrovaného souboru s vybranými společnými údaji pouze pro čtení.',fields:['Vytvořit rodinný soubor','Načíst rodinný soubor','Odebrat náhled','Uložené rodinné heslo'],steps:['Na každém zařízení jednou nastav stejné rodinné heslo.','Vytvoř a partnerovi pošli soubor .lifehub-family.','Partner ho načte v záložce Rodina.','Novější soubor nahradí starší náhled.'],tip:'Import nic neslučuje a nikdy nemění vlastní data příjemce.'},
+ {id:'apps',icon:'🧩',title:'Moje aplikace',sub:'Katalog vlastních projektů',share:'private',desc:'Přehled vyvíjených aplikací, jejich odkazů, popisů a doplňkových poznámek.',fields:['Název aplikace','URL','Štítek','Popis','Poznámky k aplikaci'],steps:['Přidej aplikaci a její odkaz.','Doplň stručný popis nebo stav.','Otevři detail aplikace.','Přidávej průběžné poznámky k vývoji.'],tip:'Přehled aplikací se do rodinného souboru neposílá.'},
+ {id:'exports',icon:'📦',title:'Zálohy / Export',sub:'Obnova, přenos a výstupy',share:'private',desc:'Kompletní a datové zálohy, ověření a import, průvodce přenosem, Notion, CSV a anonymizované výstupy.',fields:['Kompletní záloha','Šifrovaná datová záloha','Nešifrovaná data','Ověřit bez importu','Import','Notion/Markdown/HTML','CSV','Anonymizované exporty'],steps:['Pro běžnou ochranu používej kompletní šifrovanou zálohu.','Před importem soubor nejprve ověř.','Zkontroluj datum, zařízení a počty položek.','Před importem zálohuj také současný cílový trezor.'],tip:'Import může nahradit data cílového zařízení; rodinný soubor je jiný typ přenosu.'},
+ {id:'settings',icon:'⚙️',title:'Nastavení',sub:'Osobní údaje a provoz',share:'private',desc:'Oslovení, název zařízení, měna, cíl úspory, rodinné heslo, změna hesla trezoru a diagnostika.',fields:['Jméno pro pozdrav','Název zařízení','Vlastník a patička','Měna','Cíl úspory','Rodinné heslo','Změna hesla trezoru','Diagnostika'],steps:['Pojmenuj zařízení, aby šlo rozpoznat v zálohách.','Nastav měnu a volitelný cíl úspory.','Spravuj rodinné heslo.','Pravidelně spouštěj provozní kontrolu.'],tip:'Ukázková data jsou vhodná jen pro test; před vložením si vytvoř zálohu.'},
+ {id:'help',icon:'❓',title:'Manuál',sub:'Interaktivní průvodce přímo v aplikaci',share:'private',desc:'Kompletní interaktivní příručka s mapou modulů, pracovními scénáři, rodinným náhledem, zálohami, bezpečností a častými otázkami.',fields:['Vyhledávání','Mapa aplikace','Pracovní scénáře','Rodinný náhled','Zálohy a přenos','Časté otázky'],steps:['V postranní nabídce LifeHubu otevři položku Manuál.','Vyhledej funkci nebo otevři detail konkrétního modulu.','Pro maximální prostor použij tlačítko Otevřít na celou obrazovku.'],tip:'Manuál je součástí LifeHubu, funguje offline a neobsahuje osobní data.'}
+];
+
+const workflows = [
+ {id:'payroll',label:'Výplatní páska',icon:'📄',nodes:[['Otevři Finance','Ve spodní části rozbal čtečku výplatní pásky.'],['Vyber PDF','LifeHub lokálně přečte textovou vrstvu souboru.'],['Zkontroluj údaje','Ověř čistou a hrubou mzdu, odvody, slevy, měsíc a zaměstnavatele.'],['Ulož pásku','Volitelně ulož PDF i extrahovaný text.'],['Příjem je zapsán','Čistá mzda se objeví v transakcích daného měsíce.']]},
+ {id:'payment',label:'Platba domácnosti',icon:'🧾',nodes:[['Přidej platbu','Název, kategorie, částka a nejbližší splatnost.'],['Nastav opakování','Jednorázově, měsíčně, čtvrtletně nebo ročně.'],['Urči odpovědnost','Oba, já nebo partner.'],['Zaznamenej úhradu','Vznikne historie zaplacení.'],['Další termín','U opakované platby se automaticky posune.']]},
+ {id:'grocery',label:'Nákupní seznam',icon:'🛒',nodes:[['Přidej položky','Jednotlivě nebo hromadně, každý řádek = položka.'],['Vyber obchod','Položky se seskupí podle obchodu.'],['Nakupuj','Odškrtávej koupené položky.'],['Vyčisti seznam','Odstraň koupené položky hromadně.'],['Pošli náhled','Nový rodinný soubor ukáže aktuální stav partnerce.']]},
+ {id:'familyflow',label:'Rodinný náhled',icon:'👥',nodes:[['Jednou nastav heslo','Stejné rodinné heslo na obou zařízeních.'],['Vytvoř soubor','Rodina → Vytvořit šifrovaný rodinný soubor.'],['Pošli soubor','Například bezpečným messengerem nebo e-mailem.'],['Partnerka načte','Rodina → Načíst rodinný soubor.'],['Pouze prohlíží','Náhled nelze upravovat a nezasahuje do jejích dat.']]},
+ {id:'transfer',label:'Přenos telefon → PC',icon:'💻',nodes:[['Kompletní záloha','Na telefonu vytvoř zálohu včetně souborů.'],['Přenes bezpečně','Soubor zůstává soukromý.'],['Ověř na PC','Zkontroluj metadata a počty bez importu.'],['Zálohuj PC','Před přepsáním cílového trezoru.'],['Importuj','Potvrď import a zkontroluj data i dokumenty.']]},
+ {id:'ai',label:'Měsíční AI výkaz',icon:'🤖',nodes:[['Zapisuj průběžně','Datum, minuty, činnost a poznámka.'],['Zkontroluj měsíc','Graf a seznam záznamů.'],['Uzavři období','Zabrání nechtěným změnám.'],['Vygeneruj dokument','Tiskový výstup/PDF nebo HTML.'],['Archivuj','Výstup lze uložit do šifrovaného trezoru.']]}
+];
+
+const faq = [
+ ['Vymaže aktualizace z GitHubu moje data?','Za běžných okolností ne. Aktualizuje se kód aplikace, zatímco data zůstávají v lokálním úložišti stejné webové adresy. Před větší aktualizací ale vždy vytvoř kompletní šifrovanou zálohu.'],
+ ['Proč nevidím stejná data v telefonu a počítači?','LifeHub není cloudová služba. Každé zařízení má vlastní lokální trezor. Pro přenos použij kompletní šifrovanou zálohu a import na cílovém zařízení.'],
+ ['Může manželka odškrtnout můj nákupní seznam?','Ne. Rodinný soubor je záměrně pouze náhled. Uvidí poslední odeslaný stav, ale nemůže nic upravit, smazat ani označit jako hotové.'],
+ ['Musím rodinné heslo zadávat pokaždé?','Ne. Na každém zařízení se zadá jednou a uloží uvnitř šifrovaného trezoru. Běžné automatické zamknutí po 15 minutách ho nemaže.'],
+ ['Co když změníme rodinné heslo?','Nastavte stejné nové heslo na obou zařízeních v Nastavení. Starší rodinné soubory zůstanou zašifrované původním heslem.'],
+ ['Je rodinný soubor zároveň záloha?','Ne. Obsahuje jen vybrané společné údaje a slouží pouze k náhledu. Pro obnovu používej kompletní šifrovanou zálohu.'],
+ ['Jaký je rozdíl mezi datovou a kompletní zálohou?','Datová záloha obsahuje stav aplikace, ale ne PDF, dokumenty ani fotky uložené v IndexedDB. Kompletní záloha obsahuje obě části a je vhodná pro plnou obnovu.'],
+ ['Proč LifeHub nepřečetl výplatní pásku?','Aplikace čte textovou vrstvu PDF. Pokud je soubor jen sken nebo obrázek, je potřeba nejprve použít OCR. Rozpoznané hodnoty vždy ručně zkontroluj.'],
+ ['Kde se ukládají dokumenty?','Lokálně v databázi prohlížeče na konkrétním zařízení. Do jiného zařízení se přenesou pouze kompletní šifrovanou zálohou.'],
+ ['Co udělá „Smazat lokální data“?','Odstraní trezor tohoto zařízení. Před použitím je nutná aktuální kompletní záloha. Smazání na jednom zařízení neovlivní jiné zařízení.'],
+ ['Co se stane, když zapomenu hlavní heslo?','Heslo nelze resetovat ani zjistit. Data lze obnovit pouze z použitelné šifrované zálohy se správným heslem k této záloze.'],
+ ['Mohu exporty nahrát na veřejný GitHub?','Soukromé zálohy, rodinné soubory, PDF, dokumenty a běžná CSV nikdy. Pro veřejné sdílení používej pouze anonymizované exporty a i ty před zveřejněním zkontroluj.'],
+ ['Co znamená trvalejší úložiště?','Prohlížeč může LifeHubu povolit persistentní úložiště, které je méně náchylné k automatickému vyčištění při nedostatku místa. Není to náhrada zálohy.'],
+ ['Proč je Jídlo & benzín oddělené od Financí?','Jde o dvě rozpočtové obálky pro sledování limitů a měsíční bilance. Jejich záznamy se záměrně nezapočítávají do hlavní evidence transakcí.'],
+ ['Jak uložím výkaz jako PDF?','Použij tlačítko Vygenerovat PDF (tisk). V systémovém tiskovém dialogu zvol možnost Uložit jako PDF.']
+];
+
+const tour = [
+ ['👋','Vítej v manuálu','Během několika kroků zjistíš, jak je LifeHub uspořádaný a které tři principy jsou pro bezpečné používání nejdůležitější.'],
+ ['🔐','Lokální šifrovaný trezor','LifeHub nepracuje jako cloudová databáze. Každé zařízení má vlastní šifrovaná data a vlastní archiv souborů.'],
+ ['🧭','Sedmnáct částí','Aplikace spojuje poznámky, finance, rozpočty, platby, dokumenty, úkoly, nákupy, zahradu, pracovní výkazy i katalog aplikací.'],
+ ['👥','Rodina je pouze náhled','Partner uvidí poslední odeslaný stav vybraných společných údajů, ale nemůže ho upravovat ani sloučit se svými daty.'],
+ ['💾','Kompletní záloha je základ','Jedině kompletní šifrovaná záloha přenáší i PDF, dokumenty a fotky. Používej ji před aktualizací a při přenosu mezi zařízeními.'],
+ ['✅','Začni checklistem','V části První spuštění projdi hlavní nastavení, vytvoření zálohy a rodinné heslo. Pak můžeš otevřít detail libovolného modulu.']
+];
+
+const moduleGrid=document.getElementById('moduleGrid');
+function badge(m){if(m.share==='shared')return '<span class="share-badge">Rodinný náhled</span>';if(m.share==='mixed')return '<span class="share-badge">Volitelně sdílené</span>';return '<span class="share-badge private-badge">Soukromé</span>'}
+function renderModules(filter=''){
+ const q=filter.trim().toLocaleLowerCase('cs'); let count=0;
+ moduleGrid.innerHTML=modules.map(m=>{
+  const hay=[m.title,m.sub,m.desc,...m.fields,...m.steps,m.tip].join(' ').toLocaleLowerCase('cs');
+  if(q && !hay.includes(q)) return ''; count++;
+  return `<article class="card module-card" data-module-card="${m.id}"><div class="module-top"><div class="module-icon">${m.icon}</div>${badge(m)}</div><h3>${m.title}</h3><p>${m.desc}</p><div class="chips">${m.fields.slice(0,3).map(x=>`<span class="chip">${x}</span>`).join('')}<span class="chip">+ další</span></div><div class="module-actions"><button data-open-module="${m.id}">Otevřít detail →</button><span class="chip">${m.sub}</span></div></article>`;
+ }).join('');
+ document.getElementById('moduleEmpty').classList.toggle('show',count===0);
+}
+renderModules();
+
+function openModule(id){
+ const m=modules.find(x=>x.id===id); if(!m)return;
+ document.getElementById('modalEyebrow').textContent=m.sub;
+ document.getElementById('modalTitle').textContent=`${m.icon} ${m.title}`;
+ document.getElementById('modalBody').innerHTML=`<p>${m.desc}</p><div class="callout info"><strong>Vztah k rodinnému náhledu:</strong> ${m.share==='shared'?'Obsah této části se zobrazuje v rodinném náhledu.':m.share==='mixed'?'Do rodinného náhledu se dostanou pouze položky označené ke sdílení.':'Tato část zůstává soukromá a do rodinného souboru se neposílá.'}</div><h3>Co se zde eviduje</h3><div class="field-list">${m.fields.map(x=>`<span>${x}</span>`).join('')}</div><h3>Doporučený postup</h3><div class="steps">${m.steps.map(s=>`<div class="step"><p>${s}</p></div>`).join('')}</div><div class="callout good"><strong>Praktický tip:</strong> ${m.tip}</div>`;
+ document.getElementById('moduleModal').classList.add('open');
+}
+
+function renderWorkflows(){
+ const tabs=document.getElementById('workflowTabs'); const content=document.getElementById('workflowContent');
+ tabs.innerHTML=workflows.map((w,i)=>`<button class="${i===0?'active':''}" data-workflow="${w.id}">${w.icon} ${w.label}</button>`).join('');
+ content.innerHTML=workflows.map((w,i)=>`<div class="workflow-panel ${i===0?'active':''}" id="wf-${w.id}"><div class="flow">${w.nodes.map((n,j)=>`${j?'<div class="flow-arrow">→</div>':''}<div class="flow-node"><span class="chip">Krok ${j+1}</span><b>${n[0]}</b><p>${n[1]}</p></div>`).join('')}</div></div>`).join('');
+}
+renderWorkflows();
+
+function renderFaq(filter=''){
+ const q=filter.trim().toLocaleLowerCase('cs'); let count=0;
+ document.getElementById('faqList').innerHTML=faq.map(([a,b])=>{const hay=(a+' '+b).toLocaleLowerCase('cs');if(q&&!hay.includes(q))return '';count++;return `<details class="faq"><summary>${a}</summary><p>${b}</p></details>`}).join('');
+ document.getElementById('faqEmpty').classList.toggle('show',count===0);
+}
+renderFaq();
+
+function showSection(id){
+ document.querySelectorAll('.section').forEach(s=>s.classList.toggle('active',s.id===id));
+ document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.section===id));
+ document.getElementById('sidebar').classList.remove('open');
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+
+document.addEventListener('click',e=>{
+ const nav=e.target.closest('[data-section]'); if(nav){showSection(nav.dataset.section);return}
+ const go=e.target.closest('[data-go]'); if(go){showSection(go.dataset.go);return}
+ const mod=e.target.closest('[data-open-module]'); if(mod){openModule(mod.dataset.openModule);return}
+ const wf=e.target.closest('[data-workflow]'); if(wf){document.querySelectorAll('[data-workflow]').forEach(x=>x.classList.toggle('active',x===wf));document.querySelectorAll('.workflow-panel').forEach(x=>x.classList.toggle('active',x.id==='wf-'+wf.dataset.workflow));}
+});
+
+document.getElementById('closeModal').onclick=()=>document.getElementById('moduleModal').classList.remove('open');
+document.getElementById('moduleModal').addEventListener('click',e=>{if(e.target.id==='moduleModal')e.currentTarget.classList.remove('open')});
+document.getElementById('mobileNav').onclick=()=>document.getElementById('sidebar').classList.toggle('open');
+document.getElementById('printBtn').onclick=()=>window.print();
+
+document.getElementById('themeBtn').onclick=()=>{const html=document.documentElement;const next=html.dataset.theme==='dark'?'light':'dark';html.dataset.theme=next;localStorage.setItem('lifehub-manual-theme',next);document.getElementById('themeBtn').textContent=next==='dark'?'☀️':'🌙'};
+const savedTheme=localStorage.getItem('lifehub-manual-theme');if(savedTheme){document.documentElement.dataset.theme=savedTheme;document.getElementById('themeBtn').textContent=savedTheme==='dark'?'☀️':'🌙'}
+
+const search=document.getElementById('globalSearch');
+search.addEventListener('input',()=>{renderModules(search.value);renderFaq(search.value);if(search.value.trim())showSection('modules')});
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();search.focus();search.select()}if(e.key==='Escape'){document.getElementById('moduleModal').classList.remove('open');document.getElementById('tourOverlay').classList.remove('open')}});
+
+function loadProgress(){document.querySelectorAll('[data-progress]').forEach(el=>{const cb=el.querySelector('input');if(!cb)return;const on=localStorage.getItem('lhm-'+el.dataset.progress)==='1';cb.checked=on;el.classList.toggle('completed',on);cb.addEventListener('change',()=>{localStorage.setItem('lhm-'+el.dataset.progress,cb.checked?'1':'0');el.classList.toggle('completed',cb.checked)})})}
+loadProgress();
+document.getElementById('resetProgress').onclick=()=>{document.querySelectorAll('[data-progress]').forEach(el=>{const cb=el.querySelector('input');if(cb){cb.checked=false;el.classList.remove('completed');localStorage.removeItem('lhm-'+el.dataset.progress)}})};
+
+let tourIndex=0;const overlay=document.getElementById('tourOverlay');
+function showTour(){const t=tour[tourIndex];document.getElementById('tourIcon').textContent=t[0];document.getElementById('tourTitle').textContent=t[1];document.getElementById('tourText').textContent=t[2];document.getElementById('tourCounter').textContent=`${tourIndex+1} z ${tour.length}`;document.getElementById('tourBar').style.width=`${(tourIndex+1)/tour.length*100}%`;document.getElementById('tourPrev').disabled=tourIndex===0;document.getElementById('tourNext').textContent=tourIndex===tour.length-1?'Dokončit ✓':'Další →'}
+document.getElementById('startTour').onclick=()=>{tourIndex=0;showTour();overlay.classList.add('open')};
+document.getElementById('tourPrev').onclick=()=>{if(tourIndex>0){tourIndex--;showTour()}};
+document.getElementById('tourNext').onclick=()=>{if(tourIndex<tour.length-1){tourIndex++;showTour()}else{overlay.classList.remove('open');showSection('start')}};
+document.getElementById('closeTour').onclick=()=>overlay.classList.remove('open');overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.classList.remove('open')});
+</script>
+</body>
+</html>
