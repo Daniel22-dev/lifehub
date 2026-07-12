@@ -1,4 +1,4 @@
-# LifeHub 4.4.0 – provozní postup
+# LifeHub 4.4.1 – provozní postup
 
 ## První nasazení
 
@@ -66,7 +66,7 @@ LifeHub při dalším spuštění zkontroluje obnovovací deník. Dokončí při
 
 ### Chybí dokument nebo PDF
 
-Neúplná záloha se ve 4.4.0 nevydává za kompletní. Spusť Provozní kontrolu a použij poslední ověřenou kompletní zálohu.
+Neúplná záloha se ve 4.4.1 nevydává za kompletní. Spusť Provozní kontrolu a použij poslední ověřenou kompletní zálohu.
 
 ### Prohlížeč hlásí nedostatek místa
 

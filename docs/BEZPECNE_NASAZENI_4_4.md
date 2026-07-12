@@ -1,4 +1,4 @@
-# Bezpečné nasazení LifeHubu 4.4.0
+# Bezpečné nasazení LifeHubu 4.4.1
 
 ## Důležité před nahráním na GitHub
 
@@ -11,7 +11,7 @@ Pokud však byl starší soubor s reálnými mzdovými údaji někdy nahrán do 
 1. Ověřte, zda byl starší balík s citlivým souborem skutečně nahrán do veřejného repozitáře.
 2. Pokud ano, stáhněte si vše potřebné a starý repozitář odstraňte nebo nastavte jako soukromý.
 3. Založte nový čistý repozitář.
-4. Nahrajte do jeho kořene pouze obsah tohoto balíku LifeHub 4.4.0.
+4. Nahrajte do jeho kořene pouze obsah tohoto balíku LifeHub 4.4.1.
 5. V GitHub Pages nastavte zdroj **GitHub Actions**.
 
 Tento postup je pro uživatele bez terminálu bezpečnější než ruční přepisování historie.

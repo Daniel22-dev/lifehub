@@ -1,12 +1,14 @@
-# LifeHub 4.4.0
+# LifeHub 4.4.1
+
+> **Důležitá recovery oprava:** Verze 4.4.1 opravuje startovací chybu verze 4.4.0, která mohla po aktualizaci ponechat zobrazený formulář pro nový PIN. Původní trezor se znovu načte z IndexedDB nebo z bezpečnostní kopie v localStorage. Nový PIN nezakládejte; použijte původní. Podrobný postup je v `docs/OBNOVA_DAT_4_4_1.md`.
 
 LifeHub je lokální šifrovaná PWA pro osobní a rodinnou správu poznámek, financí, plateb domácnosti, výplatních pásek, úkolů, nákupů, splátek, zahrady, projektů a soukromých dokumentů.
 
 ## Stav projektu
 
-**Verze 4.4.0 je připravena jako oficiální osobní nástroj s bezpečným rodinným náhledem.** Data zůstávají v prohlížeči a po odemčení jsou uložena šifrovaně v IndexedDB. LifeHub není cloudová služba: každé zařízení má vlastní trezor a rodinný soubor slouží pouze k zobrazení partnerových vybraných údajů.
+**Verze 4.4.1 je připravena jako oficiální osobní nástroj s bezpečným rodinným náhledem.** Data zůstávají v prohlížeči a po odemčení jsou uložena šifrovaně v IndexedDB. LifeHub není cloudová služba: každé zařízení má vlastní trezor a rodinný soubor slouží pouze k zobrazení partnerových vybraných údajů.
 
-## Rodinný náhled 4.4.0
+## Rodinný náhled 4.4.1
 
 Rodinný snapshot je chráněný společným heslem o minimálně 14 znacích a druhému zařízení zobrazí pouze náhled:
 

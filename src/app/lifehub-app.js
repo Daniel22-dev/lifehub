@@ -118,6 +118,9 @@ export function bootLifeHub(){
     let renderFrame = 0;
     let lockPendingAfterSave = false;
     let encryptedStateEnvelope = null;
+    let encryptedStateSource = '';
+    let startupStorageError = null;
+    let pendingLegacyEnvelopeCleanup = false;
     const saveLifecycle = new SaveLifecycle();
     let autoLockTimer = null;
     let lastActivityAt = Date.now();
@@ -151,30 +154,90 @@ export function bootLifeHub(){
       }catch(e){ return defaultState(); }
     }
     function hasEncryptedState(){ return !!encryptedStateEnvelope; }
+    function hasLegacyState(){
+      try{ return !!localStorage.getItem(LEGACY_STORE); }catch(error){ console.warn('Kontrola staršího nešifrovaného stavu selhala.', error); return false; }
+    }
+    function isSupportedEncryptedStateEnvelope(value){
+      return !!(value && typeof value === 'object' && value.kind === 'LifeHub encrypted local state' && value.crypto?.alg === 'AES-GCM' && value.crypto?.kdf === 'PBKDF2-SHA256' && value.crypto?.salt && value.crypto?.iv && value.data);
+    }
     async function loadEncryptedStateEnvelope(){
-      let envelope = null;
-      try{ envelope = await idbGetMeta('encryptedState'); }catch(error){ console.warn(error); }
-      if(!envelope){
-        try{
-          const legacyEnvelope = localStorage.getItem(ENC_STORE);
-          if(legacyEnvelope){
-            envelope = JSON.parse(legacyEnvelope);
-            await idbPutMeta('encryptedState', envelope);
-            localStorage.removeItem(ENC_STORE);
-          }
-        }catch(error){ console.warn('Migrace šifrovaného stavu do IndexedDB selhala.', error); }
+      let idbEnvelope = null;
+      let localEnvelope = null;
+      let idbError = null;
+      let localError = null;
+      let invalidIdbEnvelope = false;
+      startupStorageError = null;
+      encryptedStateSource = '';
+      pendingLegacyEnvelopeCleanup = false;
+
+      try{
+        idbEnvelope = await idbGetMeta('encryptedState');
+      }catch(error){
+        idbError = error;
+        console.warn('Načtení šifrovaného stavu z IndexedDB selhalo.', error);
       }
-      encryptedStateEnvelope = envelope || null;
-      return encryptedStateEnvelope;
+
+      try{
+        const raw = localStorage.getItem(ENC_STORE);
+        if(raw) localEnvelope = JSON.parse(raw);
+      }catch(error){
+        localError = error;
+        console.warn('Načtení staršího šifrovaného stavu z localStorage selhalo.', error);
+      }
+
+      if(isSupportedEncryptedStateEnvelope(idbEnvelope)){
+        encryptedStateEnvelope = idbEnvelope;
+        encryptedStateSource = 'indexeddb';
+        if(isSupportedEncryptedStateEnvelope(localEnvelope)) pendingLegacyEnvelopeCleanup = true;
+        return encryptedStateEnvelope;
+      }
+
+      if(idbEnvelope && !isSupportedEncryptedStateEnvelope(idbEnvelope)){
+        invalidIdbEnvelope = true;
+        console.warn('Záznam encryptedState v IndexedDB má nepodporovaný formát; zkouším bezpečnostní kopii v localStorage.');
+      }
+
+      if(isSupportedEncryptedStateEnvelope(localEnvelope)){
+        encryptedStateEnvelope = localEnvelope;
+        encryptedStateSource = 'localstorage';
+        try{
+          await idbPutMeta('encryptedState', localEnvelope);
+          encryptedStateSource = 'localstorage-copied-to-indexeddb';
+          pendingLegacyEnvelopeCleanup = true;
+        }catch(error){
+          console.warn('Bezpečnostní kopie trezoru zůstává v localStorage, protože zápis do IndexedDB selhal.', error);
+        }
+        return encryptedStateEnvelope;
+      }
+
+      encryptedStateEnvelope = null;
+      if(invalidIdbEnvelope){
+        startupStorageError = new Error('LifeHub našel lokální trezor v nepodporovaném nebo poškozeném formátu. Z bezpečnostních důvodů nenabídne založení nového trezoru.');
+      }else if(idbError){
+        startupStorageError = new Error('LifeHub nemohl přečíst lokální databázi. Z bezpečnostních důvodů nenabídne založení nového trezoru, dokud se úložiště znovu nenačte.');
+        startupStorageError.cause = idbError;
+      }else if(localError){
+        startupStorageError = new Error('LifeHub nemohl zkontrolovat starší lokální trezor. Zkuste aplikaci úplně zavřít a znovu otevřít.');
+        startupStorageError.cause = localError;
+      }
+      return null;
     }
     async function writeEncryptedStateEnvelope(envelope){
       await idbPutMeta('encryptedState', envelope);
       encryptedStateEnvelope = envelope;
-      try{ localStorage.removeItem(ENC_STORE); }catch(error){ console.warn(error); }
+      encryptedStateSource = 'indexeddb';
+      if(pendingLegacyEnvelopeCleanup){
+        try{
+          localStorage.removeItem(ENC_STORE);
+          pendingLegacyEnvelopeCleanup = false;
+        }catch(error){ console.warn('Starší bezpečnostní kopii trezoru se nepodařilo odstranit.', error); }
+      }
       return envelope;
     }
     async function deleteEncryptedStateEnvelope(){
       encryptedStateEnvelope = null;
+      encryptedStateSource = '';
+      pendingLegacyEnvelopeCleanup = false;
       await idbDeleteMeta('encryptedState').catch(()=>{});
       try{ localStorage.removeItem(ENC_STORE); }catch(error){ console.warn(error); }
     }
@@ -619,6 +682,18 @@ export function bootLifeHub(){
       screen?.classList.add('active');
       document.body.classList.add('locked');
       setAppInert(true);
+      if(startupStorageError){
+        $('#lockTitle').textContent = 'Lokální trezor nelze bezpečně načíst';
+        $('#lockIntro').textContent = 'Nezadávejte nový PIN ani nemažte data aplikace.';
+        $('#lockNote').textContent = 'Úložiště telefonu je dočasně nedostupné. Aplikaci úplně zavřete, zavřete případné další karty LifeHubu a znovu ji otevřete. Původní data se tím nepřepisují.';
+        $('#lockStatus').textContent = startupStorageError.message;
+        $('#lockRepeatWrap')?.classList.add('hide');
+        $('#lockRememberWrap')?.classList.add('hide');
+        $('#unlockBtn').disabled = true;
+        $('#wipeEncryptedBtn')?.classList.add('hide');
+        return;
+      }
+      $('#unlockBtn').disabled = false;
       const encrypted = hasEncryptedState();
       const legacy = hasLegacyState();
       const repeatWrap = $('#lockRepeatWrap');
@@ -628,7 +703,8 @@ export function bootLifeHub(){
       if(encrypted){
         $('#lockTitle').textContent = 'Odemknout šifrovaný LifeHub';
         $('#lockIntro').textContent = 'Zadejte heslo. Bez něj se lokální data nenačtou.';
-        $('#lockNote').textContent = 'Stav aplikace, PDF i dokumenty jsou po odemčení uložené šifrovaně v IndexedDB. Starší trezor z localStorage se automaticky bezpečně převede.';
+        const sourceNote = encryptedStateSource.startsWith('localstorage') ? ' Původní trezor byl nalezen a připraven k bezpečnému převodu.' : ' Původní šifrovaný trezor byl nalezen.';
+        $('#lockNote').textContent = 'Stav aplikace, PDF i dokumenty jsou po odemčení uložené šifrovaně v IndexedDB.' + sourceNote;
         $('#unlockBtn').textContent = 'Odemknout';
         repeatWrap.classList.add('hide');
         migrateWrap.classList.add('hide');
@@ -666,6 +742,9 @@ export function bootLifeHub(){
           const plain = await decryptObjectWithKey(envelope, vaultKey);
           state = sanitizeImportedState(plain, { preserveStoredFiles: true });
           await reconcileStoredFileFlags();
+          if(encryptedStateSource !== 'indexeddb' || pendingLegacyEnvelopeCleanup){
+            await persistEncryptedState(vaultKey, vaultSalt, state, vaultIterations);
+          }
         }else{
           if(pass !== repeat){ $('#lockStatus').textContent = 'Hesla se neshodují.'; return; }
           vaultSalt = window.crypto.getRandomValues(new Uint8Array(16));
@@ -2196,6 +2275,7 @@ Poslední pojistka: pro potvrzení importu napiš ${word}.`,
     function saveSettings(e){e.preventDefault(); state.settings.greetName=$('#greetName').value.trim(); state.settings.deviceName=$('#deviceName').value.trim(); state.settings.ownerName=$('#ownerName').value.trim(); state.settings.ownerFooter=$('#ownerFooter').value.trim(); state.settings.currency=sanitizeCurrency($('#currency').value); state.settings.savingGoal=number($('#savingGoal').value); state.settings.privateNotifications=$('#privateNotifications')?.checked!==false; state.settings.familySettingsUpdatedAt=new Date().toISOString(); save(); toast('Nastavení uloženo.');}
     // Krátký changelog (nejnovější nahoře, drž ~5 položek). Zobrazí se klepnutím na verzi v patičce.
     const CHANGELOG = [
+      'v4.4.1 · Opravena kritická regresní chyba startu: aplikace znovu rozpozná původní trezor, bezpečně dokončí migraci z localStorage do IndexedDB a při chybě úložiště už nikdy nenabídne založení nového trezoru.',
       'v4.4.0 · Stabilizační a bezpečnostní release: IndexedDB pro hlavní stav, ochrana neuložených změn, úplné zálohy, bezpečné zamykání, čisté testovací podklady a jednodušší rodinný snapshot.',
       'v4.3.3 · Kompletní interaktivní manuál je vložen přímo do aplikace, dostupný z horní lišty i postranní nabídky a funguje offline.',
       'v4.3.2 · Rodinné heslo lze uložit jednou uvnitř šifrovaného trezoru. Export i načtení ho používají automaticky a 15minutové zamknutí ho nemaže.',
@@ -3164,5 +3244,24 @@ Pokračovat ve vytvoření šifrovaného souboru?`,{title:'Obsah rodinného soub
     function fmtDate(iso){ try{ return new Date(iso).toLocaleDateString('cs-CZ',{day:'numeric',month:'long',year:'numeric'}); }catch(e){ return ''; } }
     function empty(text){return `<div class="empty">${esc(text)}</div>`;}
     function registerSW(){ registerServiceWorker('./sw.js'); }
-    init();
+    init().catch(error => {
+      console.error('LifeHub se nepodařilo spustit.', error);
+      const screen = $('#lockScreen');
+      screen?.classList.add('active');
+      document.body.classList.add('locked');
+      setAppInert(true);
+      const title = $('#lockTitle');
+      const intro = $('#lockIntro');
+      const note = $('#lockNote');
+      const status = $('#lockStatus');
+      if(title) title.textContent = 'LifeHub se nepodařilo bezpečně spustit';
+      if(intro) intro.textContent = 'Nezakládejte nový trezor a nemažte data aplikace.';
+      if(note) note.textContent = 'Aplikaci úplně zavřete a znovu otevřete. Pokud problém přetrvá, použijte opravnou verzi LifeHubu; původní lokální data se touto chybou sama nemažou.';
+      if(status) status.textContent = error?.message || 'Neznámá chyba při spuštění.';
+      $('#lockRepeatWrap')?.classList.add('hide');
+      $('#lockRememberWrap')?.classList.add('hide');
+      const unlock = $('#unlockBtn');
+      if(unlock) unlock.disabled = true;
+      $('#wipeEncryptedBtn')?.classList.add('hide');
+    });
 }

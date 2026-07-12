@@ -1,5 +1,14 @@
 # Changelog
 
+## v4.4.1 – oprava obnovení původního trezoru
+
+- Opravena kritická chyba, kdy startovací kód volal chybějící funkci `hasLegacyState()` a mohl ponechat zobrazený výchozí formulář pro nový PIN.
+- LifeHub znovu spolehlivě rozpozná původní šifrovaný trezor v IndexedDB i bezpečnostní kopii v localStorage.
+- Převod z localStorage do IndexedDB nyní původní kopii odstraní až po úspěšném odemčení a bezpečném uložení.
+- Pokud IndexedDB nelze přečíst nebo obsahuje poškozený záznam, aplikace zablokuje založení nového trezoru a zobrazí bezpečné recovery hlášení.
+- Přidána zachytávací obrazovka pro chyby při startu, aby se technická chyba už nemohla tvářit jako prázdná nová instalace.
+- Přidány regresní kontroly startovací a migrační logiky.
+
 ## v4.4.0 – bezpečné ukládání, čistá data a stabilizace
 
 - Vestavěný interaktivní manuál byl kompletně aktualizován: novinky 4.4, stavy ukládání, ochranná obrazovka, nouzová záloha, přísnější úplnost záloh, rodinný snapshot, soukromé notifikace a řešení problémů.

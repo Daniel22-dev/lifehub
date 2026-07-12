@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="description" content="Interaktivní uživatelský manuál k aplikaci LifeHub 4.4.0">
+  <meta name="description" content="Interaktivní uživatelský manuál k aplikaci LifeHub 4.4.1">
   <meta name="theme-color" content="#101326">
-  <title>LifeHub 4.4.0 – interaktivní manuál</title>
+  <title>LifeHub 4.4.1 – interaktivní manuál</title>
   <style>
     :root{
       --font:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
@@ -66,7 +66,7 @@
     <button class="icon-btn mobile-nav-btn" id="mobileNav" aria-label="Otevřít navigaci">☰</button>
     <div class="brand">
       <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 512 512"><text x="245" y="325" text-anchor="middle" font-family="Arial,sans-serif" font-size="182" font-weight="900" fill="white" letter-spacing="-18">LH</text></svg></div>
-      <div><h1>LifeHub – interaktivní manuál</h1><p>Uživatelská příručka pro verzi 4.4.0</p></div>
+      <div><h1>LifeHub – interaktivní manuál</h1><p>Uživatelská příručka pro verzi 4.4.1</p></div>
     </div>
     <div class="top-search"><input id="globalSearch" type="search" placeholder="Hledat v celém manuálu…" aria-label="Hledat v manuálu"><span class="search-key">Ctrl K</span></div>
     <div class="top-actions">
@@ -108,8 +108,8 @@
             <div>
               <p class="eyebrow">Celý LifeHub na jednom místě</p>
               <h2>Osobní trezor, finance i domácnost.</h2>
-              <p>LifeHub je lokální šifrovaná aplikace pro poznámky, finance, výplatní pásky, platby, úkoly, nákupy, zahradu, pracovní výkazy a soukromé dokumenty. Manuál odpovídá stabilizované verzi 4.4.0 a vysvětluje také nové bezpečné ukládání, ochranu při chybě, nouzovou zálohu a přesný rodinný náhled.</p>
-              <span class="version-pill"><span class="dot"></span> Ověřeno pro LifeHub 4.4.0</span>
+              <p>LifeHub je lokální šifrovaná aplikace pro poznámky, finance, výplatní pásky, platby, úkoly, nákupy, zahradu, pracovní výkazy a soukromé dokumenty. Manuál odpovídá stabilizované verzi 4.4.1 a vysvětluje také nové bezpečné ukládání, ochranu při chybě, nouzovou zálohu a přesný rodinný náhled.</p>
+              <span class="version-pill"><span class="dot"></span> Ověřeno pro LifeHub 4.4.1</span>
             </div>
             <div class="hero-actions">
               <button class="btn primary" data-go="start">Začít od prvního spuštění</button>
@@ -153,9 +153,11 @@
       </section>
 
       <section class="section" id="new44">
-        <div class="section-head"><div><p class="eyebrow">Stabilizovaná verze 4.4.0</p><h2>Co se změnilo a proč je to důležité</h2><p>Verze 4.4 se zaměřuje na ochranu dat, předvídatelné ukládání, bezpečnější zálohy a jednodušší rodinný náhled.</p></div><span class="version-pill"><span class="dot"></span> Bezpečnostní release</span></div>
+        <div class="section-head"><div><p class="eyebrow">Stabilizovaná verze 4.4.1</p><h2>Co se změnilo a proč je to důležité</h2><p>Verze 4.4 se zaměřuje na ochranu dat, předvídatelné ukládání, bezpečnější zálohy a jednodušší rodinný náhled.</p></div><span class="version-pill"><span class="dot"></span> Bezpečnostní release</span></div>
+        <div class="callout good"><strong>Oprava 4.4.1:</strong> Pokud verze 4.4.0 po aktualizaci omylem zobrazila založení nového PINu, nový trezor nezakládej. Verze 4.4.1 znovu rozpozná původní šifrovaný trezor v IndexedDB nebo jeho bezpečnostní kopii v <code>localStorage</code>. Použij svůj původní PIN.</div>
         <div class="grid three">
-          <article class="panel"><div class="module-icon">🗃️</div><h3>Stav v IndexedDB</h3><p>Šifrovaný stav aplikace je uložen v IndexedDB společně s lokálním archivem souborů. Starší šifrovaný trezor z <code>localStorage</code> se při prvním spuštění automaticky převede.</p></article>
+          <article class="panel"><div class="module-icon">🧰</div><h3>Bezpečná obnova startu</h3><p>Start aplikace už při technické chybě úložiště nezobrazí formulář pro nový trezor. Založení nového PINu se zablokuje a LifeHub výslovně upozorní, že nemáš mazat data.</p></article>
+          <article class="panel"><div class="module-icon">🗃️</div><h3>Stav v IndexedDB</h3><p>Šifrovaný stav aplikace je uložen v IndexedDB společně s lokálním archivem souborů. Starší šifrovaný trezor z <code>localStorage</code> se při prvním spuštění automaticky převede až po bezpečném rozpoznání.</p></article>
           <article class="panel"><div class="module-icon">💾</div><h3>Řízené ukládání</h3><p>LifeHub rozlišuje stav <strong>Neuloženo</strong>, <strong>Šifruji…</strong>, úspěšně šifrovaný stav a <strong>Uložení selhalo</strong>. Při chybě změny potichu nezahodí.</p></article>
           <article class="panel"><div class="module-icon">🛑</div><h3>Ochranná obrazovka</h3><p>Pokud nelze bezpečně uložit, citlivý obsah se skryje, ale zůstane v paměti. Uživatel může uložení zopakovat, vytvořit nouzovou zálohu nebo změny vědomě zahodit.</p></article>
           <article class="panel"><div class="module-icon">🛡️</div><h3>Přísnější kompletní záloha</h3><p>Chybí-li očekávaný PDF nebo dokument, export se už nesmí označit jako kompletní. LifeHub nabídne pouze datovou zálohu bez souborů.</p></article>
@@ -305,7 +307,7 @@
         </div></article>
       </section>
 
-      <footer class="footer"><strong>LifeHub 4.4.0 – interaktivní manuál</strong><br>Aktualizováno pro stabilizovanou verzi 4.4.0. Manuál popisuje bezpečné ukládání, nouzovou obnovu, zálohy i rodinný snapshot, neobsahuje osobní data a funguje bez připojení k internetu.</footer>
+      <footer class="footer"><strong>LifeHub 4.4.1 – interaktivní manuál</strong><br>Aktualizováno pro stabilizovanou verzi 4.4.1. Manuál popisuje bezpečné ukládání, nouzovou obnovu, zálohy i rodinný snapshot, neobsahuje osobní data a funguje bez připojení k internetu.</footer>
     </main>
   </div>
 </div>
