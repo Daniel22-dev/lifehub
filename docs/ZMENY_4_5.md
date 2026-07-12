@@ -1,4 +1,12 @@
-# LifeHub 4.5.1 – praktické změny
+# LifeHub 4.5.2 – praktické změny
+
+## 4.5.2 – přehlednější výplatní pásky
+
+- Čistá mzda je na kartě největší a vizuálně dominantní údaj.
+- Částka skutečně vyplacená na účet (dobírka), hrubá mzda a daň jsou oddělené doplňkové hodnoty.
+- Starší pásky se při odemčení bezpečně doplní z uložené poznámky; původní PDF ani transakce se nemažou.
+- Do měsíčních příjmů se nadále započítává skutečná částka připsaná na účet.
+- Dlouhý název PDF je schovaný v rozbalovací části „Soubor a technické údaje“.
 
 ## Mobilní horní lišta
 

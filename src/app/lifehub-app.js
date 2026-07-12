@@ -90,7 +90,7 @@ export function bootLifeHub(){
     const VERSION = APP_VERSION;
     const SHORT_VERSION = String(VERSION).split('-')[0]; // např. "3.1.8" – nadpis, titulek, zámek
     const FORBIDDEN_IMPORT_KEYS = new Set(['__proto__','constructor','prototype']);
-    const STATE_SCHEMA_VERSION = 5;
+    const STATE_SCHEMA_VERSION = 6;
     const VENDOR_BASE_URL = new URL('vendor/', PUBLIC_BASE_URL);
     const PDF_JS_LOCAL = new URL('pdf.min.mjs', VENDOR_BASE_URL).href;
     const PDF_WORKER_LOCAL = new URL('pdf.worker.min.mjs', VENDOR_BASE_URL).href;
@@ -128,7 +128,8 @@ export function bootLifeHub(){
     let selectedAppId = null;
     let currentPayroll = {file:null, text:'', parsed:{}, evidence:{}};
     const payFieldDefs = [
-      ['netPay','Čistá mzda / k výplatě',['cista mzda','k vyplate','castka k vyplate','doplatek k vyplate','cisty prijem','vyplaceno','na ucet']],
+      ['cleanPay','Čistá mzda',['cista mzda','cisty prijem']],
+      ['netPay','Na účet / dobírka',['dobirka','k vyplate','castka k vyplate','doplatek k vyplate','vyplaceno','na ucet']],
       ['grossPay','Hrubá mzda / hrubý příjem',['hruba mzda','hruby prijem','uhrn prijmu','zdanitelny prijem','hruba odmena']],
       ['taxBase','Základ daně',['zaklad dane','danovy zaklad','zakl. dane']],
       ['incomeTax','Daň / záloha na daň',['zaloha na dan','dan z prijmu','srazena dan','dan celkem']],
@@ -1062,7 +1063,7 @@ export function bootLifeHub(){
       const res = [];
       state.notes.forEach(n=>{const text=strip([n.title,n.summary,n.content,n.tags,n.source,n.type].join(' ')); if(text.includes(q)) res.push(['Poznámka',n.title,n.summary,'notes']);});
       state.transactions.forEach(t=>{const text=strip([t.category,t.description,t.amount,t.date].join(' ')); if(text.includes(q)) res.push(['Finance',`${t.kind==='income'?'Příjem':'Výdaj'}: ${t.category}`,`${fmt(t.amount)} • ${t.date} • ${t.description||''}`,'finance']);});
-      state.payrolls.forEach(p=>{const text=strip([p.month,p.employer,p.note,p.fileName,p.rawText].join(' ')); if(text.includes(q)) res.push(['Výplatní páska',`${p.month} ${p.employer||''}`,`Čistá mzda: ${fmt(p.fields?.netPay || 0)} • ${p.fileName || ''}`,'finance']);});
+      state.payrolls.forEach(p=>{const text=strip([p.month,p.employer,p.note,p.fileName,p.rawText].join(' ')); if(text.includes(q)) res.push(['Výplatní páska',`${p.month} ${p.employer||''}`,`Čistá mzda: ${fmt(payrollCleanAmount(p))} • Na účet: ${fmt(payrollAccountAmount(p))} • ${p.fileName || ''}`,'finance']);});
       state.documents.forEach(d=>{const text=strip([d.title,d.category,d.note,d.fileName].join(' ')); if(text.includes(q)) res.push(['Archiv',d.title,`${docCategoryLabel(d.category)} • ${d.fileName||''}`,'vault']);});
       state.tasks.forEach(t=>{const text=strip([t.title,t.note,t.area,t.priority].join(' ')); if(text.includes(q)) res.push(['Úkol',t.title,`${taskPriorityLabel(t.priority)} • ${t.area||''}`,'tasks']);});
       state.shopping.forEach(s=>{const text=strip([s.name,s.note,s.category,s.store,s.priority].join(' ')); if(text.includes(q)) res.push(['Velký nákup',s.name,`${shopPriorityLabel(s.priority)} • ${fmt(s.price)}`,'shopping']);});
@@ -1175,7 +1176,7 @@ export function bootLifeHub(){
           const text=await extractPdfText(file);
           const parsed=parsePayrollText(text);
           const month=parsed.month||'';
-          const amount=number(parsed.fields?.netPay||parsed.fields?.grossPay);
+          const amount=number(parsed.fields?.cleanPay||parsed.fields?.netPay||parsed.fields?.grossPay);
           if(!/^\d{4}-\d{2}$/.test(month) || !(amount>0)){
             failures.push(`${file.name}: chybí měsíc nebo čistá/hrubá mzda`);
             continue;
@@ -1200,7 +1201,7 @@ export function bootLifeHub(){
       if(!rows.length){ setPdfStatus('Všechny měsíce už existují','warn'); toast('Všechny rozpoznané měsíce už v aplikaci existují. Zapněte „Nahradit starší mzdový příjem“, pokud je chcete načíst znovu.','warn'); return; }
       const storePdf=!!$('#payStorePdf')?.checked;
       const storeText=!!$('#payStoreText')?.checked;
-      const summary=rows.map(row=>`- ${monthLabel(row.month)}: na účet ${fmt(row.fields.netPay||row.fields.grossPay)} • ${row.found} rozpoznaných hodnot${existingMonths.has(row.month)?' • nahradí stávající záznam':''}`).join('\n');
+      const summary=rows.map(row=>{ const clean=number(row.fields.cleanPay||row.fields.netPay||row.fields.grossPay); const account=number(row.fields.netPay||clean); return `- ${monthLabel(row.month)}: čistá mzda ${fmt(clean)}${account!==clean?` • na účet ${fmt(account)}`:''} • ${row.found} rozpoznaných hodnot${existingMonths.has(row.month)?' • nahradí stávající záznam':''}`; }).join('\n');
       const extras=[
         storePdf?'PDF budou uložena šifrovaně pouze v tomto zařízení.':'PDF se neuloží; zůstanou jen vyčtené částky.',
         skipped?`${skipped} existujících měsíců bude přeskočeno.`:'',
@@ -1226,7 +1227,7 @@ export function bootLifeHub(){
           state.transactions=state.transactions.filter(t=>!(t.source==='payroll'&&t.payrollMonth===row.month));
         }
         state.payrolls.unshift(record);
-        state.transactions.unshift({id:uid('trans'),date:`${row.month}-01`,kind:'income',category:'mzda',amount:record.fields.netPay||record.fields.grossPay||0,description:`Výplatní páska${record.employer?' • '+record.employer:''}${record.fileName?' • '+record.fileName:''}`,source:'payroll',payrollId:id,payrollMonth:row.month,shared:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
+        state.transactions.unshift({id:uid('trans'),date:`${row.month}-01`,kind:'income',category:'mzda',amount:record.fields.netPay||record.fields.cleanPay||record.fields.grossPay||0,description:`Výplatní páska${record.employer?' • '+record.employer:''}${record.fileName?' • '+record.fileName:''}`,source:'payroll',payrollId:id,payrollMonth:row.month,shared:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
       }
       state.payrolls.sort((a,b)=>String(b.month).localeCompare(String(a.month)));
       save();
@@ -1381,7 +1382,7 @@ export function bootLifeHub(){
     async function savePayrollRecord(){
       const fields = readPayrollFields(); const month = $('#payMonth').value;
       if(!month){toast('Vyberte měsíc výplaty.','warn'); return;}
-      if(!fields.netPay && !fields.grossPay){toast('Doplňte alespoň čistou nebo hrubou mzdu.','warn'); return;}
+      if(!fields.cleanPay && !fields.netPay && !fields.grossPay){toast('Doplňte alespoň čistou nebo hrubou mzdu.','warn'); return;}
       if($('#payReplaceMonth').checked){
         const existingPayrollIncome = state.transactions.filter(t=>t.source==='payroll' && t.payrollMonth===month);
         if(existingPayrollIncome.length){
@@ -1403,8 +1404,8 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         state.transactions = state.transactions.filter(t=>!(t.source==='payroll' && t.payrollMonth===month));
       }
       state.payrolls.unshift(record);
-      state.transactions.unshift({id:uid('trans'), date:`${month}-01`, kind:'income', category:'mzda', amount:fields.netPay || fields.grossPay || 0, description:`Výplatní páska${record.employer?' • '+record.employer:''}${record.fileName?' • '+record.fileName:''}`, source:'payroll', payrollId:id, payrollMonth:month, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString()});
-      save(); clearPayrollImport(); toast('Výplatní páska uložena a čistá mzda zapsána do příjmů.');
+      state.transactions.unshift({id:uid('trans'), date:`${month}-01`, kind:'income', category:'mzda', amount:fields.netPay || fields.cleanPay || fields.grossPay || 0, description:`Výplatní páska${record.employer?' • '+record.employer:''}${record.fileName?' • '+record.fileName:''}`, source:'payroll', payrollId:id, payrollMonth:month, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString()});
+      save(); clearPayrollImport(); toast('Výplatní páska uložena; do příjmů byla zapsána skutečná částka vyplacená na účet.');
     }
     // Additivní import výplatních pásek z JSON souboru. Na rozdíl od záloh nic
     // nenahrazuje: pásky přidá k současným datům a měsíce, které už existují, přeskočí.
@@ -1419,19 +1420,19 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         if(data?.kind!=='LifeHub payroll import' || !Array.isArray(data.payrolls)) throw new Error('Soubor není import výplatních pásek LifeHubu (kind: „LifeHub payroll import").');
         const incoming=data.payrolls.slice(0,120).map(p=>({
           month:textLimit(p?.month,7), employer:textLimit(p?.employer,160), note:textLimit(p?.note,1000), fields:sanitizePayrollFields(p?.fields||{})
-        })).filter(p=>/^\d{4}-\d{2}$/.test(p.month) && (p.fields.netPay || p.fields.grossPay));
+        })).filter(p=>/^\d{4}-\d{2}$/.test(p.month) && (p.fields.cleanPay || p.fields.netPay || p.fields.grossPay));
         if(!incoming.length) throw new Error('Soubor neobsahuje žádnou platnou pásku (měsíc + čistá nebo hrubá mzda).');
         const existing=new Set(state.payrolls.map(p=>p.month));
         const toAdd=incoming.filter(p=>!existing.has(p.month)).sort((a,b)=>a.month.localeCompare(b.month));
         const skipped=incoming.length-toAdd.length;
         if(!toAdd.length){ toast(`Všech ${incoming.length} měsíců už v aplikaci existuje. Nic nebylo přidáno.`,'warn'); return; }
-        const summary=toAdd.map(p=>`- ${monthLabel(p.month)}: na účet ${fmt(p.fields.netPay||p.fields.grossPay)}`).join('\n');
+        const summary=toAdd.map(p=>{ const clean=number(p.fields.cleanPay||p.fields.netPay||p.fields.grossPay); const account=number(p.fields.netPay||clean); return `- ${monthLabel(p.month)}: čistá mzda ${fmt(clean)}${account!==clean?` • na účet ${fmt(account)}`:''}`; }).join('\n');
         const ok=await confirmDialog(`Přidat ${toAdd.length} výplatních pásek a zapsat je do příjmů?\n\n${summary}${skipped?`\n\n${skipped} měsíců bylo přeskočeno, protože už existují.`:''}\n\nSoučasná data zůstanou beze změny.`, {title:'Import výplatních pásek', confirmText:'Přidat pásky'});
         if(!ok) return;
         toAdd.forEach(p=>{
           const id=uid('payroll');
           state.payrolls.unshift({id, month:p.month, employer:p.employer, note:p.note, fileName:'', fileSize:0, fields:p.fields, evidence:{}, rawText:'', storedPdf:false, createdAt:new Date().toISOString()});
-          state.transactions.unshift({id:uid('trans'), date:`${p.month}-01`, kind:'income', category:'mzda', amount:p.fields.netPay||p.fields.grossPay||0, description:`Výplatní páska${p.employer?' • '+p.employer:''}`, source:'payroll', payrollId:id, payrollMonth:p.month, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString()});
+          state.transactions.unshift({id:uid('trans'), date:`${p.month}-01`, kind:'income', category:'mzda', amount:p.fields.netPay||p.fields.cleanPay||p.fields.grossPay||0, description:`Výplatní páska${p.employer?' • '+p.employer:''}`, source:'payroll', payrollId:id, payrollMonth:p.month, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString()});
         });
         state.payrolls.sort((a,b)=>String(b.month).localeCompare(String(a.month)));
         save();
@@ -1494,12 +1495,26 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
     }
     function clampPercent(pct,min=3){ return Math.max(min, Math.min(100, Math.round(Number(pct)||0))); }
     function barRow(label,value,pct){const val=clampPercent(pct); return `<div class="bar-row"><div class="bar-row-head"><span>${esc(label)}</span><span>${esc(value)}</span></div><progress class="bar-progress" max="100" value="${val}" aria-label="${attr(label)}: ${val} %">${val}%</progress></div>`;}
+    function payrollCleanAmount(payroll){
+      const fields=payroll?.fields||{};
+      return number(fields.cleanPay||fields.netPay||fields.grossPay);
+    }
+    function payrollAccountAmount(payroll){
+      const fields=payroll?.fields||{};
+      return number(fields.netPay||fields.cleanPay||fields.grossPay);
+    }
+    function payrollVisibleNote(payroll){
+      return String(payroll?.note||'').split(';').map(part=>part.trim()).filter(part=>part && !/^čistá mzda\s/i.test(part)).join('; ');
+    }
+    function payrollSecondaryMetric(label,value){
+      return `<div class="payroll-metric"><span>${esc(label)}</span><strong>${esc(fmt(value))}</strong></div>`;
+    }
     function renderPayrollForecast(){
-      const records=state.payrolls.filter(p=>number(p.fields?.netPay)>0).sort((a,b)=>b.month.localeCompare(a.month));
+      const records=state.payrolls.filter(p=>payrollCleanAmount(p)>0).sort((a,b)=>b.month.localeCompare(a.month));
       if(!records.length){$('#payrollForecast').innerHTML=empty('Po načtení prvních výplatních pásek se zde zobrazí odhad další čisté mzdy a průměr odvodů.');return;}
       const avg = arr => arr.reduce((a,b)=>a+b,0)/Math.max(1,arr.length);
       const last3=records.slice(0,3), last6=records.slice(0,6);
-      const avg3=avg(last3.map(p=>number(p.fields.netPay))), avg6=avg(last6.map(p=>number(p.fields.netPay)));
+      const avg3=avg(last3.map(payrollCleanAmount)), avg6=avg(last6.map(payrollCleanAmount));
       const tax=avg(records.slice(0,6).map(p=>number(p.fields.incomeTax))); const soc=avg(records.slice(0,6).map(p=>number(p.fields.socialInsurance))); const health=avg(records.slice(0,6).map(p=>number(p.fields.healthInsurance)));
       $('#payrollForecast').innerHTML=`<div class="kpis kpis-two compact-kpis"><div class="kpi"><div class="label">Odhad příští čisté mzdy</div><div class="value">${fmt(avg3||avg6)}</div><div class="sub">Průměr posledních ${last3.length} pásek</div></div><div class="kpi"><div class="label">Roční odhad čistého příjmu</div><div class="value">${fmt((avg6||avg3)*12)}</div><div class="sub">Podle průměru posledních ${last6.length} pásek</div></div></div><div class="spacer-12"></div><div class="bar-list">${barRow('Průměrná záloha na daň',fmt(tax),Math.min(100,tax/Math.max(1,avg6)*100))}${barRow('Průměrné sociální pojištění',fmt(soc),Math.min(100,soc/Math.max(1,avg6)*100))}${barRow('Průměrné zdravotní pojištění',fmt(health),Math.min(100,health/Math.max(1,avg6)*100))}</div>`;
     }
@@ -1525,7 +1540,29 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       $('#transactionsList').innerHTML=arr.map(t=>`<article class="item"><div class="item-top"><div><h4>${t.kind==='income'?'Příjem':'Výdaj'} • ${esc(t.category)}</h4><p>${esc(t.date)} • <strong class="${t.kind==='income'?'money-plus':'money-minus'}">${fmt(t.amount)}</strong> ${t.source==='payroll'?'• z výplatní pásky':''}</p>${t.description?`<p>${esc(t.description)}</p>`:''}</div><div class="actions"><button class="mini-btn" data-edit-trans="${attr(t.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-trans="${attr(t.id)}" type="button">Smazat</button></div></div></article>`).join('') || empty('Žádné transakce pro aktuální filtr.');
     }
     function renderPayrollList(){
-      $('#payrollList').innerHTML=state.payrolls.map(p=>`<article class="item"><div class="item-top"><div><h4>${esc(monthLabel(p.month))}${p.employer?' • '+esc(p.employer):''}</h4><p><strong>Čistá mzda:</strong> ${fmt(p.fields?.netPay||0)} • <strong>Hrubá:</strong> ${fmt(p.fields?.grossPay||0)} • <strong>Daň:</strong> ${fmt(p.fields?.incomeTax||0)}</p><div class="meta"><span class="tag">${esc(p.fileName||'bez názvu PDF')}</span>${p.storedPdf?'<span class="status good">PDF uloženo lokálně</span>':'<span class="status warn">PDF neuloženo</span>'}</div>${p.note?`<p>${esc(p.note)}</p>`:''}</div><div class="actions">${p.storedPdf?`<button class="mini-btn" data-download-payroll="${attr(p.id)}" type="button">Stáhnout PDF</button><button class="mini-btn" data-purge-payroll-pdf="${attr(p.id)}" type="button">Smazat jen PDF</button>`:''}<button class="mini-btn" data-delete-payroll="${attr(p.id)}" type="button">Smazat</button></div></div></article>`).join('') || empty('Zatím nejsou uložené výplatní pásky.');
+      $('#payrollList').innerHTML=state.payrolls.map(p=>{
+        const clean=payrollCleanAmount(p);
+        const account=payrollAccountAmount(p);
+        const gross=number(p.fields?.grossPay);
+        const tax=number(p.fields?.incomeTax);
+        const note=payrollVisibleNote(p);
+        const metrics=[
+          account!==clean ? payrollSecondaryMetric('Na účet',account) : '',
+          gross>0 ? payrollSecondaryMetric('Hrubá mzda',gross) : '',
+          tax>=0 ? payrollSecondaryMetric('Daň',tax) : ''
+        ].filter(Boolean).join('');
+        return `<article class="item payroll-card">
+          <div class="payroll-card-head">
+            <div><p class="payroll-period">${esc(monthLabel(p.month))}</p>${p.employer?`<h4>${esc(p.employer)}</h4>`:''}</div>
+            <span class="status ${p.storedPdf?'good':'warn'}">${p.storedPdf?'PDF bezpečně uloženo':'Bez PDF kopie'}</span>
+          </div>
+          <div class="payroll-primary"><span>Čistá mzda</span><strong>${esc(fmt(clean))}</strong></div>
+          <div class="payroll-metrics">${metrics}</div>
+          ${note?`<p class="payroll-note">${esc(note)}</p>`:''}
+          <details class="payroll-file-details"><summary>Soubor a technické údaje</summary><div class="meta"><span class="tag payroll-file-name" title="${attr(p.fileName||'bez názvu PDF')}">${esc(p.fileName||'bez názvu PDF')}</span></div></details>
+          <div class="actions payroll-actions">${p.storedPdf?`<button class="mini-btn payroll-download" data-download-payroll="${attr(p.id)}" type="button">Stáhnout PDF</button><button class="mini-btn" data-purge-payroll-pdf="${attr(p.id)}" type="button">Smazat jen PDF</button>`:''}<button class="mini-btn payroll-delete" data-delete-payroll="${attr(p.id)}" type="button">Smazat záznam</button></div>
+        </article>`;
+      }).join('') || empty('Zatím nejsou uložené výplatní pásky.');
     }
     async function deletePayroll(id){
       if(!await confirmDialog('Smazat výplatní pásku včetně navázaného mzdového příjmu?', {title:'Smazat výplatní pásku', confirmText:'Smazat', danger:true})) return;
@@ -2000,7 +2037,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       const maps={
         notes:[['id','title','source','type','priority','model','url','tags','summary','content','next','createdAt','updatedAt'], ...state.notes.map(n=>[n.id,n.title,n.source,n.type,n.priority,n.model,n.url,(n.tags||[]).join('; '),n.summary,n.content,n.next,n.createdAt,n.updatedAt])],
         transactions:[['id','date','kind','category','amount','description','source','payrollMonth'], ...state.transactions.map(t=>[t.id,t.date,t.kind,t.category,t.amount,t.description,t.source,t.payrollMonth||''])],
-        payrolls:[['id','month','employer','fileName','netPay','grossPay','taxBase','incomeTax','taxpayerDiscount','childDiscount','socialInsurance','healthInsurance','deductions','bonus','note','storedPdf'], ...state.payrolls.map(p=>[p.id,p.month,p.employer,p.fileName,p.fields?.netPay,p.fields?.grossPay,p.fields?.taxBase,p.fields?.incomeTax,p.fields?.taxpayerDiscount,p.fields?.childDiscount,p.fields?.socialInsurance,p.fields?.healthInsurance,p.fields?.deductions,p.fields?.bonus,p.note,p.storedPdf])],
+        payrolls:[['id','month','employer','fileName','cleanPay','netPay','grossPay','taxBase','incomeTax','taxpayerDiscount','childDiscount','socialInsurance','healthInsurance','deductions','bonus','note','storedPdf'], ...state.payrolls.map(p=>[p.id,p.month,p.employer,p.fileName,p.fields?.cleanPay||p.fields?.netPay,p.fields?.netPay||p.fields?.cleanPay,p.fields?.grossPay,p.fields?.taxBase,p.fields?.incomeTax,p.fields?.taxpayerDiscount,p.fields?.childDiscount,p.fields?.socialInsurance,p.fields?.healthInsurance,p.fields?.deductions,p.fields?.bonus,p.note,p.storedPdf])],
         tasks:[['id','title','priority','horizon','due','area','note','done','createdAt'], ...state.tasks.map(t=>[t.id,t.title,t.priority,t.horizon,t.due,t.area,t.note,t.done,t.createdAt])],
         shopping:[['id','name','segment','store','priority','status','category','price','month','url','note','createdAt'], ...state.shopping.map(s=>[s.id,s.name,s.segment,s.store,s.priority,s.status,s.category,s.price,s.month,s.url,s.note,s.createdAt])],
         documents:[['id','title','category','date','fileName','mime','size','note','createdAt','updatedAt'], ...state.documents.map(d=>[d.id,d.title,d.category,d.date,d.fileName,d.mime,d.size,d.note,d.createdAt,d.updatedAt])],
@@ -2089,14 +2126,19 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       const docSummary={}; state.documents.forEach(d=>{const key=d.category||'jine'; docSummary[key]??={category:key,label:docCategoryLabel(key),count:0,totalSize:0}; docSummary[key].count++; docSummary[key].totalSize+=number(d.size);});
       return {kind:'LifeHub anonymized export',version:VERSION,exportedAt:new Date().toISOString(),privacy:'Bez PDF, souborů z archivu, názvů souborů, URL, raw textu, zaměstnavatelů, obsahu poznámek, přesných měsíců a přesných částek.',counts:{notes:state.notes.length,transactions:state.transactions.length,payrolls:state.payrolls.length,documents:state.documents.length,tasks:state.tasks.length,shopping:state.shopping.length},quarterlyFinance:sumByQuarterAnonymized(),payrolls,shoppingSummary:Object.values(shoppingSummary).map(s=>({...s,totalRange:moneyRange(s.total),total:undefined})),taskSummary:Object.values(taskSummary),documentSummary:Object.values(docSummary)};
     }
-    function sanitizePayrollFields(fields){ const out={}; payFieldDefs.forEach(([key])=>out[key]=number(fields[key])); return out; }
+    function sanitizePayrollFields(fields){
+      const out={}; payFieldDefs.forEach(([key])=>out[key]=number(fields[key]));
+      if(!(out.cleanPay>0) && out.netPay>0) out.cleanPay=out.netPay;
+      if(!(out.netPay>0) && out.cleanPay>0) out.netPay=out.cleanPay;
+      return out;
+    }
     function classifyPayrollNote(note){ const n=strip(note||''); if(!n) return ''; const labels=[]; if(n.includes('odmen')||n.includes('premi')||n.includes('bonus')) labels.push('odmeny'); if(n.includes('nemoc')) labels.push('nemoc'); if(n.includes('dovol')) labels.push('dovolena'); if(n.includes('prescas')||n.includes('priplat')) labels.push('prescas/priplatky'); return labels.join(', ') || 'poznamka anonymizovana'; }
     function buildAnonymizedMarkdown(){
       const snap=buildAnonymizedSnapshot(); const lines=[];
       lines.push(`# LifeHub anonymizovaný export ${today()}`,'',snap.privacy,'');
       lines.push('## Počty položek',`- Poznámky: ${snap.counts.notes}`,`- Transakce: ${snap.counts.transactions}`,`- Výplatní pásky: ${snap.counts.payrolls}`,`- Dokumenty v lokálním archivu: ${snap.counts.documents}`,`- Úkoly: ${snap.counts.tasks}`,`- Nákupy: ${snap.counts.shopping}`,'');
       lines.push('## Finance po kvartálech'); snap.quarterlyFinance.forEach(m=>lines.push(`- ${m.period}: příjmy ${m.incomeRange}, výdaje ${m.expenseRange}, bilance ${m.balanceSign} ${m.balanceRange}, položek ${m.count}`));
-      lines.push('', '## Výplatní pásky bez identifikátorů'); snap.payrolls.forEach(p=>lines.push(`- ${p.period}: čistá ${p.fields.netPay}, hrubá ${p.fields.grossPay}, daň ${p.fields.incomeTax}, sleva poplatník ${p.fields.taxpayerDiscount}, soc. ${p.fields.socialInsurance}, zdr. ${p.fields.healthInsurance}, srážky ${p.fields.deductions}, pozn.: ${p.noteCategory||'—'}`));
+      lines.push('', '## Výplatní pásky bez identifikátorů'); snap.payrolls.forEach(p=>lines.push(`- ${p.period}: čistá ${p.fields.cleanPay||p.fields.netPay}, na účet ${p.fields.netPay||p.fields.cleanPay}, hrubá ${p.fields.grossPay}, daň ${p.fields.incomeTax}, sleva poplatník ${p.fields.taxpayerDiscount}, soc. ${p.fields.socialInsurance}, zdr. ${p.fields.healthInsurance}, srážky ${p.fields.deductions}, pozn.: ${p.noteCategory||'—'}`));
       lines.push('', '## Nákupy souhrnně'); snap.shoppingSummary.forEach(s=>lines.push(`- ${s.period||'bez období'} | ${shopPriorityLabel(s.priority)} | ${shopStatusLabel(s.status)} | ${s.count} položek | ${s.totalRange}`));
       lines.push('', '## Úkoly souhrnně'); snap.taskSummary.forEach(t=>lines.push(`- ${taskPriorityLabel(t.priority)} | ${t.status==='done'?'hotové':'otevřené'} | ${t.count}`));
       lines.push('', '## Dokumenty v archivu souhrnně'); snap.documentSummary.forEach(d=>lines.push(`- ${d.label}: ${d.count} souborů, celkem ${formatBytes(d.totalSize)}`));
@@ -2104,7 +2146,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
     }
     function exportAnonymizedPayrollsCsv(){
       const rows=[['record','period','netPayRange','grossPayRange','taxBaseRange','incomeTaxRange','taxpayerDiscountRange','childDiscountRange','socialInsuranceRange','healthInsuranceRange','deductionsRange','mealVouchersRange','bonusRange','sickPayRange','vacationPayRange','overtimeRange','workedHoursRange','employerCostRange','noteCategory']];
-      buildAnonymizedSnapshot().payrolls.forEach(p=>rows.push([p.record,p.period,p.fields.netPay,p.fields.grossPay,p.fields.taxBase,p.fields.incomeTax,p.fields.taxpayerDiscount,p.fields.childDiscount,p.fields.socialInsurance,p.fields.healthInsurance,p.fields.deductions,p.fields.mealVouchers,p.fields.bonus,p.fields.sickPay,p.fields.vacationPay,p.fields.overtime,p.fields.workedHours,p.fields.employerCost,p.noteCategory]));
+      buildAnonymizedSnapshot().payrolls.forEach(p=>rows.push([p.record,p.period,p.fields.cleanPay||p.fields.netPay,p.fields.netPay||p.fields.cleanPay,p.fields.grossPay,p.fields.taxBase,p.fields.incomeTax,p.fields.taxpayerDiscount,p.fields.childDiscount,p.fields.socialInsurance,p.fields.healthInsurance,p.fields.deductions,p.fields.mealVouchers,p.fields.bonus,p.fields.sickPay,p.fields.vacationPay,p.fields.overtime,p.fields.workedHours,p.fields.employerCost,p.noteCategory]));
       download(`lifehub-anonymizovane-pasky-${today()}.csv`, csv(rows), 'text/csv;charset=utf-8');
     }
 
@@ -2370,6 +2412,7 @@ Poslední pojistka: pro potvrzení importu napiš ${word}.`,
     function saveSettings(e){e.preventDefault(); state.settings.greetName=$('#greetName').value.trim(); state.settings.deviceName=$('#deviceName').value.trim(); state.settings.ownerName=$('#ownerName').value.trim(); state.settings.ownerFooter=$('#ownerFooter').value.trim(); state.settings.currency=sanitizeCurrency($('#currency').value); state.settings.savingGoal=number($('#savingGoal').value); state.settings.privateNotifications=$('#privateNotifications')?.checked!==false; state.settings.familySettingsUpdatedAt=new Date().toISOString(); save(); toast('Nastavení uloženo.');}
     // Krátký changelog (nejnovější nahoře, drž ~5 položek). Zobrazí se klepnutím na verzi v patičce.
     const CHANGELOG = [
+      'v4.5.2 · Přehlednější výplatní pásky: dominantní čistá mzda, samostatná částka na účet a méně rušivých technických údajů.',
       'v4.5.1 · Čistší mobilní navigace bez duplicitních názvů kategorií, přehlednější horní lišta, srozumitelnější splátky, automatické platby, hromadný import pásek a chytré hromadné nákupy.',
       'v4.4.1 · Opravena kritická regresní chyba startu: aplikace znovu rozpozná původní trezor, bezpečně dokončí migraci z localStorage do IndexedDB a při chybě úložiště už nikdy nenabídne založení nového trezoru.',
       'v4.4.0 · Stabilizační a bezpečnostní release: IndexedDB pro hlavní stav, ochrana neuložených změn, úplné zálohy, bezpečné zamykání, čisté testovací podklady a jednodušší rodinný snapshot.',

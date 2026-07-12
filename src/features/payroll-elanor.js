@@ -116,6 +116,7 @@ export function parseElanorPayslip(text){
     ev[target] = { ...evidence[source], label };
   };
 
+  take('cleanPay', 'cleanPay', 'Čistá mzda');
   take('netPay', 'netPay', 'DOBÍRKA (částka na účet)');
   take('grossPay', 'grossPay', 'Hrubá mzda');
   take('taxBase', 'taxBase', 'Základ daně');

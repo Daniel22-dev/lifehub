@@ -31,19 +31,21 @@ test('páska 05/2026: všechna pole ze souhrnu i položek', () => {
   assert.equal(r.month, '2026-05');
   assert.equal(r.employer, 'Modelová střední škola');
   assert.deepEqual(r.fields, {
-    netPay: 34764, grossPay: 34198, taxBase: 34198, taxpayerDiscount: 2570,
+    cleanPay: 30355, netPay: 34764, grossPay: 34198, taxBase: 34198, taxpayerDiscount: 2570,
     socialInsurance: 2352, healthInsurance: 1491, workedHours: 139,
     incomeTax: 0, childDiscount: 3127, sickPay: 4374, mealVouchers: 532
   });
   assert.ok(r.found >= 11);
   assert.ok(r.hints.some(h => h.includes('DPP')));
   assert.ok(r.hints.some(h => h.includes('čistá mzda 30 355')));
+  assert.equal(r.evidence.cleanPay.label, 'Čistá mzda');
   assert.equal(r.evidence.netPay.label, 'DOBÍRKA (částka na účet)');
 });
 
 test('páska 02/2026: záporné náhrady nemoci, daň a příplatek', () => {
   const r = parseElanorPayslip(FEB);
   assert.equal(r.month, '2026-02');
+  assert.equal(r.fields.cleanPay, 40077);
   assert.equal(r.fields.netPay, 38078);
   assert.equal(r.fields.grossPay, 46675);
   assert.equal(r.fields.incomeTax, 1308);

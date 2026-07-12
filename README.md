@@ -1,8 +1,13 @@
-# LifeHub 4.5.1
+# LifeHub 4.5.2
 
 LifeHub je osobní offline PWA pro poznámky, finance, výplatní pásky, splátky, platby domácnosti, dokumenty, úkoly, nákupní seznam, zahradu a pracovní výkazy. Stav aplikace i lokální soubory jsou po odemčení uloženy šifrovaně v zařízení.
 
-## Co přináší verze 4.5.1
+## Čistá mzda na první pohled
+
+Výplatní karta zobrazuje jako hlavní údaj čistou mzdu. Částka skutečně připsaná na účet (dobírka), hrubá mzda a daň jsou samostatné vedlejší údaje. Do finančních transakcí se zapisuje skutečně vyplacená částka na účet.
+
+
+## Co přinesla verze 4.5.1
 
 - mobilní navigace bez duplicitních nadpisů skupin,
 

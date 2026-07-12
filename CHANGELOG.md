@@ -1,5 +1,15 @@
 # Changelog
 
+## v4.5.2 – čistá mzda na první pohled
+
+- výplatní karty mají dominantní údaj **Čistá mzda**,
+- samostatně zobrazují **Na účet / dobírka**, hrubou mzdu a daň,
+- parser Elanor už nezaměňuje čistou mzdu s částkou skutečně připsanou na účet,
+- starší záznamy se automaticky doplní z uložené poznámky bez ztráty dat,
+- dlouhý název PDF je skrytý v rozbalovacích technických údajích,
+- peněžní příjem nadále používá částku skutečně vyplacenou na účet,
+- interaktivní manuál vysvětluje rozdíl mezi čistou mzdou a dobírkou.
+
 ## v4.5.1 – čistší mobilní navigace
 
 - Na telefonu a tabletu se v horizontální navigaci zobrazují pouze klikatelné záložky.
