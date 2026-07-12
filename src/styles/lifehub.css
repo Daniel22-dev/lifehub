@@ -316,7 +316,7 @@
     .bar-progress::-webkit-progress-value{background:linear-gradient(90deg,var(--primary),var(--primary-2),var(--accent));border-radius:999px}
     .bar-progress::-moz-progress-bar{background:linear-gradient(90deg,var(--primary),var(--primary-2),var(--accent));border-radius:999px}
     @media (max-width:1080px){
-      .layout{grid-template-columns:1fr}.sidebar{position:static;overflow:hidden}.nav{display:flex;overflow-x:auto;gap:8px;padding-bottom:4px;scrollbar-width:thin}.nav button{width:auto;min-width:max-content;justify-content:center;padding:10px 12px}.nav .label{display:inline}.sidebar-footer{display:none}
+      .layout{grid-template-columns:1fr}.sidebar{position:static;overflow:hidden;padding:10px}.nav{display:flex;overflow-x:auto;gap:8px;padding:2px 2px 6px;scrollbar-width:thin;scroll-snap-type:x proximity;overscroll-behavior-x:contain}.nav button{width:auto;min-width:max-content;justify-content:center;padding:10px 12px;scroll-snap-align:start}.nav .label{display:inline}.nav-group-label{display:none}.sidebar-footer{display:none}
       .hero-grid,.grid.two,.split{grid-template-columns:1fr}.hero-actions{justify-content:flex-start}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.filters{grid-template-columns:1fr 1fr}.payroll-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.task-board{grid-template-columns:1fr}.security-list{grid-template-columns:1fr}
     }
     @media (max-width:680px){
@@ -555,3 +555,49 @@
 .save-status-failed{border-color:rgba(255,93,123,.58)!important;color:var(--danger)!important}
 .nav-group-label{padding:12px 12px 4px;color:var(--muted);font-size:.72rem;font-weight:900;text-transform:uppercase;letter-spacing:.12em}
 @media(max-width:680px){#saveStatus{display:inline-flex!important;max-width:145px}.save-error-banner{top:78px;align-items:flex-start;flex-direction:column}.save-error-banner .actions{width:100%}.save-error-banner .actions .btn{flex:1}}
+
+/* v4.5.1 – mobilní hlavička, čistší navigace, automatické platby a náhled hromadného nákupu */
+.topbar{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto;
+  grid-template-areas:"brand status actions";
+  align-items:center;
+}
+.brand{grid-area:brand;min-width:0}
+.brand-copy{min-width:0}
+.save-status-row{grid-area:status;display:flex;align-items:center;justify-content:flex-end;min-width:0}
+.top-actions{grid-area:actions}
+.payment-list-section{display:grid;gap:10px}
+.payment-list-section+.payment-list-section{margin-top:18px;padding-top:16px;border-top:1px solid var(--border)}
+.payment-section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.payment-section-head h4{margin:0;font-size:1.05rem}
+.payment-section-head p{margin:4px 0 0;color:var(--muted);font-size:.82rem}
+.auto-payment-tag{border-color:color-mix(in srgb,var(--ok) 48%,var(--border))!important;color:var(--ok)!important;background:color-mix(in srgb,var(--ok) 10%,var(--surface-soft))!important}
+.grocery-bulk-preview{border:1px dashed var(--border-strong);border-radius:16px;padding:12px 13px;background:var(--surface-soft);color:var(--muted);line-height:1.45}
+.grocery-bulk-preview strong{color:var(--text)}
+.grocery-preview-chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+.grocery-preview-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:6px 9px;background:var(--surface);font-size:.78rem;color:var(--text)}
+
+@media(max-width:680px){
+  .topbar{
+    grid-template-columns:minmax(0,1fr) auto;
+    grid-template-areas:"brand actions" "status status";
+    row-gap:8px;
+    column-gap:8px;
+    padding:9px 10px 8px;
+  }
+  .brand{gap:8px;overflow:hidden}
+  .brand-mark{width:42px;height:42px;border-radius:14px;flex:0 0 auto}
+  .brand h1{font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brand p{display:none}
+  .top-actions{gap:5px;flex-wrap:nowrap;justify-content:flex-end}
+  .top-actions .icon-btn{width:38px;min-width:38px;min-height:38px;padding:0}
+  .save-status-row{width:100%;justify-content:stretch;border-top:1px solid var(--border);padding-top:7px}
+  #saveStatus{display:flex!important;width:100%;max-width:none;justify-content:center;padding:6px 10px;font-size:.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .save-error-banner{top:108px}
+}
+@media(max-width:390px){
+  .brand-mark{width:39px;height:39px}
+  .top-actions .icon-btn{width:35px;min-width:35px;min-height:35px;border-radius:12px}
+  .brand h1{font-size:.94rem}
+}

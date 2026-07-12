@@ -4,8 +4,8 @@ import { ensureUniqueIds, migrateStateSchema } from '../src/core/state-integrity
 
 test('migrace doplní aktuální schemaVersion bez změny vstupu', () => {
   const original={schemaVersion:2,notes:[{id:'a'}]};
-  const migrated=migrateStateSchema(original,4);
-  assert.equal(migrated.schemaVersion,4);
+  const migrated=migrateStateSchema(original);
+  assert.equal(migrated.schemaVersion,5);
   assert.equal(original.schemaVersion,2);
 });
 

@@ -1,4 +1,4 @@
-# Rodinný náhled v LifeHubu 4.4.1
+# Rodinný náhled v LifeHubu 4.5.1
 
 ## Základní princip
 

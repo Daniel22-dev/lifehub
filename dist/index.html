@@ -5,25 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#20134d">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'none'; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
-  <title>LifeHub 4.4.1 | osobní šifrovaný trezor</title>
+  <title>LifeHub 4.5.1 | osobní šifrovaný trezor</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./assets/icon-CXUaSErS.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/icon-192-DNUOgkEh.png">
-  <script type="module" crossorigin src="./assets/index-Dtb-rRCa.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-B6V0Gkwm.css">
+  <script type="module" crossorigin src="./assets/index-BXQQ48_K.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-CtyiVQZc.css">
 </head>
 <body>
   <div class="app">
     <header class="topbar">
       <div class="brand">
         <div class="brand-mark">LH</div>
-        <div>
+        <div class="brand-copy">
           <h1>LifeHub <span id="appTitleVersion">4.0</span></h1>
           <p>Poznámky • finance • šifrovaný trezor</p>
         </div>
       </div>
-      <div class="top-actions">
+      <div class="save-status-row">
         <span class="pill" id="saveStatus" role="status" aria-live="polite">Zamčeno</span>
+      </div>
+      <div class="top-actions">
         <button class="icon-btn" id="manualBtn" type="button" title="Otevřít interaktivní manuál" aria-label="Otevřít interaktivní manuál">❔</button>
         <button class="icon-btn" id="lockBtn" type="button" title="Zamknout aplikaci">🔒</button>
         <button class="icon-btn" id="fullscreenBtn" type="button" title="Celá obrazovka">⛶</button>
@@ -40,7 +42,7 @@
     <div class="layout">
       <aside class="sidebar">
         <nav class="nav" aria-label="Hlavní navigace">
-          <div class="nav-group-label">Přehled</div>
+          <div class="nav-group-label">Hlavní</div>
           <button class="active" data-tab="dashboard" type="button"><span class="emoji">🏠</span><span class="label">Přehled</span></button>
           <button data-tab="notes" type="button"><span class="emoji">🧠</span><span class="label">Poznámky</span></button>
           <div class="nav-group-label">Finance a domácnost</div>
@@ -246,20 +248,21 @@
                 <div class="grid two">
                   <div class="pdf-drop">
                     <div class="pdf-icon">📄</div>
-                    <strong>Vyberte PDF výplatní pásku</strong>
-                    <input id="payrollPdf" type="file" accept="application/pdf,.pdf">
+                    <strong>Vyberte jedno nebo více PDF výplatních pásek</strong>
+                    <input id="payrollPdf" type="file" accept="application/pdf,.pdf" multiple>
                     <div class="actions">
-                      <button class="btn primary" id="parsePayrollBtn" type="button">Přečíst PDF</button>
+                      <button class="btn primary" id="parsePayrollBtn" type="button">Přečíst jedno PDF</button>
+                      <button class="btn secondary" id="importPayrollPdfBatchBtn" type="button">Hromadně uložit vybraná PDF</button>
                       <button class="btn" id="clearPayrollBtn" type="button">Vyčistit import</button>
                     </div>
-                    <p class="small">PDF se neodesílá na server. Text se vytahuje v prohlížeči pomocí PDF.js.</p>
+                    <p class="small">Při jednom PDF lze hodnoty před uložením ručně zkontrolovat. Více PDF LifeHub přečte, zobrazí souhrn a uloží najednou. Soubory se nikdy neodesílají na server.</p>
                   </div>
                   <div>
                     <div class="form form-two">
                       <label>Měsíc výplaty<input id="payMonth" type="month"></label>
                       <label>Zaměstnavatel<input id="payEmployer" placeholder="Volitelné"></label>
                       <label class="wide">Poznámka<input id="payNote" placeholder="Např. mimořádné odměny, nemoc, dovolená…"></label>
-                      <label class="checkline wide check-strong"><input id="payStorePdf" type="checkbox">Uložit kopii PDF lokálně v tomto zařízení přes IndexedDB</label>
+                      <label class="checkline wide check-strong"><input id="payStorePdf" type="checkbox" checked>Uložit kopii PDF šifrovaně v tomto zařízení</label>
                       <label class="checkline wide check-strong"><input id="payStoreText" type="checkbox">Uložit extrahovaný text pro budoucí kontrolu a export</label>
                       <label class="checkline wide check-strong"><input id="payReplaceMonth" type="checkbox" checked>Nahradit starší mzdový příjem za stejný měsíc</label>
                     </div>
@@ -412,7 +415,7 @@
                 <h2 class="tab-title">Platby domácnosti</h2>
                 <p class="tab-sub">Pravidelné platby, faktury a termíny splatnosti na jednom místě</p>
               </div>
-              <button class="info-dot" type="button" data-tip="Eviduj elektřinu, plyn, vodu, internet, pojištění, předplatná i jednorázové faktury. U opakované platby tlačítko Zaplaceno automaticky posune další termín. Sdílené platby se zobrazí v šifrovaném rodinném náhledu partnera.">i</button>
+              <button class="info-dot" type="button" data-tip="Eviduj elektřinu, plyn, vodu, internet, pojištění, předplatná i jednorázové faktury. U plateb hrazených trvalým příkazem nebo inkasem zapni volbu Automaticky hrazeno: LifeHub je nebude vyžadovat k ručnímu odškrtnutí a po termínu posune další splatnost. Sdílené platby se zobrazí v šifrovaném rodinném náhledu partnera.">i</button>
             </div>
           </div>
           <div class="kpis" id="paymentKpis"></div>
@@ -431,6 +434,7 @@
                 <label>Opakování<select id="paymentFrequency"><option value="once">Jednorázově</option><option value="monthly">Měsíčně</option><option value="quarterly">Čtvrtletně</option><option value="yearly">Ročně</option></select></label>
                 <label>Nejbližší splatnost<input id="paymentDueDate" type="date" required></label>
                 <label>Kdo platí<select id="paymentAssignedTo"><option value="both">Oba / společně</option><option value="me">Já</option><option value="partner">Partner</option></select></label>
+                <label class="check-label wide"><input id="paymentAutomatic" type="checkbox"> Hrazeno automaticky z účtu (trvalý příkaz / inkaso)</label>
                 <label class="check-label"><input id="paymentShared" type="checkbox" checked> Sdílet v rodině</label>
                 <label class="wide">Poznámka<input id="paymentNote" placeholder="Variabilní symbol, účet, smlouva, detail…"></label>
                 <div class="actions wide"><button class="btn primary" type="submit">Uložit platbu</button><button class="btn" id="resetPayment" type="button">Vyčistit</button></div>
@@ -560,9 +564,11 @@
             <button class="add-card-head" type="button" data-toggle-add="groceryBulkCard"><span>📋 Hromadné vložení (text od ženy)</span><span class="chev">▾</span></button>
             <div class="add-card-body">
               <form class="form" id="groceryBulkForm">
-                <label class="wide">Vlož zkopírovaný seznam (každý řádek = jedna položka)<textarea id="groceryBulkText" rows="6" placeholder="mléko&#10;chleba&#10;2x vejce&#10;máslo"></textarea></label>
-                <label>Obchod pro všechny položky<select id="groceryBulkStore"><option value="">Obchod —</option><option>Lidl</option><option>Albert</option><option>Kaufland</option><option>Billa</option><option>Tesco</option><option>Globus</option><option>Jiný</option></select></label>
-                <div class="actions wide"><button class="btn primary" type="submit">Vložit položky</button></div>
+                <label class="wide">Vlož zkopírovaný seznam<textarea id="groceryBulkText" rows="7" placeholder="Lidl:&#10;mléko&#10;chleba&#10;2x vejce&#10;&#10;Albert:&#10;máslo, jogurty"></textarea></label>
+                <p class="small wide">Každý řádek, čárka nebo středník vytvoří položku. Lze použít nadpisy <strong>Lidl:</strong> a <strong>Albert:</strong>; jinak se použije obchod vybraný níže.</p>
+                <label>Výchozí obchod<select id="groceryBulkStore"><option value="">Bez obchodu</option><option>Lidl</option><option>Albert</option><option>Kaufland</option><option>Billa</option><option>Tesco</option><option>Globus</option><option>Jiný</option></select></label>
+                <div class="wide grocery-bulk-preview" id="groceryBulkPreview" aria-live="polite">Vložte text a zobrazí se náhled položek.</div>
+                <div class="actions wide"><button class="btn primary" id="groceryBulkSubmit" type="submit">Vložit položky</button><button class="btn" id="clearGroceryBulk" type="button">Vyčistit text</button></div>
               </form>
             </div>
           </article>
@@ -985,7 +991,7 @@
             </div>
           </article>
           <article class="panel production-panel">
-            <div class="panel-head"><div><p class="eyebrow">Produkční režim</p><h3>Oficiální osobní nástroj</h3></div><span class="status good">LifeHub 4.3</span></div>
+            <div class="panel-head"><div><p class="eyebrow">Produkční režim</p><h3>Oficiální osobní nástroj</h3></div><span class="status good">LifeHub 4.5</span></div>
             <p>Data zůstávají v tomto zařízení a po odemčení se ukládají šifrovaně. Přenos mezi telefonem a počítačem je záměrně ruční přes kompletní šifrovanou zálohu; automatická cloudová synchronizace není součástí aplikace.</p>
           </article>
           <article class="panel">
@@ -1011,7 +1017,7 @@
           </div>
           <article class="panel manual-intro-panel">
             <div>
-              <p class="eyebrow">LifeHub 4.4.1</p>
+              <p class="eyebrow">LifeHub 4.5.1</p>
               <h3>Celá aplikace vysvětlená na jednom místě</h3>
               <p class="small">Manuál je součástí instalačního balíčku, funguje i offline a nečte žádná osobní data z tvého trezoru. Níže ho můžeš používat přímo uvnitř LifeHubu.</p>
             </div>

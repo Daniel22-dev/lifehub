@@ -61,6 +61,7 @@ import {
   budgetYearData,
   currentRewardPeriod,
   minutesLabel,
+  parseGroceryEntries,
   parseGroceryLines,
   rewardPeriodLabel,
   sumMinutes,
@@ -68,7 +69,7 @@ import {
 } from '../features/budget.js';
 import { calculateRegularInstallmentPayment } from '../features/installments.js';
 import { buildFamilySnapshot, FAMILY_COLLECTIONS, FAMILY_EXCLUDED_DESCRIPTION, summarizeFamilySnapshot } from '../features/family-snapshot.js';
-import { nextPaymentDueDate } from '../features/recurring-payments.js';
+import { advanceAutomaticPayment, nextPaymentDueDate } from '../features/recurring-payments.js';
 import {
   idbClear,
   idbDelete,
@@ -89,7 +90,7 @@ export function bootLifeHub(){
     const VERSION = APP_VERSION;
     const SHORT_VERSION = String(VERSION).split('-')[0]; // např. "3.1.8" – nadpis, titulek, zámek
     const FORBIDDEN_IMPORT_KEYS = new Set(['__proto__','constructor','prototype']);
-    const STATE_SCHEMA_VERSION = 4;
+    const STATE_SCHEMA_VERSION = 5;
     const VENDOR_BASE_URL = new URL('vendor/', PUBLIC_BASE_URL);
     const PDF_JS_LOCAL = new URL('pdf.min.mjs', VENDOR_BASE_URL).href;
     const PDF_WORKER_LOCAL = new URL('pdf.worker.min.mjs', VENDOR_BASE_URL).href;
@@ -444,7 +445,8 @@ export function bootLifeHub(){
       ['noteSearch','noteSourceFilter','noteTypeFilter','noteTagFilter','noteSort'].forEach(id=>$('#'+id).addEventListener('input',renderNotes));
       $('#globalSearch').addEventListener('input',renderGlobalSearch);
       $('#parsePayrollBtn').addEventListener('click',parsePayrollPdf);
-      $('#payrollPdf').addEventListener('change',()=>{ if($('#payrollPdf').files[0]) parsePayrollPdf(); });
+      $('#importPayrollPdfBatchBtn')?.addEventListener('click',importPayrollPdfBatch);
+      $('#payrollPdf').addEventListener('change',handlePayrollFileSelection);
       $('#clearPayrollBtn').addEventListener('click',clearPayrollImport);
       $('#savePayrollBtn').addEventListener('click',savePayrollRecord);
       $('#importPayrollsBtn')?.addEventListener('click',()=>$('#importPayrollsFile')?.click());
@@ -480,6 +482,9 @@ export function bootLifeHub(){
       ['budgetMonth','budgetYear'].forEach(id=>$('#'+id)?.addEventListener('input',renderBudget));
       $('#groceryQuickForm')?.addEventListener('submit',addGroceryQuick);
       $('#groceryBulkForm')?.addEventListener('submit',addGroceryBulk);
+      $('#groceryBulkText')?.addEventListener('input',renderGroceryBulkPreview);
+      $('#groceryBulkStore')?.addEventListener('input',renderGroceryBulkPreview);
+      $('#clearGroceryBulk')?.addEventListener('click',()=>{ $('#groceryBulkText').value=''; renderGroceryBulkPreview(); $('#groceryBulkText').focus(); });
       $('#groceryPhotoInput')?.addEventListener('change',addGroceryPhoto);
       $('#clearBoughtBtn')?.addEventListener('click',clearBoughtGroceries);
       $('#aiForm')?.addEventListener('submit',saveAiEntry);
@@ -774,13 +779,16 @@ export function bootLifeHub(){
         setTheme(state.settings.theme || 'dark');
         hydrateSettings();
         const migratedGroceries = migrateLegacyGroceries();
+        const automaticPaymentsAdvanced = reconcileAutomaticHouseholdPayments();
         renderAll();
         lastActivityAt = Date.now();
         resetAutoLockTimer();
         saveLifecycle.reset();
         saveLifecycle.lastSavedAt = state.updatedAt || '';
         updateSaveUi();
-        if(migratedGroceries){ save(false); toast(`${migratedGroceries} položek potravin bylo přesunuto do nové záložky Nákupní seznam.`); }
+        if(migratedGroceries || automaticPaymentsAdvanced) save(false);
+        if(migratedGroceries) toast(`${migratedGroceries} položek potravin bylo přesunuto do nové záložky Nákupní seznam.`);
+        if(automaticPaymentsAdvanced) toast(`Automatické platby byly posunuty podle termínů (${automaticPaymentsAdvanced}).`,'good');
         const who = (state.settings.greetName||'').trim();
         toast(encrypted ? `${greeting()}${who?', '+who:''}! 👋` : 'Šifrovaný trezor je připraven.');
         showInstallmentDebtOnOpen();
@@ -1031,7 +1039,7 @@ export function bootLifeHub(){
         [`${csp?'✅':'⚠️'} CSP`, csp ? 'Je nastavena základní Content Security Policy.' : 'Chybí Content Security Policy.'],
         [`${externalPdf?'⚠️':'✅'} PDF.js`, pdfLazy ? 'PDF.js se načte až při importu PDF z lokální vendor kopie; CDN fallback je odstraněn.' : (externalPdf ? 'PDF.js byl načten z externího zdroje, což by nemělo nastat.' : 'PDF.js byl načten z lokální kopie.')]
       ];
-      panel.innerHTML = `<div class="panel-head"><div><p class="eyebrow">Bezpečnostní stav</p><h3>Šifrovaný LifeHub 4.3</h3><p>Stav aplikace a nově uložené soubory jsou po odemčení chráněné heslem. Pro přenos mezi telefonem a PC použij kompletní šifrovanou zálohu.</p></div><div class="actions"><button class="btn ok" data-action="export-complete-backup" type="button">Kompletní záloha</button><button class="btn secondary" data-action="export-encrypted-json" type="button">Datová záloha</button><button class="btn" data-action="lock-app" type="button">Zamknout</button></div></div><div class="security-list">${items.map(([h,t])=>`<div class="security-item"><strong>${esc(h)}</strong><span class="small">${esc(t)}</span></div>`).join('')}</div>`;
+      panel.innerHTML = `<div class="panel-head"><div><p class="eyebrow">Bezpečnostní stav</p><h3>Šifrovaný LifeHub ${esc(VERSION)}</h3><p>Stav aplikace a nově uložené soubory jsou po odemčení chráněné heslem. Pro přenos mezi telefonem a PC použij kompletní šifrovanou zálohu.</p></div><div class="actions"><button class="btn ok" data-action="export-complete-backup" type="button">Kompletní záloha</button><button class="btn secondary" data-action="export-encrypted-json" type="button">Datová záloha</button><button class="btn" data-action="lock-app" type="button">Zamknout</button></div></div><div class="security-list">${items.map(([h,t])=>`<div class="security-item"><strong>${esc(h)}</strong><span class="small">${esc(t)}</span></div>`).join('')}</div>`;
     }
     function renderPriorityBars(){
       const openTasks = state.tasks.filter(t=>!t.done);
@@ -1143,8 +1151,95 @@ export function bootLifeHub(){
       $('#payrollFields').innerHTML = payFieldDefs.map(([key,label])=>`<label>${esc(label)}<input id="pay_${key}" data-pay-field="${attr(key)}" type="number" step="0.01" placeholder="nenalezeno"><small class="small" id="payproof_${attr(key)}">Bez důkazu z PDF.</small></label>`).join('');
     }
     function setPdfStatus(text, cls='warn'){const el=$('#pdfStatus'); el.textContent=text; el.className=`status ${cls}`;}
+    function handlePayrollFileSelection(){
+      const files=Array.from($('#payrollPdf')?.files||[]);
+      if(!files.length){ setPdfStatus('PDF čeká na načtení','warn'); return; }
+      if(files.length===1){ parsePayrollPdf(); return; }
+      currentPayroll={file:null,text:'',parsed:{},evidence:{}};
+      fillPayrollFields({});
+      $('#payrollRawText').textContent=`Vybráno ${files.length} souborů. Použijte tlačítko „Hromadně uložit vybraná PDF“.`;
+      setPdfStatus(`Vybráno ${files.length} PDF`,'good');
+    }
+    async function importPayrollPdfBatch(){
+      const selected=Array.from($('#payrollPdf')?.files||[]);
+      if(!selected.length){ toast('Nejdřív vyberte jedno nebo více PDF výplatních pásek.','warn'); return; }
+      const invalid=selected.filter(file=>!((file.type==='application/pdf')||String(file.name||'').toLowerCase().endsWith('.pdf')) || file.size>MAX_PDF_SIZE_BYTES);
+      if(invalid.length){ toast(`${invalid.length} souborů není platné PDF nebo překračuje povolenou velikost.`,'bad'); return; }
+      const parsedRows=[];
+      const failures=[];
+      const seenMonths=new Set();
+      for(let index=0; index<selected.length; index++){
+        const file=selected[index];
+        setPdfStatus(`Čtu ${index+1}/${selected.length}: ${file.name}`,'warn');
+        try{
+          const text=await extractPdfText(file);
+          const parsed=parsePayrollText(text);
+          const month=parsed.month||'';
+          const amount=number(parsed.fields?.netPay||parsed.fields?.grossPay);
+          if(!/^\d{4}-\d{2}$/.test(month) || !(amount>0)){
+            failures.push(`${file.name}: chybí měsíc nebo čistá/hrubá mzda`);
+            continue;
+          }
+          if(seenMonths.has(month)){
+            failures.push(`${file.name}: měsíc ${month} je ve výběru dvakrát`);
+            continue;
+          }
+          seenMonths.add(month);
+          parsedRows.push({file,text,month,employer:parsed.employer||'',note:Array.isArray(parsed.hints)?parsed.hints.join('; '):'',fields:parsed.fields||{},evidence:parsed.evidence||{},found:parsed.found||0});
+        }catch(error){
+          console.error(error);
+          failures.push(`${file.name}: ${error.message||error}`);
+        }
+      }
+      if(!parsedRows.length){ setPdfStatus('Žádné PDF nelze importovat','bad'); toast('V žádném vybraném PDF se nepodařilo najít platnou výplatní pásku.','bad'); return; }
+      parsedRows.sort((a,b)=>a.month.localeCompare(b.month));
+      const replaceExisting=!!$('#payReplaceMonth')?.checked;
+      const existingMonths=new Set(state.payrolls.map(row=>row.month));
+      const rows=replaceExisting?parsedRows:parsedRows.filter(row=>!existingMonths.has(row.month));
+      const skipped=parsedRows.length-rows.length;
+      if(!rows.length){ setPdfStatus('Všechny měsíce už existují','warn'); toast('Všechny rozpoznané měsíce už v aplikaci existují. Zapněte „Nahradit starší mzdový příjem“, pokud je chcete načíst znovu.','warn'); return; }
+      const storePdf=!!$('#payStorePdf')?.checked;
+      const storeText=!!$('#payStoreText')?.checked;
+      const summary=rows.map(row=>`- ${monthLabel(row.month)}: na účet ${fmt(row.fields.netPay||row.fields.grossPay)} • ${row.found} rozpoznaných hodnot${existingMonths.has(row.month)?' • nahradí stávající záznam':''}`).join('\n');
+      const extras=[
+        storePdf?'PDF budou uložena šifrovaně pouze v tomto zařízení.':'PDF se neuloží; zůstanou jen vyčtené částky.',
+        skipped?`${skipped} existujících měsíců bude přeskočeno.`:'',
+        failures.length?`${failures.length} souborů se nepodařilo připravit a nebude importováno.`:''
+      ].filter(Boolean).join('\n');
+      const ok=await confirmDialog(`Hromadně uložit ${rows.length} výplatních pásek?\n\n${summary}\n\n${extras}`,{title:'Hromadný import výplatních pásek',confirmText:'Uložit pásky'});
+      if(!ok){ setPdfStatus(`Připraveno ${rows.length} PDF`,'warn'); return; }
+      let storedCount=0;
+      let fileFailures=0;
+      for(let index=0; index<rows.length; index++){
+        const row=rows[index];
+        setPdfStatus(`Ukládám ${index+1}/${rows.length}: ${monthLabel(row.month)}`,'warn');
+        const oldRows=state.payrolls.filter(p=>p.month===row.month);
+        const id=uid('payroll');
+        const record={id,month:row.month,employer:row.employer,note:row.note,fileName:row.file.name,fileSize:row.file.size,fields:sanitizePayrollFields(row.fields),evidence:sanitizeEvidence(row.evidence),rawText:storeText?row.text:'',storedPdf:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+        if(storePdf){
+          try{ await idbPut(id,row.file); record.storedPdf=true; storedCount++; }
+          catch(error){ console.error(error); fileFailures++; }
+        }
+        if(replaceExisting && oldRows.length){
+          for(const old of oldRows){ if(old.storedPdf) await idbDelete(old.id,PDF_STORE).catch(()=>{}); }
+          state.payrolls=state.payrolls.filter(p=>p.month!==row.month);
+          state.transactions=state.transactions.filter(t=>!(t.source==='payroll'&&t.payrollMonth===row.month));
+        }
+        state.payrolls.unshift(record);
+        state.transactions.unshift({id:uid('trans'),date:`${row.month}-01`,kind:'income',category:'mzda',amount:record.fields.netPay||record.fields.grossPay||0,description:`Výplatní páska${record.employer?' • '+record.employer:''}${record.fileName?' • '+record.fileName:''}`,source:'payroll',payrollId:id,payrollMonth:row.month,shared:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
+      }
+      state.payrolls.sort((a,b)=>String(b.month).localeCompare(String(a.month)));
+      save();
+      clearPayrollImport();
+      const warning=fileFailures?` U ${fileFailures} pásek se nepodařilo uložit samotné PDF, částky však zůstaly zachovány.`:'';
+      const failedText=failures.length?` ${failures.length} neplatných souborů bylo přeskočeno.`:'';
+      setPdfStatus(`Uloženo ${rows.length} pásek`,'good');
+      toast(`Hromadně uloženo ${rows.length} výplatních pásek${storePdf?` (${storedCount} PDF šifrovaně)`:''}.${warning}${failedText}`,fileFailures||failures.length?'warn':'good');
+    }
     async function parsePayrollPdf(){
-      const file = $('#payrollPdf').files[0];
+      const files=Array.from($('#payrollPdf').files||[]);
+      if(files.length>1){ toast('Pro kontrolu jednoho souboru vyberte pouze jedno PDF, nebo použijte hromadný import.','warn'); return; }
+      const file = files[0];
       if(!file){toast('Nejdřív vyberte PDF výplatní pásku.','warn'); return;}
       const isPdf = file.type === 'application/pdf' || String(file.name||'').toLowerCase().endsWith('.pdf');
       if(!isPdf){ $('#payrollPdf').value=''; toast('Vybraný soubor není PDF.','bad'); return; }
@@ -1281,7 +1376,7 @@ export function bootLifeHub(){
       const fields={}; payFieldDefs.forEach(([key])=>{const v=$(`#pay_${key}`)?.value; if(v!=='' && v!=null) fields[key]=number(v);}); return fields;
     }
     function clearPayrollImport(){
-      currentPayroll = {file:null,text:'',parsed:{},evidence:{}}; $('#payrollPdf').value=''; $('#payrollRawText').textContent='Zatím není načteno žádné PDF.'; $('#payStorePdf').checked = false; $('#payStoreText').checked = false; fillPayrollFields({}); setPdfStatus('PDF čeká na načtení','warn');
+      currentPayroll = {file:null,text:'',parsed:{},evidence:{}}; $('#payrollPdf').value=''; $('#payrollRawText').textContent='Zatím není načteno žádné PDF.'; $('#payStorePdf').checked = true; $('#payStoreText').checked = false; fillPayrollFields({}); setPdfStatus('PDF čeká na načtení','warn');
     }
     async function savePayrollRecord(){
       const fields = readPayrollFields(); const month = $('#payMonth').value;
@@ -1862,7 +1957,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         id:safeId(i?.id,'inst'), creditor:textLimit(i?.creditor,160), total:Math.max(0,number(i?.total)), monthly:Math.max(0,number(i?.monthly)), startMonth:textLimit(i?.startMonth,7), paid:Math.max(0,number(i?.paid)), dueDay:Math.min(31,Math.max(0,Math.round(number(i?.dueDay)))), note:textLimit(i?.note,1000), assignedTo:['me','partner','both'].includes(i?.assignedTo)?i.assignedTo:'both', shared:i?.shared!==false, paymentHistory:asArray(i?.paymentHistory,5000).map(h=>({id:safeId(h?.id,'ipay'),date:textLimit(h?.date,10),amount:Math.max(0,number(h?.amount)),type:h?.type==='extra'?'extra':'regular',createdAt:textLimit(h?.createdAt,40)||new Date().toISOString()})).filter(h=>/^\d{4}-\d{2}-\d{2}$/.test(h.date)), createdAt:textLimit(i?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(i?.updatedAt,40)||new Date().toISOString()
       })).filter(i=>i.creditor);
       clean.householdPayments = asArray(data.householdPayments,5000).map(p=>({
-        id:safeId(p?.id,'pay'), title:textLimit(p?.title,180), category:textLimit(p?.category,80), amount:Math.max(0,number(p?.amount)), frequency:['once','monthly','quarterly','yearly'].includes(p?.frequency)?p.frequency:'once', dueDate:textLimit(p?.dueDate,10), assignedTo:['me','partner','both'].includes(p?.assignedTo)?p.assignedTo:'both', status:p?.status==='paid'?'paid':'pending', lastPaidAt:textLimit(p?.lastPaidAt,10), note:textLimit(p?.note,1000), shared:p?.shared!==false, paymentHistory:asArray(p?.paymentHistory,5000).map(h=>({id:safeId(h?.id,'hpay'),date:textLimit(h?.date,10),amount:Math.max(0,number(h?.amount)),createdAt:textLimit(h?.createdAt,40)||new Date().toISOString()})).filter(h=>/^\d{4}-\d{2}-\d{2}$/.test(h.date)), createdAt:textLimit(p?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(p?.updatedAt,40)||new Date().toISOString()
+        id:safeId(p?.id,'pay'), title:textLimit(p?.title,180), category:textLimit(p?.category,80), amount:Math.max(0,number(p?.amount)), frequency:['once','monthly','quarterly','yearly'].includes(p?.frequency)?p.frequency:'once', dueDate:textLimit(p?.dueDate,10), assignedTo:['me','partner','both'].includes(p?.assignedTo)?p.assignedTo:'both', automatic:p?.automatic===true, status:p?.status==='paid'?'paid':'pending', lastPaidAt:textLimit(p?.lastPaidAt,10), note:textLimit(p?.note,1000), shared:p?.shared!==false, paymentHistory:asArray(p?.paymentHistory,5000).map(h=>({id:safeId(h?.id,'hpay'),date:textLimit(h?.date,10),amount:Math.max(0,number(h?.amount)),automatic:h?.automatic===true,createdAt:textLimit(h?.createdAt,40)||new Date().toISOString()})).filter(h=>/^\d{4}-\d{2}-\d{2}$/.test(h.date)), createdAt:textLimit(p?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(p?.updatedAt,40)||new Date().toISOString()
       })).filter(p=>p.title&&/^\d{4}-\d{2}-\d{2}$/.test(p.dueDate));
       clean.budgetEntries = asArray(data.budgetEntries,20000).map(b=>({
         id:safeId(b?.id,'budget'), date:textLimit(b?.date,10), kind:b?.kind==='fuel'?'fuel':'food', amount:Math.max(0,number(b?.amount)), note:textLimit(b?.note,300), shared:b?.shared!==false, createdAt:textLimit(b?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(b?.updatedAt,40)||new Date().toISOString()
@@ -1910,7 +2005,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         shopping:[['id','name','segment','store','priority','status','category','price','month','url','note','createdAt'], ...state.shopping.map(s=>[s.id,s.name,s.segment,s.store,s.priority,s.status,s.category,s.price,s.month,s.url,s.note,s.createdAt])],
         documents:[['id','title','category','date','fileName','mime','size','note','createdAt','updatedAt'], ...state.documents.map(d=>[d.id,d.title,d.category,d.date,d.fileName,d.mime,d.size,d.note,d.createdAt,d.updatedAt])],
         budget:[['id','date','kind','amount','note','createdAt'], ...state.budgetEntries.map(b=>[b.id,b.date,b.kind,b.amount,b.note,b.createdAt])],
-        payments:[['id','title','category','amount','frequency','dueDate','assignedTo','status','lastPaidAt','note','shared','createdAt','updatedAt'], ...state.householdPayments.map(p=>[p.id,p.title,p.category,p.amount,p.frequency,p.dueDate,p.assignedTo,p.status,p.lastPaidAt,p.note,p.shared,p.createdAt,p.updatedAt])],
+        payments:[['id','title','category','amount','frequency','dueDate','assignedTo','automatic','status','lastPaidAt','note','shared','createdAt','updatedAt'], ...state.householdPayments.map(p=>[p.id,p.title,p.category,p.amount,p.frequency,p.dueDate,p.assignedTo,p.automatic===true,p.status,p.lastPaidAt,p.note,p.shared,p.createdAt,p.updatedAt])],
         groceries:[['id','name','store','done','note','createdAt'], ...state.groceries.map(g=>[g.id,g.name,g.store,g.done,g.note,g.createdAt])],
         ailog:[['id','date','minutes','activity','note','createdAt'], ...state.aiEntries.map(a=>[a.id,a.date,a.minutes,a.activity,a.note,a.createdAt])],
         rewards:[['id','period','periodLabel','hours','title','note','createdAt'], ...state.rewards.map(r=>[r.id,r.period,rewardPeriodLabel(r.period),r.hours,r.title,r.note,r.createdAt])],
@@ -1924,7 +2019,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
     function shoppingMarkdown(){return ['# Velké nákupy LifeHub',...state.shopping.map(s=>`\n- **${s.name}**${s.store?' ('+s.store+')':''} — ${shopPriorityLabel(s.priority)}, ${fmt(s.price)}, ${s.month||'bez měsíce'}, ${shopStatusLabel(s.status)}\n  ${s.note||''}${s.url?'\n  '+s.url:''}`)].join('\n');}
     function appsMarkdown(){return ['# Moje aplikace',...state.apps.map(a=>`\n## ${a.name}${a.tag?' ('+a.tag+')':''}\n${a.note||''}${a.url?'\n'+a.url:''}\n${(a.notes||[]).map(n=>`- ${mdEscape(n.text)}`).join('\n')}`)].join('\n');}
     function installmentsMarkdown(){return ['# Splátkový kalendář',...state.installments.map(i=>{const c=computeInstallment(i); const history=(i.paymentHistory||[]).map(h=>`\n  - ${h.date}: ${h.type==='extra'?'mimořádná':'běžná'} splátka ${fmt(h.amount)}`).join(''); return `\n- **${i.creditor}** — zbývá ${fmt(c.remaining)} z ${fmt(c.total)}, měsíčně ${fmt(i.monthly)}${c.endMonth?', konec '+monthLabel(c.endMonth):''} • ${assignedToLabel(i.assignedTo)}${i.note?'\n  '+i.note:''}${history}`;})].join('\n');}
-    function paymentsMarkdown(){return ['# Platby domácnosti',...state.householdPayments.map(p=>`\n- [${p.status==='paid'?'x':' '}] **${p.title}** — ${fmt(p.amount)}, ${paymentFrequencyLabel(p.frequency)}, splatnost ${p.dueDate||'neuvedena'} • ${assignedToLabel(p.assignedTo)}${p.note?'\n  '+p.note:''}`)].join('\n');}
+    function paymentsMarkdown(){return ['# Platby domácnosti',...state.householdPayments.map(p=>`\n- [${p.status==='paid'?'x':' '}] **${p.title}** — ${fmt(p.amount)}, ${paymentFrequencyLabel(p.frequency)}, ${p.automatic?'automaticky hrazeno, další termín':'splatnost'} ${p.dueDate||'neuveden'} • ${assignedToLabel(p.assignedTo)}${p.note?'\n  '+p.note:''}`)].join('\n');}
     function groceriesMarkdown(){return ['# Nákupní seznam',...state.groceries.map(g=>`- [${g.done?'x':' '}] **${g.name}**${g.store?' — '+g.store:''}${g.note?' ('+g.note+')':''}`)].join('\n');}
     function budgetMarkdown(){return ['# Jídlo & benzín',...state.budgetEntries.map(b=>`- ${b.date} | ${b.kind==='fuel'?'Benzín':'Jídlo'} | ${fmt(b.amount)}${b.note?' | '+b.note:''}`)].join('\n');}
     function aiMarkdown(){return ['# AI výkaz',...state.aiEntries.map(a=>`- ${a.date} | ${minutesLabel(a.minutes)} | ${a.activity}${a.note?' | '+a.note:''}`)].join('\n');}
@@ -2275,6 +2370,7 @@ Poslední pojistka: pro potvrzení importu napiš ${word}.`,
     function saveSettings(e){e.preventDefault(); state.settings.greetName=$('#greetName').value.trim(); state.settings.deviceName=$('#deviceName').value.trim(); state.settings.ownerName=$('#ownerName').value.trim(); state.settings.ownerFooter=$('#ownerFooter').value.trim(); state.settings.currency=sanitizeCurrency($('#currency').value); state.settings.savingGoal=number($('#savingGoal').value); state.settings.privateNotifications=$('#privateNotifications')?.checked!==false; state.settings.familySettingsUpdatedAt=new Date().toISOString(); save(); toast('Nastavení uloženo.');}
     // Krátký changelog (nejnovější nahoře, drž ~5 položek). Zobrazí se klepnutím na verzi v patičce.
     const CHANGELOG = [
+      'v4.5.1 · Čistší mobilní navigace bez duplicitních názvů kategorií, přehlednější horní lišta, srozumitelnější splátky, automatické platby, hromadný import pásek a chytré hromadné nákupy.',
       'v4.4.1 · Opravena kritická regresní chyba startu: aplikace znovu rozpozná původní trezor, bezpečně dokončí migraci z localStorage do IndexedDB a při chybě úložiště už nikdy nenabídne založení nového trezoru.',
       'v4.4.0 · Stabilizační a bezpečnostní release: IndexedDB pro hlavní stav, ochrana neuložených změn, úplné zálohy, bezpečné zamykání, čisté testovací podklady a jednodušší rodinný snapshot.',
       'v4.3.3 · Kompletní interaktivní manuál je vložen přímo do aplikace, dostupný z horní lišty i postranní nabídky a funguje offline.',
@@ -2469,7 +2565,9 @@ Co chceš udělat teď?`,
       const totalRemaining=active.reduce((a,x)=>a+x.c.remaining,0);
       const monthlySum=active.reduce((a,x)=>a+x.c.monthly,0);
       const nextEnd=active.map(x=>x.c.endMonth).filter(Boolean).sort()[0]||'';
-      $('#installmentKpis').innerHTML=[kpi('Zbývá splatit',fmt(totalRemaining),`${active.length} aktivních splátek`),kpi('Měsíčně celkem',fmt(monthlySum),'Součet splátek'),kpi('Splátek celkem',state.installments.length,'Včetně doplacených'),kpi('Nejbližší konec',nextEnd?monthLabel(nextEnd):'—','Poslední splátka')].join('');
+      const remainingPayments=active.reduce((sum,x)=>sum+x.c.remainingMonths,0);
+      const activeLabel=active.length===1?'1 aktivní kalendář':`${active.length} aktivní kalendáře`;
+      $('#installmentKpis').innerHTML=[kpi('Zbývá splatit',fmt(totalRemaining),activeLabel),kpi('Měsíčně celkem',fmt(monthlySum),'Plánovaná měsíční úhrada'),kpi('Zbývající platby',remainingPayments,'Odhad počtu měsíčních úhrad'),kpi('Nejbližší konec',nextEnd?monthLabel(nextEnd):'—','Měsíc poslední splátky')].join('');
       const sorted=[...computed].sort((a,b)=> (b.c.remaining>0?1:0)-(a.c.remaining>0?1:0) || b.c.remaining-a.c.remaining);
       box.innerHTML=sorted.map(({i,c})=>{
         const done=c.remaining<=0;
@@ -2527,8 +2625,9 @@ Co chceš udělat teď?`,
       const active=state.installments.map(computeInstallment).filter(c=>c.remaining>0);
       if(!active.length) return;
       const total=active.reduce((a,c)=>a+c.remaining,0);
-      const word=active.length===1?'splátce':active.length<5?'splátkách':'splátkách';
-      toast(`📆 Splátky: aktuálně zbývá doplatit ${fmt(total)} ve ${active.length} ${word}.`,'warn');
+      const monthly=active.reduce((a,c)=>a+c.monthly,0);
+      const label=active.length===1?'1 aktivní splátkový kalendář':`${active.length} aktivní splátkové kalendáře`;
+      toast(`📆 ${label}: zbývá ${fmt(total)}, plánovaná měsíční úhrada ${fmt(monthly)}.`);
     }
 
     // ===== Platby domácnosti =====
@@ -2548,6 +2647,7 @@ Co chceš udělat teď?`,
         frequency:['once','monthly','quarterly','yearly'].includes($('#paymentFrequency').value)?$('#paymentFrequency').value:'once',
         dueDate:$('#paymentDueDate').value,
         assignedTo:['me','partner','both'].includes($('#paymentAssignedTo').value)?$('#paymentAssignedTo').value:'both',
+        automatic:!!$('#paymentAutomatic')?.checked,
         status:existing?.status==='paid'?'paid':'pending',
         lastPaidAt:existing?.lastPaidAt||'',
         note:$('#paymentNote').value.trim(),
@@ -2558,14 +2658,18 @@ Co chceš udělat teď?`,
       };
       if(!payment.title || !/^\d{4}-\d{2}-\d{2}$/.test(payment.dueDate)){ toast('Vyplňte název a platný termín splatnosti.','warn'); return; }
       if(!(payment.amount>0)){ toast('Částka platby musí být vyšší než nula.','bad'); return; }
+      if(payment.automatic && payment.status==='paid' && payment.frequency!=='once') payment.status='pending';
       if(existing) Object.assign(existing,payment); else state.householdPayments.unshift(payment);
-      save(); resetHouseholdPaymentForm(); toast('Platba uložena.');
+      const advanced=reconcileAutomaticHouseholdPayments();
+      save(); resetHouseholdPaymentForm();
+      toast(advanced?'Platba uložena a automatický termín byl posunut.':'Platba uložena.');
     }
     function resetHouseholdPaymentForm(){
       $('#paymentForm')?.reset();
       if($('#paymentId')) $('#paymentId').value='';
       if($('#paymentDueDate')) $('#paymentDueDate').value=today();
       if($('#paymentAssignedTo')) $('#paymentAssignedTo').value='both';
+      if($('#paymentAutomatic')) $('#paymentAutomatic').checked=false;
       if($('#paymentShared')) $('#paymentShared').checked=true;
     }
     function editHouseholdPayment(id){
@@ -2573,10 +2677,11 @@ Co chceš udělat teď?`,
       showTab('payments'); toggleAddCard('paymentAddCard',true);
       $('#paymentId').value=payment.id; $('#paymentTitle').value=payment.title; $('#paymentCategory').value=payment.category||'';
       $('#paymentAmount').value=payment.amount||''; $('#paymentFrequency').value=payment.frequency||'once'; $('#paymentDueDate').value=payment.dueDate||today();
-      $('#paymentAssignedTo').value=payment.assignedTo||'both'; $('#paymentNote').value=payment.note||''; $('#paymentShared').checked=payment.shared!==false;
+      $('#paymentAssignedTo').value=payment.assignedTo||'both'; $('#paymentAutomatic').checked=payment.automatic===true; $('#paymentNote').value=payment.note||''; $('#paymentShared').checked=payment.shared!==false;
     }
     function recordHouseholdPayment(id){
       const payment=state.householdPayments.find(x=>x.id===id); if(!payment)return;
+      if(payment.automatic){ toast('Tato platba je označena jako automaticky hrazená. Termín se posouvá bez ručního odškrtávání.','warn'); return; }
       if(payment.frequency==='once' && payment.status==='paid'){
         payment.status='pending'; payment.lastPaidAt=''; payment.updatedAt=new Date().toISOString(); save(); toast('Platba byla vrácena mezi neuhrazené.','warn'); return;
       }
@@ -2591,26 +2696,48 @@ Co chceš udělat teď?`,
       save();
       toast(payment.frequency==='once'?'Platba označena jako zaplacená.':'Platba zaznamenána a další termín byl posunut.');
     }
+    function reconcileAutomaticHouseholdPayments(){
+      let occurrences=0;
+      for(const payment of state.householdPayments){
+        const result=advanceAutomaticPayment(payment,today());
+        if(!result.changed) continue;
+        const existingHistory=Array.isArray(payment.paymentHistory)?payment.paymentHistory:[];
+        const additions=result.occurrences.map(row=>({id:uid('hpay'),date:row.date,amount:row.amount,automatic:true,createdAt:new Date().toISOString()}));
+        Object.assign(payment,result.payment,{paymentHistory:[...additions,...existingHistory],updatedAt:new Date().toISOString()});
+        occurrences+=additions.length;
+      }
+      return occurrences;
+    }
+    function paymentCardHtml(payment,{automatic=false}={}){
+      const paid=payment.status==='paid';
+      const overdueFlag=!automatic&&!paid&&payment.dueDate<today();
+      const history=(payment.paymentHistory||[]).slice(0,20);
+      const historyHtml=history.length?`<details class="history"><summary>Historie úhrad (${payment.paymentHistory.length})</summary><div class="history-list">${history.map(h=>`<div><span>${esc(fmtDate(`${h.date}T00:00:00`))}${h.automatic?' • automaticky':''}</span><strong>${fmt(h.amount)}</strong></div>`).join('')}</div></details>`:'';
+      const timing=automatic?(paid?'automaticky uhrazeno':`další automatická úhrada ${fmtDate(`${payment.dueDate}T00:00:00`)}`):`splatnost ${fmtDate(`${payment.dueDate}T00:00:00`)}`;
+      return `<article class="item"><div class="item-top"><div><h4>${paid?'✅ ':''}${esc(payment.title)}</h4><p><strong>${fmt(payment.amount)}</strong> • ${esc(paymentFrequencyLabel(payment.frequency))} • ${esc(timing)}</p>${payment.note?`<p>${esc(payment.note)}</p>`:''}<div class="meta"><span class="tag">${esc(payment.category||'bez kategorie')}</span><span class="tag">${esc(assignedToLabel(payment.assignedTo))}</span>${automatic?'<span class="tag auto-payment-tag">🏦 trvalý příkaz / inkaso</span>':''}${overdueFlag?'<span class="tag danger-tag">po splatnosti</span>':''}${payment.shared!==false?'<span class="tag">👥 sdílené</span>':'<span class="tag">🔒 soukromé</span>'}${payment.lastPaidAt?`<span class="tag">naposledy ${esc(fmtDate(`${payment.lastPaidAt}T00:00:00`))}</span>`:''}</div></div><div class="actions">${automatic?'':`<button class="mini-btn" data-pay-payment="${attr(payment.id)}" type="button">${paid?'Vrátit':'Zaplaceno'}</button>`}<button class="mini-btn" data-edit-payment="${attr(payment.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-payment="${attr(payment.id)}" type="button">Smazat</button></div></div>${historyHtml}</article>`;
+    }
     function renderHouseholdPayments(){
       const list=$('#paymentsList'), kpis=$('#paymentKpis'); if(!list||!kpis) return;
       const items=[...state.householdPayments].sort((a,b)=>(a.status==='paid'?1:0)-(b.status==='paid'?1:0)||String(a.dueDate).localeCompare(String(b.dueDate)));
-      const open=items.filter(p=>p.status!=='paid');
-      const overdue=open.filter(p=>p.dueDate<today());
-      const dueThisMonth=open.filter(p=>String(p.dueDate||'').startsWith(monthNow()));
-      const monthlyRecurring=open.filter(p=>p.frequency==='monthly').reduce((sum,p)=>sum+number(p.amount),0);
+      const manualOpen=items.filter(p=>!p.automatic&&p.status!=='paid');
+      const manualPaid=items.filter(p=>!p.automatic&&p.status==='paid');
+      const automaticItems=items.filter(p=>p.automatic&&!(p.frequency==='once'&&p.status==='paid'));
+      const automaticPaidOnce=items.filter(p=>p.automatic&&p.frequency==='once'&&p.status==='paid');
+      const overdue=manualOpen.filter(p=>p.dueDate<today());
+      const recurringActive=items.filter(p=>p.status!=='paid'&&p.frequency!=='once');
+      const monthlyRecurring=recurringActive.filter(p=>p.frequency==='monthly').reduce((sum,p)=>sum+number(p.amount),0);
+      const automaticAmount=automaticItems.reduce((sum,p)=>sum+number(p.amount),0);
       kpis.innerHTML=[
-        kpi('Neuhrazené',open.length,`${fmt(open.reduce((sum,p)=>sum+number(p.amount),0))} v evidenci`),
+        kpi('K ruční úhradě',manualOpen.length,fmt(manualOpen.reduce((sum,p)=>sum+number(p.amount),0))),
         kpi('Po splatnosti',overdue.length,overdue.length?'Vyžaduje pozornost':'Vše v termínu'),
-        kpi('Tento měsíc',dueThisMonth.length,fmt(dueThisMonth.reduce((sum,p)=>sum+number(p.amount),0))),
-        kpi('Měsíční závazky',fmt(monthlyRecurring),'Pravidelné platby')
+        kpi('Automatické platby',automaticItems.length,automaticItems.length?`${fmt(automaticAmount)} v evidenci`:'Žádné trvalé příkazy'),
+        kpi('Měsíční závazky',fmt(monthlyRecurring),'Včetně automatických plateb')
       ].join('');
-      list.innerHTML=items.map(payment=>{
-        const paid=payment.status==='paid';
-        const overdueFlag=!paid&&payment.dueDate<today();
-        const history=(payment.paymentHistory||[]).slice(0,20);
-        const historyHtml=history.length?`<details class="history"><summary>Historie úhrad (${payment.paymentHistory.length})</summary><div class="history-list">${history.map(h=>`<div><span>${esc(fmtDate(`${h.date}T00:00:00`))}</span><strong>${fmt(h.amount)}</strong></div>`).join('')}</div></details>`:'';
-        return `<article class="item"><div class="item-top"><div><h4>${paid?'✅ ':''}${esc(payment.title)}</h4><p><strong>${fmt(payment.amount)}</strong> • ${esc(paymentFrequencyLabel(payment.frequency))} • splatnost ${esc(fmtDate(`${payment.dueDate}T00:00:00`))}</p>${payment.note?`<p>${esc(payment.note)}</p>`:''}<div class="meta"><span class="tag">${esc(payment.category||'bez kategorie')}</span><span class="tag">${esc(assignedToLabel(payment.assignedTo))}</span>${overdueFlag?'<span class="tag danger-tag">po splatnosti</span>':''}${payment.shared!==false?'<span class="tag">👥 sdílené</span>':'<span class="tag">🔒 soukromé</span>'}${payment.lastPaidAt?`<span class="tag">naposledy ${esc(fmtDate(`${payment.lastPaidAt}T00:00:00`))}</span>`:''}</div></div><div class="actions"><button class="mini-btn" data-pay-payment="${attr(payment.id)}" type="button">${paid?'Vrátit':'Zaplaceno'}</button><button class="mini-btn" data-edit-payment="${attr(payment.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-payment="${attr(payment.id)}" type="button">Smazat</button></div></div>${historyHtml}</article>`;
-      }).join('')||empty('Zatím nejsou evidované žádné platby domácnosti.');
+      const manualHtml=manualOpen.map(payment=>paymentCardHtml(payment)).join('')||empty('Nic nemusíte ručně odškrtávat. Všechny aktuální platby jsou automatické nebo již uhrazené.');
+      const automaticHtml=automaticItems.map(payment=>paymentCardHtml(payment,{automatic:true})).join('')||empty('Zatím nejsou nastavené žádné automatické platby.');
+      const paid=[...manualPaid,...automaticPaidOnce];
+      const paidHtml=paid.length?`<details class="history"><summary>Historie uhrazených jednorázových plateb (${paid.length})</summary><div class="list mt-14">${paid.map(payment=>paymentCardHtml(payment,{automatic:payment.automatic===true})).join('')}</div></details>`:'';
+      list.innerHTML=`<section class="payment-list-section"><div class="payment-section-head"><div><h4>Ruční úhrady</h4><p>Faktury a platby, které je potřeba skutečně potvrdit tlačítkem Zaplaceno.</p></div><span class="status ${overdue.length?'bad':'good'}">${manualOpen.length}</span></div>${manualHtml}</section><section class="payment-list-section"><div class="payment-section-head"><div><h4>Automaticky hrazeno</h4><p>Trvalé příkazy a inkasa se po termínu samy posunou na další období.</p></div><span class="status good">${automaticItems.length}</span></div>${automaticHtml}</section>${paidHtml}`;
     }
 
     // ===== Migrace starých potravin (shopping segment groceries → groceries) =====
@@ -2704,16 +2831,44 @@ Co chceš udělat teď?`,
       $('#groceryName').value='';
       $('#groceryName').focus();
     }
+    function groceryBulkEntries(){
+      return parseGroceryEntries($('#groceryBulkText')?.value||'', $('#groceryBulkStore')?.value||'');
+    }
+    function renderGroceryBulkPreview(){
+      const preview=$('#groceryBulkPreview');
+      const submit=$('#groceryBulkSubmit');
+      if(!preview) return;
+      const entries=groceryBulkEntries();
+      if(!entries.length){
+        preview.textContent='Vložte text a zobrazí se náhled položek.';
+        if(submit) submit.textContent='Vložit položky';
+        return;
+      }
+      const chips=entries.slice(0,12).map(item=>`<span class="grocery-preview-chip">${item.store?`🏬 ${esc(item.store)} · `:''}${esc(item.name)}</span>`).join('');
+      const more=entries.length>12?`<span class="grocery-preview-chip">+ ${entries.length-12} dalších</span>`:'';
+      preview.innerHTML=`<strong>Rozpoznáno ${entries.length} položek.</strong><div class="grocery-preview-chips">${chips}${more}</div>`;
+      if(submit) submit.textContent=`Vložit ${entries.length} položek`;
+    }
     function addGroceryBulk(e){
       e.preventDefault();
-      const lines=parseGroceryLines($('#groceryBulkText').value);
-      if(!lines.length){ toast('Vložte alespoň jeden řádek se zbožím.','warn'); return; }
-      const store=$('#groceryBulkStore').value;
-      [...lines].reverse().forEach(name=>addGroceryItem(name, store));
+      const entries=groceryBulkEntries();
+      if(!entries.length){ toast('Vložte alespoň jednu položku nákupního seznamu.','warn'); return; }
+      const seen=new Set();
+      const existing=new Set(state.groceries.filter(item=>!item.done).map(item=>`${strip(item.store||'')}|${strip(item.name||'')}`));
+      const unique=[];
+      let skipped=0;
+      for(const item of entries){
+        const key=`${strip(item.store||'')}|${strip(item.name||'')}`;
+        if(seen.has(key)||existing.has(key)){ skipped++; continue; }
+        seen.add(key); unique.push(item);
+      }
+      if(!unique.length){ toast('Všechny rozpoznané položky už v otevřeném seznamu jsou.','warn'); return; }
+      [...unique].reverse().forEach(item=>addGroceryItem(item.name,item.store));
       save();
       $('#groceryBulkForm').reset();
+      renderGroceryBulkPreview();
       toggleAddCard('groceryBulkCard', false);
-      toast(`Přidáno ${lines.length} položek do nákupního seznamu.`);
+      toast(`Přidáno ${unique.length} položek do nákupního seznamu.${skipped?` ${skipped} duplicit přeskočeno.`:''}`);
     }
     function toggleGroceryDone(id){ const g=state.groceries.find(x=>x.id===id); if(g){ g.done=!g.done; g.updatedAt=new Date().toISOString(); save(); } }
     async function clearBoughtGroceries(){
@@ -3156,7 +3311,7 @@ Pokračovat ve vytvoření šifrovaného souboru?`,{title:'Obsah rodinného soub
       const parts=[];
       const income=(d.transactions||[]).filter(t=>t.kind==='income').reduce((a,t)=>a+number(t.amount),0);
       const expenses=(d.transactions||[]).filter(t=>t.kind==='expense').reduce((a,t)=>a+number(t.amount),0);
-      parts.push(partnerPanel('Souhrn rodinného souboru',`<div class="kpis"><div class="kpi"><div class="label">Příjmy ve sdílení</div><div class="value">${fmt(income)}</div><div class="sub">${c.transactions} transakcí</div></div><div class="kpi"><div class="label">Výdaje ve sdílení</div><div class="value">${fmt(expenses)}</div><div class="sub">Bilance ${fmt(income-expenses)}</div></div><div class="kpi"><div class="label">Platby domácnosti</div><div class="value">${c.householdPayments}</div><div class="sub">${(d.householdPayments||[]).filter(x=>x.status!=='paid').length} otevřených</div></div><div class="kpi"><div class="label">Společné položky</div><div class="value">${Object.values(c).reduce((a,b)=>a+b,0)}</div><div class="sub">Bez soukromých modulů</div></div></div>`));
+      parts.push(partnerPanel('Souhrn rodinného souboru',`<div class="kpis"><div class="kpi"><div class="label">Příjmy ve sdílení</div><div class="value">${fmt(income)}</div><div class="sub">${c.transactions} transakcí</div></div><div class="kpi"><div class="label">Výdaje ve sdílení</div><div class="value">${fmt(expenses)}</div><div class="sub">Bilance ${fmt(income-expenses)}</div></div><div class="kpi"><div class="label">K ruční úhradě</div><div class="value">${(d.householdPayments||[]).filter(x=>x.status!=='paid'&&x.automatic!==true).length}</div><div class="sub">${(d.householdPayments||[]).filter(x=>x.status!=='paid'&&x.automatic===true).length} automatických</div></div><div class="kpi"><div class="label">Společné položky</div><div class="value">${Object.values(c).reduce((a,b)=>a+b,0)}</div><div class="sub">Bez soukromých modulů</div></div></div>`));
       if((d.transactions||[]).length){
         const rows=[...d.transactions].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,60).map(t=>`<article class="item"><div class="item-top"><div><h4>${t.kind==='income'?'Příjem':'Výdaj'}: ${esc(t.category)}</h4><p class="${t.kind==='income'?'money-plus':'money-minus'}">${t.kind==='income'?'+':'−'} ${fmt(t.amount)} • ${esc(t.date)}</p>${t.description?`<p>${esc(t.description)}</p>`:''}</div></div></article>`).join('');
         parts.push(partnerPanel(`Finance (${c.transactions})`,`<div class="list">${rows}</div>`));
@@ -3166,7 +3321,7 @@ Pokračovat ve vytvoření šifrovaného souboru?`,{title:'Obsah rodinného soub
         parts.push(partnerPanel(`Jídlo a benzín (${c.budgetEntries})`,`<p><strong>Jídlo:</strong> ${fmt(totalFood)} • <strong>Benzín:</strong> ${fmt(totalFuel)}</p><p class="small">Sdílené limity: jídlo ${fmt(family.householdSettings?.foodBudget||0)}, benzín ${fmt(family.householdSettings?.fuelBudget||0)}.</p>`));
       }
       if((d.householdPayments||[]).length){
-        const rows=[...d.householdPayments].sort((a,b)=>String(a.dueDate).localeCompare(String(b.dueDate))).map(x=>`<article class="item"><div class="item-top"><div><h4>${x.status==='paid'?'✅ ':''}${esc(x.title)}</h4><p><strong>${fmt(x.amount)}</strong> • ${esc(paymentFrequencyLabel(x.frequency))} • ${esc(x.dueDate)} • ${esc(partnerAssignedToLabel(x.assignedTo,partner.name))}</p>${x.note?`<p>${esc(x.note)}</p>`:''}</div></div></article>`).join('');
+        const rows=[...d.householdPayments].sort((a,b)=>String(a.dueDate).localeCompare(String(b.dueDate))).map(x=>`<article class="item"><div class="item-top"><div><h4>${x.status==='paid'?'✅ ':''}${x.automatic?'🏦 ':''}${esc(x.title)}</h4><p><strong>${fmt(x.amount)}</strong> • ${esc(paymentFrequencyLabel(x.frequency))} • ${x.automatic?'automaticky, další termín':'splatnost'} ${esc(x.dueDate)} • ${esc(partnerAssignedToLabel(x.assignedTo,partner.name))}</p>${x.note?`<p>${esc(x.note)}</p>`:''}</div></div></article>`).join('');
         parts.push(partnerPanel(`Platby domácnosti (${c.householdPayments})`,`<div class="list">${rows}</div>`));
       }
       if((d.groceries||[]).length){

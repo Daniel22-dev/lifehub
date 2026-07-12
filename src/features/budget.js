@@ -69,10 +69,51 @@ export function sumRewardHours(entries, period){
 
 // ===== Nákupní seznam (hromadné vložení textu) =====
 
+const GROCERY_STORES = Object.freeze(['Lidl','Albert','Kaufland','Billa','Tesco','Globus','Jiný']);
+
+function normalizeStore(value){
+  const raw=String(value||'').trim();
+  if(!raw) return '';
+  const found=GROCERY_STORES.find(store=>store.toLocaleLowerCase('cs-CZ')===raw.toLocaleLowerCase('cs-CZ'));
+  return found || raw.slice(0,60);
+}
+
+export function parseGroceryEntries(text, fallbackStore=''){
+  const source=String(text||'').replace(/\r/g,'').trim();
+  if(!source) return [];
+  const rawLines=source.split(/\n/);
+  const parts=[];
+  for(const line of rawLines){
+    const trimmed=line.trim();
+    if(!trimmed) continue;
+    const heading=trimmed.match(/^([^:]{1,60}):\s*$/);
+    if(heading){ parts.push({kind:'store',value:heading[1]}); continue; }
+    const inline=trimmed.match(/^([^:]{1,60}):\s*(.+)$/);
+    if(inline && GROCERY_STORES.some(store=>store.toLocaleLowerCase('cs-CZ')===inline[1].trim().toLocaleLowerCase('cs-CZ'))){
+      parts.push({kind:'inline',store:inline[1],value:inline[2]});
+      continue;
+    }
+    for(const segment of trimmed.split(/[;,]+/)) parts.push({kind:'item',value:segment});
+  }
+  let currentStore=normalizeStore(fallbackStore);
+  const result=[];
+  for(const part of parts){
+    if(part.kind==='store'){
+      currentStore=normalizeStore(part.value);
+      continue;
+    }
+    const store=part.kind==='inline'?normalizeStore(part.store):currentStore;
+    const name=String(part.value||'')
+      .replace(/^\s*(?:\[[ xX✓✔]?\]|[-*•·–—]|\d+[.)])\s*/, '')
+      .replace(/[,;]\s*$/, '')
+      .trim()
+      .slice(0,160);
+    if(name) result.push({name,store});
+    if(result.length>=100) break;
+  }
+  return result;
+}
+
 export function parseGroceryLines(text){
-  return String(text || '')
-    .split(/\r?\n/)
-    .map(line => line.replace(/^\s*(?:[-*•·–—]|\d+[.)])\s*/, '').replace(/[,;]\s*$/, '').trim())
-    .filter(Boolean)
-    .slice(0, 100);
+  return parseGroceryEntries(text).map(item=>item.name);
 }

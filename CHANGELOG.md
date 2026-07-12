@@ -1,5 +1,24 @@
 # Changelog
 
+## v4.5.1 – čistší mobilní navigace
+
+- Na telefonu a tabletu se v horizontální navigaci zobrazují pouze klikatelné záložky.
+- Nadpisy skupin už nevstupují mezi tlačítka a nevzniká duplicita typu „PŘEHLED / Přehled“.
+- První desktopová skupina byla přejmenována z „Přehled“ na srozumitelnější „Hlavní“.
+- Horizontální navigace má jemné přichytávání položek při posunu.
+- Aktualizován interaktivní manuál a PWA cache.
+
+## v4.5.0 – mobilní UX, automatické platby, pásky a nákupní seznam
+
+- Horní lišta na telefonu má dva řádky; stav šifrování už se nepřekrývá s názvem a verzí.
+- Splátkový kalendář rozlišuje počet aktivních závazků a odhad zbývajících měsíčních úhrad. Úvodní hlášení už nevypadá jako požadavek zaplatit celý dluh jednou splátkou.
+- Platby domácnosti podporují automatický režim pro trvalé příkazy a inkasa. Automatické položky se nezapočítávají mezi ruční úhrady a po termínu se samy posunou.
+- Finance podporují hromadný výběr a lokální zpracování více PDF výplatních pásek. Soukromé soubory se nevkládají do GitHub balíku.
+- Hromadný nákupní seznam podporuje řádky, čárky, středníky, sekce obchodů a náhled před vložením. Duplicitní otevřené položky se přeskočí.
+- Rodinný náhled, CSV/Markdown export a importní sanitizace zachovávají příznak automatické platby.
+- Interaktivní manuál byl aktualizován pro všechny uvedené změny.
+- Schema stavu zvýšeno na 5 a doplněny regresní testy.
+
 ## v4.4.1 – oprava obnovení původního trezoru
 
 - Opravena kritická chyba, kdy startovací kód volal chybějící funkci `hasLegacyState()` a mohl ponechat zobrazený výchozí formulář pro nový PIN.

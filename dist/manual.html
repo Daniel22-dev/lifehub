@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="description" content="Interaktivní uživatelský manuál k aplikaci LifeHub 4.4.1">
+  <meta name="description" content="Interaktivní uživatelský manuál k aplikaci LifeHub 4.5.1">
   <meta name="theme-color" content="#101326">
-  <title>LifeHub 4.4.1 – interaktivní manuál</title>
+  <title>LifeHub 4.5.1 – interaktivní manuál</title>
   <style>
     :root{
       --font:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
@@ -66,7 +66,7 @@
     <button class="icon-btn mobile-nav-btn" id="mobileNav" aria-label="Otevřít navigaci">☰</button>
     <div class="brand">
       <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 512 512"><text x="245" y="325" text-anchor="middle" font-family="Arial,sans-serif" font-size="182" font-weight="900" fill="white" letter-spacing="-18">LH</text></svg></div>
-      <div><h1>LifeHub – interaktivní manuál</h1><p>Uživatelská příručka pro verzi 4.4.1</p></div>
+      <div><h1>LifeHub – interaktivní manuál</h1><p>Uživatelská příručka pro verzi 4.5.1</p></div>
     </div>
     <div class="top-search"><input id="globalSearch" type="search" placeholder="Hledat v celém manuálu…" aria-label="Hledat v manuálu"><span class="search-key">Ctrl K</span></div>
     <div class="top-actions">
@@ -81,7 +81,7 @@
       <div class="nav-group-title">Začínáme</div>
       <nav class="nav">
         <button class="active" data-section="home"><span class="emoji">🏠</span>Přehled</button>
-        <button data-section="new44"><span class="emoji">✨</span>Novinky ve 4.4</button>
+        <button data-section="new44"><span class="emoji">✨</span>Novinky ve 4.5</button>
         <button data-section="start"><span class="emoji">🚀</span>První spuštění</button>
         <button data-section="modules"><span class="emoji">🧭</span>Mapa aplikace</button>
       </nav>
@@ -108,8 +108,8 @@
             <div>
               <p class="eyebrow">Celý LifeHub na jednom místě</p>
               <h2>Osobní trezor, finance i domácnost.</h2>
-              <p>LifeHub je lokální šifrovaná aplikace pro poznámky, finance, výplatní pásky, platby, úkoly, nákupy, zahradu, pracovní výkazy a soukromé dokumenty. Manuál odpovídá stabilizované verzi 4.4.1 a vysvětluje také nové bezpečné ukládání, ochranu při chybě, nouzovou zálohu a přesný rodinný náhled.</p>
-              <span class="version-pill"><span class="dot"></span> Ověřeno pro LifeHub 4.4.1</span>
+              <p>LifeHub je lokální šifrovaná aplikace pro poznámky, finance, výplatní pásky, platby, úkoly, nákupy, zahradu, pracovní výkazy a soukromé dokumenty. Manuál odpovídá verzi 4.5.1 a vysvětluje také nové bezpečné ukládání, ochranu při chybě, nouzovou zálohu a přesný rodinný náhled.</p>
+              <span class="version-pill"><span class="dot"></span> Ověřeno pro LifeHub 4.5.1</span>
             </div>
             <div class="hero-actions">
               <button class="btn primary" data-go="start">Začít od prvního spuštění</button>
@@ -153,24 +153,25 @@
       </section>
 
       <section class="section" id="new44">
-        <div class="section-head"><div><p class="eyebrow">Stabilizovaná verze 4.4.1</p><h2>Co se změnilo a proč je to důležité</h2><p>Verze 4.4 se zaměřuje na ochranu dat, předvídatelné ukládání, bezpečnější zálohy a jednodušší rodinný náhled.</p></div><span class="version-pill"><span class="dot"></span> Bezpečnostní release</span></div>
-        <div class="callout good"><strong>Oprava 4.4.1:</strong> Pokud verze 4.4.0 po aktualizaci omylem zobrazila založení nového PINu, nový trezor nezakládej. Verze 4.4.1 znovu rozpozná původní šifrovaný trezor v IndexedDB nebo jeho bezpečnostní kopii v <code>localStorage</code>. Použij svůj původní PIN.</div>
+        <div class="section-head"><div><p class="eyebrow">Uživatelská verze 4.5.1</p><h2>Přehlednější telefon a méně ruční práce</h2><p>Verze 4.5 navazuje na bezpečnostní opravu 4.4.1 a upravuje hlavně každodenní používání na telefonu: horní lištu, mobilní navigaci, splátky, automatické platby, výplatní pásky a nákupní seznam.</p></div><span class="version-pill"><span class="dot"></span> Praktické vylepšení</span></div>
+        <div class="callout good"><strong>Data zůstávají zachována:</strong> Aktualizace na 4.5.1 nemění PIN ani nemaže stávající záznamy. Po nahrání na stejnou adresu použij původní PIN a před prvním větším zásahem vytvoř kompletní zálohu.</div>
         <div class="grid three">
-          <article class="panel"><div class="module-icon">🧰</div><h3>Bezpečná obnova startu</h3><p>Start aplikace už při technické chybě úložiště nezobrazí formulář pro nový trezor. Založení nového PINu se zablokuje a LifeHub výslovně upozorní, že nemáš mazat data.</p></article>
-          <article class="panel"><div class="module-icon">🗃️</div><h3>Stav v IndexedDB</h3><p>Šifrovaný stav aplikace je uložen v IndexedDB společně s lokálním archivem souborů. Starší šifrovaný trezor z <code>localStorage</code> se při prvním spuštění automaticky převede až po bezpečném rozpoznání.</p></article>
-          <article class="panel"><div class="module-icon">💾</div><h3>Řízené ukládání</h3><p>LifeHub rozlišuje stav <strong>Neuloženo</strong>, <strong>Šifruji…</strong>, úspěšně šifrovaný stav a <strong>Uložení selhalo</strong>. Při chybě změny potichu nezahodí.</p></article>
-          <article class="panel"><div class="module-icon">🛑</div><h3>Ochranná obrazovka</h3><p>Pokud nelze bezpečně uložit, citlivý obsah se skryje, ale zůstane v paměti. Uživatel může uložení zopakovat, vytvořit nouzovou zálohu nebo změny vědomě zahodit.</p></article>
-          <article class="panel"><div class="module-icon">🛡️</div><h3>Přísnější kompletní záloha</h3><p>Chybí-li očekávaný PDF nebo dokument, export se už nesmí označit jako kompletní. LifeHub nabídne pouze datovou zálohu bez souborů.</p></article>
-          <article class="panel"><div class="module-icon">👁️</div><h3>Rodina pouze pro čtení</h3><p>Rodinný přenos je jednosměrný šifrovaný snapshot. Nic neslučuje, nic nepřepisuje a před exportem ukáže přesný souhrn zahrnutých i vyloučených dat.</p></article>
-          <article class="panel"><div class="module-icon">🔔</div><h3>Soukromé notifikace</h3><p>Výchozí systémová připomínka splátek nezobrazuje na zamykací obrazovce jména věřitelů ani částky. Podrobnosti jsou dostupné až po odemčení LifeHubu.</p></article>
+          <article class="panel"><div class="module-icon">📱</div><h3>Mobilní hlavička bez překrývání</h3><p>Název a verze jsou v prvním řádku společně s ovládacími tlačítky. Stav <strong>Šifrováno / Neuloženo / Ukládám</strong> má na telefonu vlastní celý druhý řádek.</p></article>
+          <article class="panel"><div class="module-icon">🧭</div><h3>Čistší mobilní navigace</h3><p>Na telefonu se zobrazují pouze skutečné záložky. Nadpisy skupin jako „Hlavní“, „Finance a domácnost“ nebo „Organizace“ zůstávají jen v boční navigaci na větší obrazovce a už se nepletou mezi tlačítka.</p></article>
+          <article class="panel"><div class="module-icon">📆</div><h3>Splátky mluví srozumitelně</h3><p>„Splátek celkem“ bylo nahrazeno počtem <strong>zbývajících měsíčních úhrad</strong>. Úvodní hlášení odděluje celkový zůstatek od plánované měsíční splátky.</p></article>
+          <article class="panel"><div class="module-icon">🏦</div><h3>Trvalý příkaz a inkaso</h3><p>Pravidelnou platbu lze označit jako automatickou. LifeHub ji neukazuje mezi položkami k ručnímu odškrtnutí a po termínu sám posune další splatnost.</p></article>
+          <article class="panel"><div class="module-icon">📄</div><h3>Více výplatních pásek najednou</h3><p>Ve Financích lze vybrat několik PDF současně. Všechna se zpracují lokálně, před uložením se zobrazí souhrn a volitelně se šifrovaně uloží i původní PDF.</p></article>
+          <article class="panel"><div class="module-icon">🛒</div><h3>Chytré vložení textového nákupu</h3><p>Seznam může obsahovat řádky, čárky i středníky. Nadpisy <code>Lidl:</code> a <code>Albert:</code> automaticky přiřadí obchod a před vložením se zobrazí náhled.</p></article>
+          <article class="panel"><div class="module-icon">🔒</div><h3>Soukromá data mimo GitHub</h3><p>PDF pásek, nákupní fotografie a osobní data se ukládají až v prohlížeči do šifrovaného trezoru. Zdrojový ZIP pro GitHub je neobsahuje.</p></article>
         </div>
-        <article class="panel"><p class="eyebrow">Po aktualizaci ze starší verze</p><h3>Co máš udělat</h3><div class="steps">
-          <div class="step"><h4>Otevři LifeHub na původní webové adrese</h4><p>Data jsou svázána s adresou aplikace. Neměň doménu nebo cestu bez plánovaného přenosu zálohou.</p></div>
-          <div class="step"><h4>Odemkni trezor a počkej na stav „Šifrováno“</h4><p>Případný starší šifrovaný stav se automaticky převede do IndexedDB.</p></div>
-          <div class="step"><h4>Zkontroluj hlavní moduly a dokumenty</h4><p>Ověř finance, poznámky, výplatní pásky, trezor dokumentů a rodinné nastavení.</p></div>
-          <div class="step"><h4>Vytvoř novou kompletní zálohu</h4><p>Starší zálohy nemaž okamžitě; novou nejprve ověř bez importu.</p></div>
+        <article class="panel"><p class="eyebrow">Po aktualizaci</p><h3>Rychlá kontrola na telefonu</h3><div class="steps">
+          <div class="step"><h4>Odemkni původním PINem</h4><p>Nový trezor nezakládej. Počkej, až horní stav oznámí, že je aplikace šifrovaně uložena.</p></div>
+          <div class="step"><h4>Zkontroluj hlavičku</h4><p>Na telefonu má být stav ukládání v samostatném řádku pod názvem a tlačítky.</p></div>
+          <div class="step"><h4>Uprav trvalé platby</h4><p>Otevři existující pravidelné platby, zaškrtni „Hrazeno automaticky z účtu“ a ulož.</p></div>
+          <div class="step"><h4>Načti pásky nebo nákupní seznam</h4><p>Více PDF lze vybrat najednou. Textový nákup před vložením vždy zkontroluj v náhledu.</p></div>
+          <div class="step"><h4>Vytvoř kompletní zálohu</h4><p>Po ověření změn ulož novou kompletní šifrovanou zálohu mimo telefon.</p></div>
         </div></article>
-        <div class="callout good"><strong>Není nutný ruční import:</strong> Pokud aplikaci aktualizuješ na stejné webové adrese a trezor se normálně odemkne, data se používají přímo. Zálohu importuj pouze při obnově nebo přenosu na jiné zařízení.</div>
+        <div class="callout info"><strong>Bezpečnostní oprava 4.4.1 zůstává součástí verze 4.5.1:</strong> původní trezor se načítá z IndexedDB nebo z bezpečnostní migrační kopie a technická chyba úložiště se nesmí zaměnit za prázdnou aplikaci.</div>
       </section>
 
       <section class="section" id="start">
@@ -307,7 +308,7 @@
         </div></article>
       </section>
 
-      <footer class="footer"><strong>LifeHub 4.4.1 – interaktivní manuál</strong><br>Aktualizováno pro stabilizovanou verzi 4.4.1. Manuál popisuje bezpečné ukládání, nouzovou obnovu, zálohy i rodinný snapshot, neobsahuje osobní data a funguje bez připojení k internetu.</footer>
+      <footer class="footer"><strong>LifeHub 4.5.1 – interaktivní manuál</strong><br>Aktualizováno pro verzi 4.5.1. Manuál popisuje mobilní hlavičku, čistší navigaci, splátky, automatické platby, hromadný import pásek, nákupní seznam, bezpečné ukládání, zálohy i rodinný snapshot. Neobsahuje osobní data a funguje bez připojení k internetu.</footer>
     </main>
   </div>
 </div>
@@ -324,13 +325,13 @@
 const modules = [
  {id:'dashboard',icon:'🏠',title:'Dashboard',sub:'Úvodní přehled a rychlé akce',share:'private',desc:'Souhrn hlavních informací, roční finanční bilance, priority, stav šifrovaného uložení a hledání napříč aplikací.',fields:['KPI přehledy','Stav ukládání','Roční bilance','Naléhavé úkoly a nákupy','Globální hledání','Rychlé přidání'],steps:['Po odemčení zkontroluj bezpečnostní panel, stav ukládání a hlavní ukazatele.','Rychlými tlačítky otevři formulář pro úkol, nákup, útratu, transakci, poznámku nebo splátku.','Pomocí globálního hledání najdi obsah napříč poznámkami, financemi, úkoly a dalšími částmi.'],tip:'Dashboard je nejlepší výchozí bod při každém otevření.'},
  {id:'notes',icon:'🧠',title:'Poznámky',sub:'Znalostní knihovna',share:'private',desc:'Ukládání důležitých AI vláken, promptů, zdrojů a vlastních nápadů včetně dalšího kroku.',fields:['Název','Zdroj','Priorita','Typ','Model/verze','URL','Tagy','Shrnutí','Obsah','Další krok'],steps:['Vytvoř výstižný název.','Ulož pouze podstatné jádro odpovědi nebo promptu.','Přidej tagy a další krok, aby poznámka nebyla jen archivem.','Později filtruj podle zdroje, typu, tagu nebo priority.'],tip:'Export MD je vhodný pro Notion; CSV pro tabulkové zpracování.'},
- {id:'finance',icon:'💸',title:'Finance a výplatní pásky',sub:'Příjmy, výdaje a mzda',share:'mixed',desc:'Měsíční a roční přehled transakcí, grafy, kategorie a lokální čtení výplatních pásek z PDF.',fields:['Datum','Příjem/výdaj','Kategorie','Částka','Popis','Sdílet v rodině','Měsíc pásky','Zaměstnavatel','PDF a extrahovaný text'],steps:['Zapiš ruční příjem nebo výdaj, případně načti PDF pásku.','U vytěžené pásky vždy zkontroluj rozpoznané hodnoty.','Čistá mzda se po uložení zapíše jako příjem daného měsíce.','U ruční transakce můžeš určit, zda ji partner uvidí v rodinném náhledu.'],tip:'Skenované PDF bez textové vrstvy je nutné nejprve převést pomocí OCR.'},
+ {id:'finance',icon:'💸',title:'Finance a výplatní pásky',sub:'Příjmy, výdaje a mzda',share:'mixed',desc:'Měsíční a roční přehled transakcí, grafy, kategorie a lokální čtení jednoho nebo více PDF výplatních pásek.',fields:['Datum','Příjem/výdaj','Kategorie','Částka','Popis','Sdílet v rodině','Měsíc pásky','Zaměstnavatel','Vícenásobný výběr PDF','Šifrované uložení PDF','Extrahovaný text'],steps:['Pro jednu pásku zvol „Přečíst jedno PDF“ a hodnoty před uložením ručně zkontroluj.','Pro více měsíců vyber několik PDF a zvol „Hromadně uložit vybraná PDF“.','Zkontroluj souhrn měsíců a částek; existující měsíc se podle volby nahradí nebo přeskočí.','Čistá mzda se po uložení zapíše jako soukromý příjem daného měsíce.'],tip:'PDF se zpracovává pouze v zařízení a do GitHubu se nedostane. Sken bez textové vrstvy vyžaduje OCR.'},
  {id:'budget',icon:'⛽',title:'Jídlo & benzín',sub:'Dvě měsíční obálky',share:'shared',desc:'Oddělené sledování útrat za jídlo a benzín, měsíční limity, bilance a roční vývoj.',fields:['Limit na jídlo','Limit na benzín','Datum','Druh útraty','Částka','Poznámka'],steps:['Nastav měsíční limity.','Každou útratu zapiš jako jídlo nebo benzín.','Sleduj čerpání a bilanci limit minus útrata.','Roční graf ukáže vývoj po měsících.'],tip:'Tato evidence je oddělená od hlavních Financí.'},
- {id:'installments',icon:'📆',title:'Splátky',sub:'Splátkový kalendář',share:'mixed',desc:'Evidence půjček a závazků, běžných i mimořádných splátek, zbývající částky a historie.',fields:['Komu splácím','Celková částka','Měsíční splátka','Začátek','Už splaceno','Den splatnosti','Odpovědnost','Sdílet v rodině','Poznámka'],steps:['Zadej základní parametry závazku.','Běžnou úhradu zaznamenej jako standardní splátku.','Mimořádnou splátku zapiš samostatně.','Sleduj zbývající částku a odhad konce.'],tip:'Jednou týdně může LifeHub upozornit na zbývající závazky.'},
- {id:'payments',icon:'🧾',title:'Platby domácnosti',sub:'Účty, faktury a předplatná',share:'mixed',desc:'Jednorázové a pravidelné platby s termínem, odpovědnou osobou, opakováním a historií úhrad.',fields:['Název','Kategorie','Částka','Opakování','Nejbližší splatnost','Kdo platí','Sdílet v rodině','Poznámka'],steps:['Přidej platbu a nastav frekvenci.','Urči, kdo ji řeší.','Po úhradě zaznamenej zaplacení.','U pravidelné platby se další termín automaticky posune.'],tip:'Používej pro energie, internet, pojištění, předplatná i jednorázové faktury.'},
+ {id:'installments',icon:'📆',title:'Splátky',sub:'Splátkový kalendář',share:'mixed',desc:'Evidence půjček a závazků, běžných i mimořádných úhrad, zbývající částky, počtu plánovaných měsíčních plateb a historie.',fields:['Komu splácím','Celková dlužná částka','Plánovaná měsíční úhrada','Začátek','Už skutečně splaceno','Den splatnosti','Odpovědnost','Sdílet v rodině','Poznámka'],steps:['Zadej celkový zůstatek závazku a běžnou měsíční úhradu.','Tlačítko „+ splátka“ zapíše jednu skutečně provedenou měsíční platbu, nikoli celý dluh.','Mimořádnou úhradu zapiš samostatně.','KPI „Zbývající platby“ ukazuje odhad počtu budoucích měsíčních úhrad.'],tip:'„1 aktivní kalendář“ znamená jeden sledovaný dluh; neznamená, že se celý zůstatek zaplatí jednou platbou.'},
+ {id:'payments',icon:'🧾',title:'Platby domácnosti',sub:'Účty, faktury a předplatná',share:'mixed',desc:'Jednorázové a pravidelné platby rozdělené na ruční úhrady a automatické trvalé příkazy nebo inkasa.',fields:['Název','Kategorie','Částka','Opakování','Nejbližší splatnost','Kdo platí','Hrazeno automaticky z účtu','Sdílet v rodině','Poznámka'],steps:['Přidej platbu a nastav frekvenci i nejbližší termín.','U trvalého příkazu nebo inkasa zaškrtni „Hrazeno automaticky z účtu“.','Ruční fakturu po zaplacení potvrď tlačítkem „Zaplaceno“.','Automatická platba se po dosažení termínu sama zapíše do historie a posune na další období.'],tip:'Automatické položky se nezobrazují v počtu „K ruční úhradě“, ale stále se započítávají do měsíčních závazků.'},
  {id:'vault',icon:'🔐',title:'Trezor dokumentů',sub:'Soukromý archiv souborů',share:'private',desc:'Lokální šifrované ukládání smluv, faktur, potvrzení, výplatních pásek a dalších souborů.',fields:['Název dokumentu','Kategorie','Datum','Soubor','Poznámka','Využití úložiště'],steps:['Zvol srozumitelný název a kategorii.','Nahraj soubor a přidej datum nebo poznámku.','Sleduj využití lokálního úložiště.','Pro přenos na jiné zařízení použij pouze kompletní zálohu.'],tip:'Datová záloha bez souborů dokumenty ani PDF nepřenese.'},
  {id:'tasks',icon:'✅',title:'Úkoly',sub:'To-do list podle priority a času',share:'mixed',desc:'Úkoly rozdělené podle priority, časového horizontu, termínu, oblasti a odpovědné osoby.',fields:['Úkol','Priorita','Časový horizont','Termín','Oblast','Přiřazeno','Rodinný úkol','Poznámka'],steps:['Odděl prioritu od časového horizontu.','Případně nastav přesný termín a oblast.','Rodinný úkol označ ke sdílení.','Hotový úkol odškrtni nebo později vyfiltruj.'],tip:'Priorita říká, jak moc úkol hoří; horizont říká, kdy ho plánuješ řešit.'},
- {id:'groceries',icon:'🛒',title:'Nákupní seznam',sub:'Co koupit a kde',share:'shared',desc:'Rychlý seznam běžných nákupů, seskupení podle obchodu, hromadné vložení textu a fotky seznamů.',fields:['Položka','Obchod','Koupeno','Hromadný text','Screenshot nebo fotka'],steps:['Přidej jednotlivou položku nebo vlož více řádků najednou.','Vyber obchod pro lepší seskupení.','V obchodě odškrtávej koupené položky.','Po nákupu můžeš hromadně odstranit koupené.'],tip:'Fotky a screenshoty se přenesou pouze kompletní zálohou.'},
+ {id:'groceries',icon:'🛒',title:'Nákupní seznam',sub:'Co koupit a kde',share:'shared',desc:'Rychlý seznam běžných nákupů, seskupení podle obchodů, chytré hromadné vložení textu s náhledem a šifrované fotky seznamů.',fields:['Položka','Obchod','Koupeno','Text po řádcích, čárkách nebo střednících','Nadpis obchodu Lidl: / Albert:','Náhled před vložením','Screenshot nebo fotka'],steps:['Text z WhatsAppu nebo SMS zkopíruj do Hromadného vložení.','Každý řádek, čárka nebo středník vytvoří položku; odrážky a číslování se odstraní.','Nadpis „Lidl:“ nebo „Albert:“ přiřadí obchod všem následujícím položkám.','Zkontroluj náhled a teprve potom vlož položky; duplicitní otevřené položky se přeskočí.'],tip:'Screenshot se pouze uloží jako obrázek – LifeHub z něj automaticky nečte text. Fotky se přenesou pouze kompletní zálohou.'},
  {id:'shopping',icon:'🏠',title:'Velké nákupy',sub:'Plánované vybavení a investice',share:'mixed',desc:'Dlouhodobý plán spotřebičů, materiálu, oprav a dalších větších výdajů s cenou a termínem.',fields:['Název','Obchod','Priorita','Stav','Kategorie','Odhad ceny','Plánovaný měsíc','URL','Poznámka','Sdílet v rodině'],steps:['Zapiš plánovanou položku a odhad ceny.','Nastav prioritu a plánovaný měsíc.','Po nákupu změň stav na Koupeno.','Roční přehled porovná plán a skutečnost.'],tip:'Běžné potraviny patří do Nákupního seznamu, ne sem.'},
  {id:'garden',icon:'🌱',title:'Zahrada',sub:'Nákupy a deník údržby',share:'mixed',desc:'Seznam zahradních věcí k pořízení a historie hnojení, sekání, postřiků, závlahy či servisu.',fields:['Věc k pořízení','Cena','Horizont','Odkaz','Komentář','Typ údržby','Datum','Část zahrady/stroj','Sdílet s rodinou'],steps:['Věci k pořízení zapisuj s cenou a horizontem.','Každý zásah zapiš do deníku údržby.','Uveď část zahrady nebo konkrétní stroj.','Přehled nahoře ukáže, kdy daná činnost proběhla naposledy.'],tip:'Vhodné pro hnojení, vertikutaci, aerifikaci, dosev, postřik, sekání, závlahu a servis techniky.'},
  {id:'ailog',icon:'🤖',title:'AI výkaz',sub:'Evidence práce s AI',share:'private',desc:'Záznam činností a času stráveného nad AI, měsíční uzávěrka a výkaz pro vedení.',fields:['Datum','Trvání v minutách','Činnost','Poznámka','Stav měsíce'],steps:['Průběžně zapisuj konkrétní činnosti a čas.','Na konci období zkontroluj přehled.','Uzavři měsíc.','Vygeneruj tiskový dokument/PDF nebo HTML.'],tip:'Uzavřený měsíc lze znovu otevřít, když je potřeba oprava.'},
@@ -343,9 +344,9 @@ const modules = [
 ];
 
 const workflows = [
- {id:'payroll',label:'Výplatní páska',icon:'📄',nodes:[['Otevři Finance','Ve spodní části rozbal čtečku výplatní pásky.'],['Vyber PDF','LifeHub lokálně přečte textovou vrstvu souboru.'],['Zkontroluj údaje','Ověř čistou a hrubou mzdu, odvody, slevy, měsíc a zaměstnavatele.'],['Ulož pásku','Volitelně ulož PDF i extrahovaný text.'],['Příjem je zapsán','Čistá mzda se objeví v transakcích daného měsíce.']]},
- {id:'payment',label:'Platba domácnosti',icon:'🧾',nodes:[['Přidej platbu','Název, kategorie, částka a nejbližší splatnost.'],['Nastav opakování','Jednorázově, měsíčně, čtvrtletně nebo ročně.'],['Urči odpovědnost','Oba, já nebo partner.'],['Zaznamenej úhradu','Vznikne historie zaplacení.'],['Další termín','U opakované platby se automaticky posune.']]},
- {id:'grocery',label:'Nákupní seznam',icon:'🛒',nodes:[['Přidej položky','Jednotlivě nebo hromadně, každý řádek = položka.'],['Vyber obchod','Položky se seskupí podle obchodu.'],['Nakupuj','Odškrtávej koupené položky.'],['Vyčisti seznam','Odstraň koupené položky hromadně.'],['Pošli náhled','Nový rodinný soubor ukáže aktuální stav partnerce.']]},
+ {id:'payroll',label:'Výplatní pásky',icon:'📄',nodes:[['Otevři Finance','Rozbal čtečku výplatních pásek.'],['Vyber jedno nebo více PDF','Jeden soubor lze podrobně zkontrolovat; více souborů lze uložit hromadně.'],['Zkontroluj souhrn','Ověř rozpoznané měsíce, čisté a hrubé mzdy a případné konflikty.'],['Ulož lokálně','Volitelně se každé PDF uloží šifrovaně v zařízení.'],['Příjmy jsou zapsány','Čistá mzda se objeví jako soukromý příjem příslušného měsíce.']]},
+ {id:'payment',label:'Platba domácnosti',icon:'🧾',nodes:[['Přidej platbu','Název, částka, opakování a nejbližší splatnost.'],['Vyber způsob','Ruční úhrada, nebo automatický trvalý příkaz / inkaso.'],['Urči odpovědnost','Oba, já nebo partner.'],['Ruční platbu potvrď','Tlačítko Zaplaceno vytvoří historii a posune termín.'],['Automatická se posune sama','Po termínu se zapíše do historie bez ručního odškrtnutí.']]},
+ {id:'grocery',label:'Nákupní seznam',icon:'🛒',nodes:[['Vlož text','Řádky, čárky i středníky se rozdělí na položky.'],['Označ obchody','Použij nadpisy Lidl: a Albert: nebo jeden výchozí obchod.'],['Zkontroluj náhled','LifeHub ukáže rozpoznané položky a jejich obchod.'],['Vlož a nakupuj','Duplicitní otevřené položky přeskočí; v obchodě je odškrtávej.'],['Fotku nech jako přílohu','Screenshot se uloží šifrovaně, ale text z něj LifeHub nečte.']]},
  {id:'familyflow',label:'Rodinný náhled',icon:'👥',nodes:[['Jednou nastav heslo','Stejné rodinné heslo na obou zařízeních.'],['Vytvoř soubor','Rodina → Vytvořit šifrovaný rodinný soubor.'],['Pošli soubor','Například bezpečným messengerem nebo e-mailem.'],['Partnerka načte','Rodina → Načíst rodinný soubor.'],['Pouze prohlíží','Náhled nelze upravovat a nezasahuje do jejích dat.']]},
  {id:'transfer',label:'Přenos telefon → PC',icon:'💻',nodes:[['Kompletní záloha','Na telefonu vytvoř zálohu včetně souborů.'],['Přenes bezpečně','Soubor zůstává soukromý.'],['Ověř na PC','Zkontroluj metadata a počty bez importu.'],['Zálohuj PC','Před přepsáním cílového trezoru.'],['Importuj','Potvrď import a zkontroluj data i dokumenty.']]},
  {id:'ai',label:'Měsíční AI výkaz',icon:'🤖',nodes:[['Zapisuj průběžně','Datum, minuty, činnost a poznámka.'],['Zkontroluj měsíc','Graf a seznam záznamů.'],['Uzavři období','Zabrání nechtěným změnám.'],['Vygeneruj dokument','Tiskový výstup/PDF nebo HTML.'],['Archivuj','Výstup lze uložit do šifrovaného trezoru.']]},
@@ -354,6 +355,12 @@ const workflows = [
 ];
 
 const faq = [
+ ['Jak označím trvalý příkaz nebo inkaso?','Otevři Platby, uprav konkrétní položku a zaškrtni „Hrazeno automaticky z účtu“. Potom už ji nemusíš každý měsíc ručně odškrtávat; termín se po splatnosti posune a vznikne automatický záznam v historii.'],
+ ['Proč splátkový kalendář ukazuje jeden aktivní kalendář?','Je to počet sledovaných dluhů, nikoli počet zbývajících měsíčních plateb. Samostatné KPI „Zbývající platby“ odhaduje, kolikrát ještě proběhne běžná měsíční úhrada.'],
+ ['Jak nahraju pásky za několik měsíců?','Ve Financích vyber v jednom kroku více PDF a stiskni „Hromadně uložit vybraná PDF“. LifeHub je přečte lokálně, zobrazí souhrn a po potvrzení zapíše každý měsíc zvlášť.'],
+ ['Dostanou se moje výplatní pásky na GitHub?','Ne. Zdrojový kód na GitHubu žádná osobní PDF neobsahuje. Pásky se přidávají až v otevřené aplikaci a ukládají se šifrovaně pouze do úložiště konkrétního zařízení.'],
+ ['Jak vložím textový seznam od manželky?','Zkopíruj text z WhatsAppu nebo SMS do Hromadného vložení. Můžeš použít každý řádek zvlášť nebo čárky. Pro více obchodů napiš například „Lidl:“ a pod něj položky, potom „Albert:“ a další položky. Před vložením zkontroluj náhled.'],
+ ['Přečte LifeHub položky ze screenshotu obchodu?','Ne. Screenshot slouží jako šifrovaná obrazová příloha k nahlédnutí. Pro odškrtávací seznam je potřeba položky vložit textem nebo je přidat ručně.'],
  ['Vymaže aktualizace z GitHubu moje data?','Za běžných okolností ne. Aktualizuje se kód aplikace, zatímco data zůstávají v lokálním úložišti stejné webové adresy. Před větší aktualizací ale vždy vytvoř kompletní šifrovanou zálohu.'],
  ['Proč nevidím stejná data v telefonu a počítači?','LifeHub není cloudová služba. Každé zařízení má vlastní lokální trezor. Pro přenos použij kompletní šifrovanou zálohu a import na cílovém zařízení.'],
  ['Může manželka odškrtnout můj nákupní seznam?','Ne. Rodinný soubor je záměrně pouze náhled. Uvidí poslední odeslaný stav, ale nemůže nic upravit, smazat ani označit jako hotové.'],

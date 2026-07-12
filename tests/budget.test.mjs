@@ -8,7 +8,8 @@ import {
   rewardPeriodLabel,
   currentRewardPeriod,
   sumRewardHours,
-  parseGroceryLines
+  parseGroceryLines,
+  parseGroceryEntries
 } from '../src/features/budget.js';
 
 test('měsíční souhrn rozpočtu počítá jídlo, benzín a bilanci', () => {
@@ -70,4 +71,20 @@ test('období odměn: popisky a aktuální období', () => {
 test('hromadné vložení nákupního seznamu čistí odrážky a číslování', () => {
   const items = parseGroceryLines('- mléko\n2) chleba,\n• vejce\n\n   máslo   \n');
   assert.deepEqual(items, ['mléko', 'chleba', 'vejce', 'máslo']);
+});
+
+
+test('hromadný nákup rozpozná oddíly obchodů, čárky a výchozí obchod', () => {
+  const entries = parseGroceryEntries('Lidl:\n- mléko\nchleba, 2x vejce\n\nAlbert:\nmáslo; jogurty');
+  assert.deepEqual(entries, [
+    {name:'mléko',store:'Lidl'},
+    {name:'chleba',store:'Lidl'},
+    {name:'2x vejce',store:'Lidl'},
+    {name:'máslo',store:'Albert'},
+    {name:'jogurty',store:'Albert'}
+  ]);
+  assert.deepEqual(parseGroceryEntries('mléko; chleba','Kaufland'), [
+    {name:'mléko',store:'Kaufland'},
+    {name:'chleba',store:'Kaufland'}
+  ]);
 });

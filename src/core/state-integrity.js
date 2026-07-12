@@ -5,7 +5,7 @@ export const STATE_COLLECTIONS_WITH_IDS = Object.freeze([
   'householdPayments','budgetEntries','groceries','aiEntries','rewards','gardenItems','gardenLogs'
 ]);
 
-export function migrateStateSchema(input, targetSchema = 4){
+export function migrateStateSchema(input, targetSchema = 5){
   const migrated = JSON.parse(JSON.stringify(input || {}));
   const current = Math.max(1, Math.round(Number(migrated.schemaVersion) || 1));
   if(current < targetSchema) migrated.schemaVersion = targetSchema;
