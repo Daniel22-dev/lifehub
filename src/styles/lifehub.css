@@ -539,3 +539,19 @@
   .top-actions .icon-btn{width:38px;min-width:38px;min-height:38px;padding:0}
   #saveStatus{display:none}
 }
+
+
+/* v4.4 – bezpečné zamykání a trvalý stav ukládání */
+.lock-screen{z-index:1100!important}
+.modal-screen{z-index:1000!important}
+.save-error-banner{display:none;position:sticky;top:92px;z-index:72;margin:10px auto 0;width:min(100% - 28px,var(--max));border:1px solid rgba(255,93,123,.55);background:var(--surface-solid);box-shadow:var(--shadow-soft);border-radius:20px;padding:12px 14px;gap:12px;align-items:center;justify-content:space-between}
+.save-error-banner.active{display:flex}
+.save-error-banner strong{color:var(--danger)}
+.save-error-banner .actions{width:auto}
+.unsaved-guard{display:none;position:fixed;inset:0;z-index:1200;background:rgba(4,6,18,.92);backdrop-filter:blur(18px);place-items:center;padding:18px}
+.unsaved-guard.active{display:grid}
+.unsaved-guard-card{width:min(680px,100%);border:1px solid rgba(255,93,123,.48);background:var(--surface-solid);border-radius:28px;padding:24px;box-shadow:var(--shadow)}
+.unsaved-guard-card h2{margin-top:0}
+.save-status-failed{border-color:rgba(255,93,123,.58)!important;color:var(--danger)!important}
+.nav-group-label{padding:12px 12px 4px;color:var(--muted);font-size:.72rem;font-weight:900;text-transform:uppercase;letter-spacing:.12em}
+@media(max-width:680px){#saveStatus{display:inline-flex!important;max-width:145px}.save-error-banner{top:78px;align-items:flex-start;flex-direction:column}.save-error-banner .actions{width:100%}.save-error-banner .actions .btn{flex:1}}

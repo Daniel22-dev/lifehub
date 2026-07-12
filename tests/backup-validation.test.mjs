@@ -20,10 +20,17 @@ test('soubor zálohy se validuje podle skutečných dat, ne jen deklarované vel
 });
 
 test('kompletní záloha odmítne osiřelý nebo duplicitní soubor', () => {
-  const state = {payrolls:[{id:'payroll_1'}], documents:[{id:'doc_1'}]};
+  const state = {payrolls:[{id:'payroll_1',storedPdf:true}], documents:[{id:'doc_1',storedFile:true}]};
   const pdf = {id:'payroll_1', store:PDF_STORE, size:1, data:base64('a')};
   const doc = {id:'doc_1', store:VAULT_STORE, size:1, data:base64('b')};
   assert.equal(validateBackupFileSet([pdf,doc], state).records.length, 2);
   assert.throws(() => validateBackupFileSet([pdf,pdf], state), /duplicitní/);
   assert.throws(() => validateBackupFileSet([{...doc,id:'doc_missing'}], state), /nemá odpovídající metadata/);
+});
+
+
+test('kompletní záloha odmítne chybějící očekávaný soubor', () => {
+  const state={payrolls:[{id:'payroll_1',storedPdf:true}],documents:[{id:'doc_1',storedFile:true}]};
+  const pdf={id:'payroll_1',store:PDF_STORE,size:1,data:base64('a')};
+  assert.throws(()=>validateBackupFileSet([pdf],state),/neúplná/);
 });

@@ -1,0 +1,37 @@
+{
+  "id": "./",
+  "name": "LifeHub",
+  "short_name": "LifeHub",
+  "description": "Lokální osobní centrum pro poznámky, finance, úkoly, zálohy a šifrované dokumenty.",
+  "lang": "cs",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#090b1a",
+  "theme_color": "#20134d",
+  "categories": [
+    "productivity",
+    "finance",
+    "utilities"
+  ],
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

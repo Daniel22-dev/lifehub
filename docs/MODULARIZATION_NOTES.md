@@ -1,71 +1,42 @@
-# Modularizace LifeHubu
+# Modularizace LifeHubu 4.4.0
 
-Tato verze je první bezpečný mezikrok k modulárnímu GitHub buildu.
+## Aktuální stav
 
-## Co už je rozdělené
+LifeHub používá Vite a hlavní aplikační controller zůstává v `src/app/lifehub-app.js`, ale bezpečnostně a logicky samostatné části jsou oddělené do testovatelných modulů.
 
-- `src/main.js` - vstupní bod aplikace pro Vite.
-- `src/styles/lifehub.css` - styly importované přes build.
-- `src/config/constants.js` - verze, limity, názvy úložišť, KDF konstanty.
-- `src/pwa/register-sw.js` - registrace service workeru.
-- `src/app/lifehub-app.js` - aplikační logika zatím ponechaná v jednom modulu, aby se nerozbily funkce.
-- `public/vendor/` - lokální PDF.js kopie, kopírovaná beze změn do `dist/vendor/`.
-- `public/sw.js` - service worker upravený pro Vite hashované assety.
+### Core
 
-## Proč není app logika rozsekaná najednou
+- `src/core/utils.js` – datum, ID, escapování, URL a CSV ochrany.
+- `src/core/ui.js` – dialogy, focus trap, bezpečné uzavření a vyčištění modálních oken, toast a download.
+- `src/core/save-lifecycle.js` – stavy `dirty / pending / failed / saved` a blokace nebezpečného zamknutí.
+- `src/core/state-integrity.js` – migrace `schemaVersion` a oprava duplicitních ID v importech.
 
-Původní `lifehub.js` sdílí hodně uzavřeného stavu: `state`, `vaultKey`, `vaultSalt`, `currentPayroll`, `save()`, `renderAll()` a mnoho DOM vazeb. Prudké rozdělení do desítek souborů najednou by zvýšilo riziko regresí.
+### Security, storage a PWA
 
-Doporučený další postup:
+- `src/security/crypto.js` – PBKDF2, AES-GCM a kryptografická validace.
+- `src/storage/indexed-db.js` – šifrovaný stav, PDF, dokumenty a obnovovací metadata v IndexedDB.
+- `src/pwa/register-sw.js` a `public/sw.js` – bezpečný životní cyklus PWA a precache hashovaných build assetů.
 
-1. Zprovoznit build a deploy.
-2. Přidat E2E smoke testy.
-3. Teprve potom postupně vyjímat samostatné oblasti:
-   - `security/crypto.js`
-   - `storage/indexedDbVault.js`
-   - `features/notes.js`
-   - `features/finance.js`
-   - `features/payrollPdf.js`
-   - `features/vault.js`
-   - `features/tasks.js`
-   - `features/shopping.js`
-   - `features/exports.js`
+### Features
 
-## Důležité změny pro Vite
+- `backup.js`, `backup-validation.js`
+- `budget.js`
+- `family-snapshot.js`
+- `finance.js`
+- `installments.js`
+- `payroll-elanor.js`
+- `recurring-payments.js`
 
-- PDF.js cesty jsou odvozené od `import.meta.env.BASE_URL` přes `PUBLIC_BASE_URL`.
-- Service worker už necachuje pevně `assets/lifehub.js`, protože Vite výstup bude hashovaný.
-- Build publikuje složku `dist` přes GitHub Actions.
+## Co bylo ve 4.4.0 zlepšeno
 
+- Hlavní stav se přesunul z `localStorage` do IndexedDB.
+- Ukládání slučuje rychlé změny krátkým debounce a drží pouze nejnovější snapshot.
+- Překreslení vyvolaná uložením se dávkují přes `requestAnimationFrame`.
+- Rodinný export, splátky, opakované termíny, integrita stavu a životní cyklus ukládání jsou samostatně testovatelné.
+- Odstraněna nepoužívaná obousměrná rodinná synchronizace.
 
-## Step 2: extracted core utilities
+## Záměrně ponechaná hranice
 
-The first post-deploy modularization extracts safe, stateless helpers into `src/core/utils.js`:
+Úplné rozdělení všech DOM obrazovek do samostatných controllerů nebylo provedeno jednorázově. Hlavní modul sdílí stav, klíč trezoru a vykreslování 18 částí. Mechanické rozsekání bez plnohodnotných browserových E2E testů by zvýšilo riziko regresí v produkční osobní aplikaci.
 
-- DOM selectors: `$`, `$$`
-- dates and IDs: `today`, `monthNow`, `currentYear`, `uid`
-- escaping and input safety: `esc`, `attr`, `safeId`, `safeUrl`, `safeCsvCell`, `sanitizeCurrency`
-- numeric parsing: `number`
-
-This intentionally does not split feature state yet. The goal is to keep behavior stable while gradually reducing the size of `src/app/lifehub-app.js`.
-
-
-## Step 3 - tab-switch lock fix
-
-During manual GitHub Pages testing, immediate locking on `visibilitychange` was too aggressive: the app locked when the user switched tabs to read instructions. The behavior is now changed so tab switching does not immediately lock the vault. The regular inactivity timeout remains the main automatic lock mechanism.
-
-`lockApp()` is asynchronous now and waits for any pending encrypted save before wiping the runtime key and state. This reduces race risk when the user locks shortly after saving an item.
-
-## Step 4 — core UI helpers
-
-V tomto kroku byly z hlavního souboru `src/app/lifehub-app.js` vytaženy obecné UI helpery do `src/core/ui.js`:
-
-- `toast()`
-- `download()`
-- `modalDialog()`
-- `confirmDialog()`
-- `passwordDialog()`
-
-Cíl kroku: oddělit opakovaně používanou UI infrastrukturu od aplikačních funkcí. Nejde o změnu chování, jen o bezpečný mechanický přesun.
-
-Další vhodný krok: vytažení kryptografických funkcí do `src/security/crypto.js`.
+Další nové funkce proto mají vznikat v samostatných modulech a z hlavního controlleru se mají postupně vyjímat celé uzavřené oblasti, nikoli jednotlivé náhodné funkce.

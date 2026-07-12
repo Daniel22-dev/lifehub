@@ -23,3 +23,14 @@ test('stav lze otevřít jen s klíčem odvozeným se stejným počtem iterací'
   const restored = await decryptObjectWithKey(envelope, key);
   assert.deepEqual(restored, {ok:true});
 });
+
+test('špatné heslo ani poškozený ciphertext neodemknou data', async () => {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const key = await deriveVaultKey('spravne-velmi-dlouhe-heslo', salt, MIN_KDF_ITERATIONS);
+  const wrongKey = await deriveVaultKey('spatne-velmi-dlouhe-heslo', salt, MIN_KDF_ITERATIONS);
+  const encrypted = await encryptObjectWithKey({secret:'citlivá data'}, key);
+  const envelope = {crypto:{iterations:MIN_KDF_ITERATIONS,salt:bytesToB64(salt),iv:encrypted.iv},data:encrypted.data};
+  await assert.rejects(() => decryptObjectWithKey(envelope, wrongKey));
+  const corrupted = {...envelope, data: envelope.data.slice(0,-4) + 'AAAA'};
+  await assert.rejects(() => decryptObjectWithKey(corrupted, key));
+});

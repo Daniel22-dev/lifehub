@@ -1,5 +1,20 @@
 import { $, $$, uid } from './utils.js';
 
+const activeDialogClosers = new Set();
+
+function scrubDialogElement(element){
+  if(!element) return;
+  element.querySelectorAll('input,textarea').forEach(input => { input.value = ''; });
+  element.querySelectorAll('[data-sensitive],.modal-message,.modal-status').forEach(node => { node.textContent = ''; });
+}
+
+export function closeAllModals(){
+  for(const close of [...activeDialogClosers]){
+    try{ close(null, {restoreFocus:false}); }catch(error){ console.warn(error); }
+  }
+  document.querySelectorAll('.modal-screen').forEach(screen => { scrubDialogElement(screen); screen.remove(); });
+}
+
 export function toast(message, type = 'good') {
   const wrap = $('#toastWrap');
   if (!wrap) return;
@@ -96,16 +111,20 @@ export function modalDialog({
     screen.appendChild(card);
     document.body.appendChild(screen);
 
-    const cleanup = result => {
+    let settled = false;
+    const cleanup = (result, {restoreFocus=true} = {}) => {
+      if(settled) return;
+      settled = true;
+      activeDialogClosers.delete(cleanup);
       screen.removeEventListener('keydown', onKeydown);
+      scrubDialogElement(screen);
       screen.remove();
-      try {
-        previousFocus?.focus?.();
-      } catch (error) {
-        // Ignore focus restore issues when the original element disappeared.
+      if(restoreFocus){
+        try { previousFocus?.focus?.(); } catch (error) { /* původní prvek už nemusí existovat */ }
       }
       resolve(result);
     };
+    activeDialogClosers.add(cleanup);
 
     const onKeydown = event => {
       if (event.key === 'Escape') {
@@ -185,16 +204,20 @@ export function choiceDialog({
     const actions = document.createElement('div');
     actions.className = 'modal-actions';
 
-    const cleanup = result => {
+    let settled = false;
+    const cleanup = (result, {restoreFocus=true} = {}) => {
+      if(settled) return;
+      settled = true;
+      activeDialogClosers.delete(cleanup);
       screen.removeEventListener('keydown', onKeydown);
+      scrubDialogElement(screen);
       screen.remove();
-      try {
-        previousFocus?.focus?.();
-      } catch (error) {
-        // Ignore focus restore issues when the original element disappeared.
+      if(restoreFocus){
+        try { previousFocus?.focus?.(); } catch (error) { /* původní prvek už nemusí existovat */ }
       }
       resolve(result);
     };
+    activeDialogClosers.add(cleanup);
 
     const onKeydown = event => {
       if (event.key === 'Escape') {

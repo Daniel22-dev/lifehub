@@ -45,8 +45,8 @@ export function validateBackupFileRecord(record){
 export function validateBackupFileSet(files, importedState){
   const list = Array.isArray(files) ? files : [];
   if(list.length > MAX_COMPLETE_BACKUP_FILES) throw new Error(`Kompletní záloha obsahuje příliš mnoho souborů (${list.length}).`);
-  const expectedPayrolls = new Set((importedState?.payrolls || []).map(item => item.id));
-  const expectedDocs = new Set((importedState?.documents || []).map(item => item.id));
+  const expectedPayrolls = new Set((importedState?.payrolls || []).filter(item => item.storedPdf).map(item => item.id));
+  const expectedDocs = new Set((importedState?.documents || []).filter(item => item.storedFile !== false).map(item => item.id));
   const seen = new Set();
   const validated = [];
   let totalBytes = 0;
@@ -65,6 +65,11 @@ export function validateBackupFileSet(files, importedState){
     validated.push(record);
   }
 
+  const missingPayrolls = [...expectedPayrolls].filter(id => !seen.has(`${PDF_STORE}:${id}`));
+  const missingDocs = [...expectedDocs].filter(id => !seen.has(`${VAULT_STORE}:${id}`));
+  if(missingPayrolls.length || missingDocs.length){
+    throw new Error(`Kompletní záloha je neúplná: chybí ${missingPayrolls.length + missingDocs.length} očekávaných souborů.`);
+  }
   return {records:validated, totalBytes};
 }
 

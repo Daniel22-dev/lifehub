@@ -1,14 +1,14 @@
-# LifeHub 4.3.3
+# LifeHub 4.4.0
 
 LifeHub je lokální šifrovaná PWA pro osobní a rodinnou správu poznámek, financí, plateb domácnosti, výplatních pásek, úkolů, nákupů, splátek, zahrady, projektů a soukromých dokumentů.
 
 ## Stav projektu
 
-**Verze 4.3.3 je připravena jako oficiální osobní nástroj s bezpečným rodinným náhledem.** Data zůstávají v prohlížeči a po odemčení jsou uložena šifrovaně. LifeHub není cloudová služba: každé zařízení má vlastní trezor a rodinný soubor slouží pouze k zobrazení partnerových vybraných údajů.
+**Verze 4.4.0 je připravena jako oficiální osobní nástroj s bezpečným rodinným náhledem.** Data zůstávají v prohlížeči a po odemčení jsou uložena šifrovaně v IndexedDB. LifeHub není cloudová služba: každé zařízení má vlastní trezor a rodinný soubor slouží pouze k zobrazení partnerových vybraných údajů.
 
-## Rodinný náhled 4.3.3
+## Rodinný náhled 4.4.0
 
-Rodinný soubor je chráněný společným heslem a druhému zařízení zobrazí pouze náhled:
+Rodinný snapshot je chráněný společným heslem o minimálně 14 znacích a druhému zařízení zobrazí pouze náhled:
 
 - společných příjmů a výdajů,
 - rozpočtu na jídlo a benzín včetně limitů,
@@ -40,11 +40,17 @@ src/
   app/lifehub-app.js
   config/constants.js
   core/
+    save-lifecycle.js
+    state-integrity.js
+    ui.js
+    utils.js
   features/
     backup.js
     backup-validation.js
     budget.js
-    family-sync.js
+    family-snapshot.js
+    installments.js
+    recurring-payments.js
     finance.js
     payroll-elanor.js
   pwa/
@@ -65,7 +71,7 @@ npm run dev
 npm run check
 ```
 
-`npm run check` provede syntax check, všechny jednotkové testy, statický smoke test a produkční build.
+`npm run check` provede syntax check, sken citlivých testovacích podkladů, všechny jednotkové testy, statický smoke test a produkční build.
 
 ## GitHub Pages
 

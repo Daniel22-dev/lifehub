@@ -1,12 +1,35 @@
 # Changelog
 
+## v4.4.0 – bezpečné ukládání, čistá data a stabilizace
+
+- Vestavěný interaktivní manuál byl kompletně aktualizován: novinky 4.4, stavy ukládání, ochranná obrazovka, nouzová záloha, přísnější úplnost záloh, rodinný snapshot, soukromé notifikace a řešení problémů.
+- Vyhledávání manuálu nově prochází všechny kapitoly, moduly i časté otázky; opravena zastaralá zmínka o 17 částech a popis úložiště.
+- Cache service workeru byla obnovena, aby se po nasazení zobrazil nový manuál i v nainstalované PWA.
+- Hlavní šifrovaný stav byl přesunut z kapacitně omezeného `localStorage` do IndexedDB; starší trezor se automaticky migruje.
+- Přidán řízený stav ukládání (`dirty / pending / failed / saved`) a ochranná obrazovka, která při chybě uložení zabrání ztrátě změn i zobrazení citlivého obsahu.
+- Uživatel může uložení zopakovat, stáhnout nouzovou šifrovanou datovou zálohu nebo změny výslovně zahodit a zamknout.
+- Všechna modální okna se před zamknutím uzavřou a jejich citlivý obsah se odstraní z DOM.
+- Opravena poslední běžná splátka: historie nyní zapisuje pouze skutečně použitou částku.
+- Neúplná záloha už nemůže být označena jako kompletní; validace vyžaduje všechny očekávané soubory.
+- Mobilní zařízení používají konzervativnější limit kompletní zálohy.
+- Rodinný přenos byl zjednodušen na jednosměrný šifrovaný snapshot pouze pro čtení; odstraněny tombstones a nepoužívané slučování.
+- Nová rodinná hesla vyžadují minimálně 14 znaků.
+- Přidány soukromé notifikace bez jmen věřitelů a částek.
+- Service worker při instalaci objeví a uloží i hashované JS/CSS assety; pro chybějící asset už nevrací HTML.
+- Manuál hlásí aktivitu hlavní aplikaci, používá sandboxovaný iframe a uvádí správný počet 18 částí.
+- Odstraněny skutečné mzdové podklady; testy parseru jsou plně syntetické a CI obsahuje skener citlivých dat.
+- Přidány testy životního cyklu ukládání, poslední splátky, úplnosti zálohy, opakovaných termínů, integrity ID, rodinného snapshotu, poškozeného ciphertextu a PWA cache.
+- Formuláře finančních částek odmítají nulové transakce, útraty a platby; starý nulový záznam nelze omylem označit jako uhrazený.
+- Před rodinným exportem se zobrazí přesný souhrn zahrnutých kategorií a výslovný seznam vyloučených soukromých dat.
+- Hlavní soubor byl dále odlehčen o samostatné moduly pro rodinný snapshot a integritu importovaného stavu.
+
 ## v4.3.3 – interaktivní manuál přímo v LifeHubu
 
 - Kompletní interaktivní manuál je nově součástí aplikace a instalačního balíčku.
 - Položka **Nápověda** byla změněna na **Manuál** a zobrazuje celého průvodce přímo uvnitř LifeHubu.
 - Do horní lišty přibylo tlačítko `❔` pro okamžité otevření manuálu.
 - Manuál lze také otevřít v samostatném okně na celou obrazovku.
-- Obsahuje vyhledávání, mapu všech 17 částí, pracovní scénáře, rodinný náhled, zálohy, bezpečnost, FAQ a checklist.
+- Obsahuje vyhledávání, mapu všech 18 částí, pracovní scénáře, rodinný náhled, zálohy, bezpečnost, FAQ a checklist.
 - Soubor `manual.html` je uložen v PWA cache a funguje offline.
 - Manuál je oddělený od šifrovaného trezoru a nečte žádná osobní data.
 
@@ -47,7 +70,7 @@
 - Nová záložka **Zahrada**: seznam věcí k pořízení (odkaz, odhad ceny, horizont pořízení, komentář, odškrtnutí „mám") a deník údržby – hnojení podle částí zahrady, vertikutace, aerifikace, dosev, postřik, sekání, zásahy na závlaze a servis techniky. Přehled „kdy naposledy" ukazuje u každého typu poslední datum a stáří záznamu.
 - Nová záložka **Rodina**: partner ve svém LifeHubu vytvoří „Sdílení pro partnera" (JSON s nákupním seznamem, úkoly, velkými nákupy, splátkami a zahradou – bez financí, pásek, dokumentů a poznámek) a druhá strana ho načte jako náhled jen pro čtení pod jeho jménem. Nekoupené položky partnerova nákupního seznamu lze jedním klepnutím převzít do vlastního seznamu (duplicitní se přeskočí).
 - **Opravené čtení výplatních pásek**: pásky ze systému Elanor mají souhrn ve čtyřech sloupcích „popisek hodnota" na jednom řádku, takže původní obecný parser našel prakticky jen hrubou mzdu. Nový modul `payroll-elanor.js` páruje každý popisek s hodnotou hned za ním, čte i položkové řádky (náhrady při nemoci, příplatky, stravenky, srážky, DPP) a automaticky předvyplní měsíc, zaměstnavatele i poznámku. Čistá mzda se ukládá jako dobírka (částka na účet). Ověřeno na reálné pásce, pokryto jednotkovými testy.
-- **Hromadný import pásek z JSON** (tlačítko v kartě výplatních pásek): přidá pásky k současným datům včetně zápisu do příjmů, existující měsíce přeskočí, nic nenahrazuje. V `docs/vyplatni-pasky-2026-01-az-06.json` jsou připravené ručně vytěžené pásky leden–červen 2026.
+- **Hromadný import pásek z JSON** (tlačítko v kartě výplatních pásek): přidá pásky k současným datům včetně zápisu do příjmů, existující měsíce přeskočí, nic nenahrazuje. Testovací podklady parseru jsou od této verze výhradně syntetické a neobsahují skutečné osobní ani mzdové údaje.
 - **Roční přehled velkých nákupů** nahradil SVG graf: po měsících ukazuje plán i skutečně koupené s počty položek a upozorní, kolika položkám chybí odhad ceny. Odstraněn pozůstatek přepínače dům/obchod, který mohl shodit start aplikace.
 
 ## v4.1.0 – rozpočet, výkazy a nový nákupní seznam

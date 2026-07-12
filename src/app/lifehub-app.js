@@ -8,11 +8,14 @@ import {
   LEGACY_STORE,
   ENC_STORE,
   AUTO_LOCK_MINUTES,
+  SAVE_DEBOUNCE_MS,
   PDF_STORE,
   VAULT_STORE,
   MAX_COMPLETE_BACKUP_FILES,
   MAX_COMPLETE_BACKUP_FILE_BYTES,
-  MAX_COMPLETE_BACKUP_TOTAL_BYTES
+  MAX_COMPLETE_BACKUP_TOTAL_BYTES,
+  MOBILE_COMPLETE_BACKUP_TOTAL_BYTES,
+  MOBILE_BACKUP_JSON_BYTES
 } from '../config/constants.js';
 import { registerServiceWorker } from '../pwa/register-sw.js';
 import {
@@ -32,7 +35,9 @@ import {
   today,
   uid
 } from '../core/utils.js';
-import { choiceDialog, confirmDialog, modalDialog, download, passwordDialog, toast } from '../core/ui.js';
+import { choiceDialog, closeAllModals, confirmDialog, modalDialog, download, passwordDialog, toast } from '../core/ui.js';
+import { SaveLifecycle } from '../core/save-lifecycle.js';
+import { ensureUniqueIds, migrateStateSchema } from '../core/state-integrity.js';
 import {
   b64ToBytes,
   bytesToB64,
@@ -61,7 +66,9 @@ import {
   sumMinutes,
   sumRewardHours
 } from '../features/budget.js';
-import { FAMILY_COLLECTIONS, nextPaymentDueDate, recordFamilyDeletion } from '../features/family-sync.js';
+import { calculateRegularInstallmentPayment } from '../features/installments.js';
+import { buildFamilySnapshot, FAMILY_COLLECTIONS, FAMILY_EXCLUDED_DESCRIPTION, summarizeFamilySnapshot } from '../features/family-snapshot.js';
+import { nextPaymentDueDate } from '../features/recurring-payments.js';
 import {
   idbClear,
   idbDelete,
@@ -71,6 +78,7 @@ import {
   idbGetMeta,
   idbRawGet,
   idbRawPut,
+  idbPutMeta,
   idbReplaceEncryptedStores,
   openDb
 } from '../storage/indexed-db.js';
@@ -81,6 +89,7 @@ export function bootLifeHub(){
     const VERSION = APP_VERSION;
     const SHORT_VERSION = String(VERSION).split('-')[0]; // např. "3.1.8" – nadpis, titulek, zámek
     const FORBIDDEN_IMPORT_KEYS = new Set(['__proto__','constructor','prototype']);
+    const STATE_SCHEMA_VERSION = 4;
     const VENDOR_BASE_URL = new URL('vendor/', PUBLIC_BASE_URL);
     const PDF_JS_LOCAL = new URL('pdf.min.mjs', VENDOR_BASE_URL).href;
     const PDF_WORKER_LOCAL = new URL('pdf.worker.min.mjs', VENDOR_BASE_URL).href;
@@ -91,18 +100,25 @@ export function bootLifeHub(){
     const monthLabel = m => m ? new Date(`${m}-01T00:00:00`).toLocaleDateString('cs-CZ',{month:'long',year:'numeric'}) : 'bez měsíce';
     const defaultState = () => ({
       version: VERSION,
+      schemaVersion: STATE_SCHEMA_VERSION,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      settings:{theme:'dark', greetName:'Dane', deviceName:'', ownerName:'Vlastník aplikace: Daniel Baláž · Gymnázium, Ostrava-Hrabůvka', ownerFooter:'© 2026 Daniel Baláž. Všechna práva vyhrazena.', currency:'Kč', savingGoal:0, foodBudget:DEFAULT_FOOD_BUDGET, fuelBudget:DEFAULT_FUEL_BUDGET, familyMemberId:'', familyPassword:'', familySettingsUpdatedAt:'', lastDataBackupAt:'', lastCompleteBackupAt:'', lastVerifiedBackupAt:'', lastRestoreAt:''},
-      notes:[], transactions:[], payrolls:[], documents:[], tasks:[], shopping:[], apps:[], installments:[], householdPayments:[], budgetEntries:[], groceries:[], aiEntries:[], aiClosedMonths:[], rewards:[], gardenItems:[], gardenLogs:[], familyDeleted:[], partner:null
+      settings:{theme:'dark', greetName:'Dane', deviceName:'', ownerName:'Vlastník aplikace: Daniel Baláž · Gymnázium, Ostrava-Hrabůvka', ownerFooter:'© 2026 Daniel Baláž. Všechna práva vyhrazena.', currency:'Kč', savingGoal:0, foodBudget:DEFAULT_FOOD_BUDGET, fuelBudget:DEFAULT_FUEL_BUDGET, familyMemberId:'', familyPassword:'', familySettingsUpdatedAt:'', privateNotifications:true, lastDataBackupAt:'', lastCompleteBackupAt:'', lastVerifiedBackupAt:'', lastRestoreAt:''},
+      notes:[], transactions:[], payrolls:[], documents:[], tasks:[], shopping:[], apps:[], installments:[], householdPayments:[], budgetEntries:[], groceries:[], aiEntries:[], aiClosedMonths:[], rewards:[], gardenItems:[], gardenLogs:[], partner:null
     });
     let state = defaultState();
     let vaultKey = null;
     let vaultSalt = null;
     let vaultIterations = KDF_ITERATIONS;
     let appReady = false;
-    let saveInFlight = Promise.resolve();
+    let saveInFlight = Promise.resolve(true);
     let pendingSaveCount = 0;
+    let queuedSaveJob = null;
+    let saveLoopActive = false;
+    let renderFrame = 0;
+    let lockPendingAfterSave = false;
+    let encryptedStateEnvelope = null;
+    const saveLifecycle = new SaveLifecycle();
     let autoLockTimer = null;
     let lastActivityAt = Date.now();
     let selectedAppId = null;
@@ -134,60 +150,171 @@ export function bootLifeHub(){
         return merge(defaultState(), parsed);
       }catch(e){ return defaultState(); }
     }
-    function hasEncryptedState(){
-      try{return !!localStorage.getItem(ENC_STORE);}catch(e){return false;}
-    }
-    function hasLegacyState(){
-      try{return !!localStorage.getItem(LEGACY_STORE);}catch(e){return false;}
-    }
-    function merge(base, saved){
-      if(!saved || typeof saved !== 'object' || Array.isArray(saved)) return base;
-      for(const k of Object.keys(saved)){
-        if(FORBIDDEN_IMPORT_KEYS.has(k)) continue;
-        if(!Object.prototype.hasOwnProperty.call(base, k)) continue;
-        const incoming = saved[k];
-        const current = base[k];
-        if(incoming && typeof incoming === 'object' && !Array.isArray(incoming) && current && typeof current === 'object' && !Array.isArray(current)){
-          base[k] = merge(current, incoming);
-        }else{
-          base[k] = incoming;
-        }
+    function hasEncryptedState(){ return !!encryptedStateEnvelope; }
+    async function loadEncryptedStateEnvelope(){
+      let envelope = null;
+      try{ envelope = await idbGetMeta('encryptedState'); }catch(error){ console.warn(error); }
+      if(!envelope){
+        try{
+          const legacyEnvelope = localStorage.getItem(ENC_STORE);
+          if(legacyEnvelope){
+            envelope = JSON.parse(legacyEnvelope);
+            await idbPutMeta('encryptedState', envelope);
+            localStorage.removeItem(ENC_STORE);
+          }
+        }catch(error){ console.warn('Migrace šifrovaného stavu do IndexedDB selhala.', error); }
       }
-      base.version = VERSION;
-      return base;
+      encryptedStateEnvelope = envelope || null;
+      return encryptedStateEnvelope;
+    }
+    async function writeEncryptedStateEnvelope(envelope){
+      await idbPutMeta('encryptedState', envelope);
+      encryptedStateEnvelope = envelope;
+      try{ localStorage.removeItem(ENC_STORE); }catch(error){ console.warn(error); }
+      return envelope;
+    }
+    async function deleteEncryptedStateEnvelope(){
+      encryptedStateEnvelope = null;
+      await idbDeleteMeta('encryptedState').catch(()=>{});
+      try{ localStorage.removeItem(ENC_STORE); }catch(error){ console.warn(error); }
+    }
+    function updateSaveUi(){
+      const status = $('#saveStatus');
+      const banner = $('#saveErrorBanner');
+      const text = $('#saveErrorText');
+      if(status){
+        status.classList.toggle('save-status-failed', !!saveLifecycle.error);
+        if(saveLifecycle.error) status.textContent = 'Uložení selhalo';
+        else if(saveLifecycle.pending) status.textContent = 'Šifruji…';
+        else if(saveLifecycle.dirty) status.textContent = 'Neuloženo';
+        else if(appReady && saveLifecycle.lastSavedAt) status.textContent = 'Šifrováno ' + new Date(saveLifecycle.lastSavedAt).toLocaleTimeString('cs-CZ',{hour:'2-digit',minute:'2-digit'});
+      }
+      if(banner){
+        banner.classList.toggle('active', !!saveLifecycle.error);
+        if(text && saveLifecycle.error) text.textContent = saveLifecycle.error.message || String(saveLifecycle.error);
+      }
+    }
+    function hideUnsavedGuard(){
+      $('#unsavedGuard')?.classList.remove('active');
+      document.body.classList.remove('guarded');
+      if(appReady) setAppInert(false);
+    }
+    function showUnsavedGuard(message='Poslední změny se nepodařilo bezpečně uložit.'){
+      closeAllModals();
+      const guard = $('#unsavedGuard');
+      const text = $('#unsavedGuardText');
+      if(text) text.textContent = `${message} Obsah aplikace je skrytý, ale zůstává v paměti. Zkuste uložení zopakovat, stáhněte nouzovou šifrovanou zálohu, nebo změny výslovně zahoďte.`;
+      guard?.classList.add('active');
+      document.body.classList.add('guarded');
+      setAppInert(true);
+      setTimeout(()=>$('#guardRetrySaveBtn')?.focus(),0);
+    }
+    function scheduleRenderAll(){
+      if(renderFrame) return;
+      const schedule = globalThis.requestAnimationFrame || (callback => setTimeout(callback, 0));
+      renderFrame = schedule(() => {
+        renderFrame = 0;
+        if(appReady) renderAll();
+      });
     }
     function save(render=true){
       if(!appReady || !vaultKey){
         if(render && appReady) renderAll();
-        return;
+        return Promise.resolve(false);
       }
       state.updatedAt = new Date().toISOString();
-      $('#saveStatus').textContent = 'Šifruji…';
-      const keyForSave = vaultKey;
-      const saltForSave = vaultSalt;
-      const iterationsForSave = vaultIterations;
-      const snapshotForSave = JSON.parse(JSON.stringify(state));
-      pendingSaveCount++;
-      saveInFlight = saveInFlight.catch(()=>{}).then(()=>persistEncryptedState(keyForSave, saltForSave, snapshotForSave, iterationsForSave));
-      saveInFlight.then(()=>{
-        if(keyForSave === vaultKey && appReady) $('#saveStatus').textContent = 'Šifrováno ' + new Date().toLocaleTimeString('cs-CZ',{hour:'2-digit',minute:'2-digit'});
-      }).catch(err=>{
-        console.error(err);
-        if(keyForSave === vaultKey) $('#saveStatus').textContent = 'Uložení selhalo';
-        toast('Šifrované uložení se nepodařilo: '+(err.message||err), 'bad');
-      }).finally(()=>{ pendingSaveCount = Math.max(0, pendingSaveCount - 1); });
-      if(render) renderAll();
+      state.version = VERSION;
+      state.schemaVersion = STATE_SCHEMA_VERSION;
+      saveLifecycle.markDirty();
+      queuedSaveJob = {
+        key:vaultKey,
+        salt:vaultSalt,
+        iterations:vaultIterations,
+        snapshot:JSON.parse(JSON.stringify(state))
+      };
+      pendingSaveCount = 1;
+      updateSaveUi();
+      if(!saveLoopActive){
+        saveLoopActive = true;
+        saveInFlight = runSaveQueue();
+      }
+      if(render) scheduleRenderAll();
+      return saveInFlight;
+    }
+    async function runSaveQueue(){
+      let ok = true;
+      try{
+        await new Promise(resolve => setTimeout(resolve, SAVE_DEBOUNCE_MS));
+        while(queuedSaveJob){
+          const job = queuedSaveJob;
+          queuedSaveJob = null;
+          saveLifecycle.begin();
+          updateSaveUi();
+          try{
+            await persistEncryptedState(job.key, job.salt, job.snapshot, job.iterations);
+          }catch(error){
+            console.error(error);
+            queuedSaveJob = null;
+            saveLifecycle.fail(error);
+            toast('Šifrované uložení se nepodařilo: '+(error.message||error), 'bad');
+            ok = false;
+            break;
+          }
+        }
+        if(ok){
+          saveLifecycle.succeed();
+          hideUnsavedGuard();
+        }
+      }finally{
+        pendingSaveCount = 0;
+        saveLoopActive = false;
+        updateSaveUi();
+      }
+      if(ok && lockPendingAfterSave){
+        lockPendingAfterSave = false;
+        setTimeout(()=>lockApp({force:true, reason:'after-save'}),0);
+      }
+      return ok;
+    }
+    async function retryFailedSave(){
+      if(!appReady || !vaultKey) return false;
+      const result = await save(false);
+      if(result) toast('Neuložené změny byly bezpečně uloženy.','good');
+      return result;
+    }
+    async function exportEmergencyEncryptedBackup(){
+      if(!appReady || !vaultKey){ toast('Trezor není odemčený.','warn'); return false; }
+      const pass = await passwordDialog({title:'Nouzová šifrovaná záloha',message:'Zadejte samostatné heslo. Záloha zachytí aktuální stav z paměti i tehdy, když se jej nepodařilo uložit do zařízení. Neobsahuje fyzické PDF a dokumenty.',repeat:true,minLength:MIN_PASSWORD_LENGTH,confirmText:'Stáhnout nouzovou zálohu'});
+      if(!pass) return false;
+      try{
+        const createdAt = new Date().toISOString();
+        const payload = {kind:'LifeHub data backup',version:VERSION,mode:'emergency-data-only',createdAt,metadata:backupMetadata('emergency-data-only',createdAt),note:'Nouzová šifrovaná záloha aktuálního stavu z paměti. Neobsahuje fyzické soubory z IndexedDB.',state:cloneStateForBackup()};
+        const encrypted = await encryptBackupObject(payload, pass, VERSION);
+        download(`lifehub-nouzova-zaloha-${today()}.json`,JSON.stringify(encrypted,null,2),'application/json;charset=utf-8');
+        toast('Nouzová šifrovaná záloha byla stažena. Neuložený stav v aplikaci zůstává.','good');
+        return true;
+      }catch(error){ console.error(error); toast('Nouzovou zálohu se nepodařilo vytvořit: '+(error.message||error),'bad'); return false; }
+    }
+    async function discardUnsavedAndLock(){
+      const ok = await confirmDialog('Opravdu zahodit změny, které se nepodařilo uložit, a aplikaci zamknout? Pokračujte jen tehdy, pokud už máte nouzovou zálohu nebo změny nepotřebujete.',{title:'Zahodit neuložené změny',confirmText:'Zahodit a zamknout',danger:true});
+      if(!ok) return;
+      queuedSaveJob = null;
+      saveLifecycle.reset();
+      lockPendingAfterSave = false;
+      updateSaveUi();
+      hideUnsavedGuard();
+      await lockApp({force:true,reason:'discard'});
     }
     async function createEncryptedStateEnvelope(snapshot, key, salt, iterations){
       if(!key || !salt) throw new Error('Trezor není odemčený.');
       const rounds = validateKdfIterations(iterations);
       const encrypted = await encryptObjectWithKey(snapshot, key);
-      return {kind:'LifeHub encrypted local state',version:VERSION,updatedAt:new Date().toISOString(),crypto:{alg:'AES-GCM',kdf:'PBKDF2-SHA256',iterations:rounds,salt:bytesToB64(salt),iv:encrypted.iv},data:encrypted.data};
+      return {kind:'LifeHub encrypted local state',version:VERSION,schemaVersion:STATE_SCHEMA_VERSION,updatedAt:new Date().toISOString(),crypto:{alg:'AES-GCM',kdf:'PBKDF2-SHA256',iterations:rounds,salt:bytesToB64(salt),iv:encrypted.iv},data:encrypted.data};
     }
     async function persistEncryptedState(key=vaultKey, salt=vaultSalt, snapshot=state, iterations=vaultIterations){
       const envelope = await createEncryptedStateEnvelope(snapshot, key, salt, iterations);
-      localStorage.setItem(ENC_STORE, JSON.stringify(envelope));
-      localStorage.removeItem(LEGACY_STORE);
+      await writeEncryptedStateEnvelope(envelope);
+      try{ localStorage.removeItem(LEGACY_STORE); }catch(error){ console.warn(error); }
       return envelope;
     }
     function csv(rows){
@@ -234,12 +361,19 @@ export function bootLifeHub(){
       $('#themeBtn').addEventListener('click',()=>{setTheme(state.settings.theme==='dark'?'light':'dark'); save(false);});
       $('#manualBtn')?.addEventListener('click',()=>showTab('help'));
       $('#reloadManualBtn')?.addEventListener('click',()=>{ const frame=$('#manualFrame'); if(frame){ frame.src='./manual.html?refresh='+Date.now(); } });
-      $('#lockBtn')?.addEventListener('click',lockApp);
+      $('#lockBtn')?.addEventListener('click',()=>lockApp({reason:'manual'}));
+      $('#retrySaveBtn')?.addEventListener('click',retryFailedSave);
+      $('#guardRetrySaveBtn')?.addEventListener('click',retryFailedSave);
+      $('#emergencyBackupBtn')?.addEventListener('click',exportEmergencyEncryptedBackup);
+      $('#guardEmergencyBackupBtn')?.addEventListener('click',exportEmergencyEncryptedBackup);
+      $('#discardAndLockBtn')?.addEventListener('click',discardUnsavedAndLock);
+      $('#guardDiscardBtn')?.addEventListener('click',discardUnsavedAndLock);
       $('#lockForm')?.addEventListener('submit',handleUnlockSubmit);
       $('#wipeEncryptedBtn')?.addEventListener('click',wipeEncryptedVault);
       ['pointerdown','keydown','touchstart'].forEach(ev=>document.addEventListener(ev,markActivity,{passive:true}));
       document.addEventListener('visibilitychange',()=>{ if(!document.hidden && appReady) enforceAutoLock(); });
-      window.addEventListener('beforeunload',event=>{ if(pendingSaveCount>0){ event.preventDefault(); event.returnValue=''; } });
+      window.addEventListener('beforeunload',event=>{ if(pendingSaveCount>0 || saveLifecycle.blocksSafeLock){ event.preventDefault(); event.returnValue=''; } });
+      window.addEventListener('message',event=>{ if(event.origin===location.origin && event.data?.type==='lifehub-manual-activity') markActivity(); });
       document.addEventListener('keydown',trapLockFocus);
       $('#fullscreenBtn').addEventListener('click',toggleFullscreen);
       $('#noteForm').addEventListener('submit', saveNote);
@@ -415,12 +549,7 @@ export function bootLifeHub(){
     }
     async function deleteItem(collection,id){
       if(!await confirmDialog('Opravdu smazat tuto položku?', {title:'Smazat položku', confirmText:'Smazat', danger:true})) return;
-      const item=Array.isArray(state[collection])?state[collection].find(x=>x.id===id):null;
-      if(item) recordFamilyDeletion(state,collection,item);
       state[collection] = Array.isArray(state[collection]) ? state[collection].filter(x=>x.id!==id) : []; save(); toast('Položka smazána.','warn');
-    }
-    function recordPrivacyTransition(collection,existing,next){
-      if(existing && existing.shared!==false && next?.shared===false) recordFamilyDeletion(state,collection,next,next.updatedAt||new Date().toISOString());
     }
 
     // ===== Tooltipy, rozbalovací karty, plovoucí +, rychlé přidání =====
@@ -481,6 +610,7 @@ export function bootLifeHub(){
     async function startSecureGate(){
       await recoverPendingRestore();
       await recoverPendingKeyRotation();
+      await loadEncryptedStateEnvelope();
       const screen = $('#lockScreen');
       if(!window.crypto?.subtle){
         $('#lockStatus').textContent = 'Web Crypto API není dostupné. LifeHub 4.0 vyžaduje moderní prohlížeč a bezpečný kontext.';
@@ -498,7 +628,7 @@ export function bootLifeHub(){
       if(encrypted){
         $('#lockTitle').textContent = 'Odemknout šifrovaný LifeHub';
         $('#lockIntro').textContent = 'Zadejte heslo. Bez něj se lokální data nenačtou.';
-        $('#lockNote').textContent = 'Data aplikace jsou uložená jako AES-GCM šifrovaný blok v localStorage. PDF a dokumenty uložené po odemčení se ukládají šifrovaně v IndexedDB.';
+        $('#lockNote').textContent = 'Stav aplikace, PDF i dokumenty jsou po odemčení uložené šifrovaně v IndexedDB. Starší trezor z localStorage se automaticky bezpečně převede.';
         $('#unlockBtn').textContent = 'Odemknout';
         repeatWrap.classList.add('hide');
         migrateWrap.classList.add('hide');
@@ -524,7 +654,7 @@ export function bootLifeHub(){
       $('#lockStatus').textContent = encrypted ? 'Ověřuji heslo…' : 'Zakládám šifrovaný trezor…';
       try{
         if(encrypted){
-          const envelope = JSON.parse(localStorage.getItem(ENC_STORE));
+          const envelope = encryptedStateEnvelope;
           if(envelope?.kind !== 'LifeHub encrypted local state' || envelope?.crypto?.alg !== 'AES-GCM' || envelope?.crypto?.kdf !== 'PBKDF2-SHA256'){
             throw new Error('Lokální trezor má neplatný nebo nepodporovaný formát.');
           }
@@ -568,7 +698,9 @@ export function bootLifeHub(){
         renderAll();
         lastActivityAt = Date.now();
         resetAutoLockTimer();
-        $('#saveStatus').textContent = 'Odemčeno';
+        saveLifecycle.reset();
+        saveLifecycle.lastSavedAt = state.updatedAt || '';
+        updateSaveUi();
         if(migratedGroceries){ save(false); toast(`${migratedGroceries} položek potravin bylo přesunuto do nové záložky Nákupní seznam.`); }
         const who = (state.settings.greetName||'').trim();
         toast(encrypted ? `${greeting()}${who?', '+who:''}! 👋` : 'Šifrovaný trezor je připraven.');
@@ -603,20 +735,33 @@ export function bootLifeHub(){
       const results = $('#globalResults'); if(results) results.innerHTML = '';
       setPdfStatus('Zamčeno','warn');
     }
-    async function lockApp(){
-      if(!appReady) return;
+    async function lockApp(options={}){
+      if(options instanceof Event) options={reason:'manual'};
+      const {force=false, reason='manual'} = options || {};
+      if(!appReady) return true;
       $('#saveStatus').textContent = 'Zamykám…';
-      try{ await saveInFlight.catch(()=>{}); }catch(e){ console.warn(e); }
+      await saveInFlight.catch(()=>false);
+      if(!force && saveLifecycle.blocksSafeLock){
+        lockPendingAfterSave = reason === 'auto';
+        showUnsavedGuard(reason === 'auto' ? 'Automatické zamknutí bylo pozastaveno, protože poslední změny nejsou uložené.' : 'Aplikaci nelze bezpečně zamknout, protože poslední změny nejsou uložené.');
+        updateSaveUi();
+        return false;
+      }
+      closeAllModals();
+      hideUnsavedGuard();
       scrubSensitiveRuntime();
       appReady = false;
       vaultKey = null; vaultSalt = null; vaultIterations = KDF_ITERATIONS;
       state = defaultState();
+      queuedSaveJob = null;
+      saveLifecycle.reset();
       clearTimeout(autoLockTimer);
       $('#saveStatus').textContent = 'Zamčeno';
       $('#lockScreen')?.classList.add('active');
       document.body.classList.add('locked');
       setAppInert(true);
-      startSecureGate();
+      await startSecureGate();
+      return true;
     }
     function markActivity(){
       if(!appReady) return;
@@ -629,12 +774,12 @@ export function bootLifeHub(){
       const remaining = Math.max(0, AUTO_LOCK_MINUTES*60*1000 - (Date.now() - lastActivityAt));
       autoLockTimer = setTimeout(enforceAutoLock, remaining);
     }
-    function enforceAutoLock(){
+    async function enforceAutoLock(){
       if(!appReady) return false;
       if(Date.now() - lastActivityAt >= AUTO_LOCK_MINUTES*60*1000){
-        toast('Aplikace byla kvůli neaktivitě zamčena.', 'warn');
-        lockApp();
-        return true;
+        const locked = await lockApp({reason:'auto'});
+        toast(locked ? 'Aplikace byla kvůli neaktivitě zamčena.' : 'Automatické zamknutí čeká na bezpečné uložení změn.', locked ? 'warn' : 'bad');
+        return locked;
       }
       resetAutoLockTimer();
       return false;
@@ -650,10 +795,14 @@ export function bootLifeHub(){
       }
     }
     function trapLockFocus(e){
-      if($('.modal-screen.active')) return;
-      const screen = $('#lockScreen');
+      const guard = $('#unsavedGuard');
+      const screen = guard?.classList.contains('active') ? guard : $('#lockScreen');
       if(!screen?.classList.contains('active')) return;
-      if(e.key === 'Escape'){ e.preventDefault(); $('#lockPassword')?.focus(); return; }
+      if(e.key === 'Escape'){
+        e.preventDefault();
+        (guard?.classList.contains('active') ? $('#guardRetrySaveBtn') : $('#lockPassword'))?.focus();
+        return;
+      }
       if(e.key !== 'Tab') return;
       const focusables = $$('button,input,select,textarea,a[href]', screen).filter(el=>!el.disabled && !el.classList.contains('hide') && el.offsetParent !== null);
       if(!focusables.length) return;
@@ -661,33 +810,21 @@ export function bootLifeHub(){
       if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
       else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
     }
-    function assertEncryptedStateFits(envelope){
-      const previous = localStorage.getItem(ENC_STORE);
-      const serialized = JSON.stringify(envelope);
-      localStorage.setItem(ENC_STORE, serialized);
-      if(previous === null) localStorage.removeItem(ENC_STORE);
-      else localStorage.setItem(ENC_STORE, previous);
-      return serialized;
-    }
     async function recoverPendingRestore(){
       let marker = null;
       try{ marker = await idbGetMeta('restoreImport'); }catch(error){ console.warn(error); }
       if(marker?.newEnvelope){
-        localStorage.setItem(ENC_STORE, JSON.stringify(marker.newEnvelope));
+        await writeEncryptedStateEnvelope(marker.newEnvelope);
         await idbDeleteMeta('restoreImport').catch(()=>{});
-      }else if(marker){
-        await idbDeleteMeta('restoreImport').catch(()=>{});
-      }
+      }else if(marker){ await idbDeleteMeta('restoreImport').catch(()=>{}); }
     }
     async function recoverPendingKeyRotation(){
       let marker = null;
       try{ marker = await idbGetMeta('keyRotation'); }catch(error){ console.warn(error); }
       if(marker?.newEnvelope){
-        localStorage.setItem(ENC_STORE, JSON.stringify(marker.newEnvelope));
+        await writeEncryptedStateEnvelope(marker.newEnvelope);
         await idbDeleteMeta('keyRotation').catch(()=>{});
-      }else if(marker){
-        await idbDeleteMeta('keyRotation').catch(()=>{});
-      }
+      }else if(marker){ await idbDeleteMeta('keyRotation').catch(()=>{}); }
     }
     async function changeVaultPassword(){
       if(!appReady || !vaultKey) return;
@@ -714,9 +851,8 @@ export function bootLifeHub(){
         const snapshot = JSON.parse(JSON.stringify(state));
         const newEnvelope = await createEncryptedStateEnvelope(snapshot, newKey, newSalt, newIterations);
         const rotationId = uid('rotation');
-        const serializedEnvelope = assertEncryptedStateFits(newEnvelope);
         await idbReplaceEncryptedStores({payrollEntries, vaultEntries, rotationMarker:{rotationId, createdAt:new Date().toISOString(), newEnvelope}});
-        localStorage.setItem(ENC_STORE, serializedEnvelope);
+        await writeEncryptedStateEnvelope(newEnvelope);
         await idbDeleteMeta('keyRotation');
         vaultKey = newKey; vaultSalt = newSalt; vaultIterations = newIterations;
         $('#saveStatus').textContent = 'Heslo změněno';
@@ -730,7 +866,7 @@ export function bootLifeHub(){
     }
     async function wipeEncryptedVault(){
       if(!await confirmDialog('Nouzově smazat šifrovaný trezor? Tato akce odstraní šifrovaný stav i lokální PDF/dokumenty. Bez zálohy nepůjde data obnovit.', {title:'Nouzové smazání trezoru', confirmText:'Smazat trezor', danger:true})) return;
-      try{ localStorage.removeItem(ENC_STORE); localStorage.removeItem(LEGACY_STORE); await idbClear(PDF_STORE); await idbClear(VAULT_STORE); await idbDeleteMeta('keyRotation').catch(()=>{}); await idbDeleteMeta('restoreImport').catch(()=>{}); }catch(e){ console.warn(e); }
+      try{ await deleteEncryptedStateEnvelope(); localStorage.removeItem(LEGACY_STORE); await idbClear(PDF_STORE); await idbClear(VAULT_STORE); await idbDeleteMeta('keyRotation').catch(()=>{}); await idbDeleteMeta('restoreImport').catch(()=>{}); }catch(e){ console.warn(e); }
       vaultKey = null; vaultSalt = null; vaultIterations = KDF_ITERATIONS; appReady = false; state = defaultState();
       $('#lockStatus').textContent = 'Trezor byl smazán. Nyní můžete založit nový.';
       await startSecureGate();
@@ -1198,8 +1334,8 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       const id=$('#transId').value||uid('trans');
       const existing=state.transactions.find(t=>t.id===id);
       const transaction=buildTransactionRecord({id,date:$('#transDate').value,kind:$('#transKind').value,category:$('#transCategory').value.trim(),amount:$('#transAmount').value,description:$('#transDescription').value.trim()}, existing);
+      if(!(number(transaction.amount)>0)){ toast('Částka transakce musí být vyšší než nula.','bad'); return; }
       transaction.shared = transaction.source==='payroll' ? false : !!$('#transShared')?.checked;
-      recordPrivacyTransition('transactions',existing,transaction);
       if(existing) Object.assign(existing,transaction); else state.transactions.unshift(transaction);
       save(); resetTransactionForm(); toast('Transakce uložena.');
     }
@@ -1355,7 +1491,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       catch(e){ toast('Žádost o trvalé úložiště selhala.','warn'); }
     }
 
-    function saveTask(e){e.preventDefault(); const id=$('#taskId').value||uid('task'); const existing=state.tasks.find(t=>t.id===id); const t={id,title:$('#taskTitle').value.trim(),priority:$('#taskPriority').value,horizon:$('#taskHorizon').value,due:$('#taskDue').value,area:$('#taskArea').value.trim(),note:$('#taskNote').value.trim(),assignedTo:['me','partner','both'].includes($('#taskAssignedTo')?.value)?$('#taskAssignedTo').value:'both',shared:!!$('#taskShared')?.checked,done:existing?.done||false,createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()}; recordPrivacyTransition('tasks',existing,t); if(existing)Object.assign(existing,t); else state.tasks.unshift(t); save(); resetTaskForm(); toast('Úkol uložen.');}
+    function saveTask(e){e.preventDefault(); const id=$('#taskId').value||uid('task'); const existing=state.tasks.find(t=>t.id===id); const t={id,title:$('#taskTitle').value.trim(),priority:$('#taskPriority').value,horizon:$('#taskHorizon').value,due:$('#taskDue').value,area:$('#taskArea').value.trim(),note:$('#taskNote').value.trim(),assignedTo:['me','partner','both'].includes($('#taskAssignedTo')?.value)?$('#taskAssignedTo').value:'both',shared:!!$('#taskShared')?.checked,done:existing?.done||false,createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()}; if(existing)Object.assign(existing,t); else state.tasks.unshift(t); save(); resetTaskForm(); toast('Úkol uložen.');}
     function resetTaskForm(){ $('#taskForm').reset(); $('#taskId').value=''; $('#taskPriority').value='normal'; $('#taskHorizon').value='month'; if($('#taskShared')) $('#taskShared').checked=true; if($('#taskAssignedTo')) $('#taskAssignedTo').value='both'; }
     function editTaskForm(id){const t=state.tasks.find(x=>x.id===id); if(!t)return; showTab('tasks'); toggleAddCard('taskAddCard',true); $('#taskId').value=t.id; $('#taskTitle').value=t.title; $('#taskPriority').value=t.priority||'normal'; $('#taskHorizon').value=t.horizon||'month'; $('#taskDue').value=t.due||''; $('#taskArea').value=t.area||''; $('#taskNote').value=t.note||''; if($('#taskAssignedTo')) $('#taskAssignedTo').value=t.assignedTo||'both'; if($('#taskShared')) $('#taskShared').checked=t.shared!==false;}
     function toggleTaskDone(id){const t=state.tasks.find(x=>x.id===id); if(t){t.done=!t.done;t.updatedAt=new Date().toISOString();save();}}
@@ -1381,7 +1517,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
     function taskPriorityLabel(p){return p==='high'?'🔴 Vysoká':p==='low'?'🟢 Nízká':'🟡 Střední';}
     function taskHorizonLabel(h){return h==='week'?'Tento týden':h==='long'?'Dlouhodobé':'Tento měsíc';}
 
-    function saveShopping(e){e.preventDefault(); const id=$('#shopId').value||uid('shop'); const existing=state.shopping.find(s=>s.id===id); const s={id,name:$('#shopName').value.trim(),segment:'general',store:$('#shopStore').value,priority:$('#shopPriority').value,status:$('#shopStatus').value,category:$('#shopCategory').value.trim(),price:number($('#shopPrice').value),month:$('#shopMonth').value,url:safeUrl($('#shopUrl').value),note:$('#shopNote').value.trim(),shared:!!$('#shopShared')?.checked,createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()}; recordPrivacyTransition('shopping',existing,s); if(existing)Object.assign(existing,s); else state.shopping.unshift(s); save(); resetShoppingForm(); toast('Velký nákup uložen.');}
+    function saveShopping(e){e.preventDefault(); const id=$('#shopId').value||uid('shop'); const existing=state.shopping.find(s=>s.id===id); const s={id,name:$('#shopName').value.trim(),segment:'general',store:$('#shopStore').value,priority:$('#shopPriority').value,status:$('#shopStatus').value,category:$('#shopCategory').value.trim(),price:number($('#shopPrice').value),month:$('#shopMonth').value,url:safeUrl($('#shopUrl').value),note:$('#shopNote').value.trim(),shared:!!$('#shopShared')?.checked,createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()}; if(existing)Object.assign(existing,s); else state.shopping.unshift(s); save(); resetShoppingForm(); toast('Velký nákup uložen.');}
     function resetShoppingForm(){ $('#shoppingForm').reset(); $('#shopId').value=''; $('#shopMonth').value=monthNow(); if($('#shopShared')) $('#shopShared').checked=true; }
     function editShoppingForm(id){const s=state.shopping.find(x=>x.id===id); if(!s)return; showTab('shopping'); toggleAddCard('shopAddCard',true); $('#shopId').value=s.id; $('#shopName').value=s.name; $('#shopStore').value=s.store||''; $('#shopPriority').value=s.priority; $('#shopStatus').value=s.status; $('#shopCategory').value=s.category||''; $('#shopPrice').value=s.price||''; $('#shopMonth').value=s.month||''; $('#shopUrl').value=s.url||''; $('#shopNote').value=s.note||''; if($('#shopShared')) $('#shopShared').checked=s.shared!==false;}
     function renderShopping(){
@@ -1502,6 +1638,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         toast('Šifrovaná datová záloha byla vytvořena. Neobsahuje PDF ani soubory z trezoru.');
       }catch(err){ console.error(err); toast('Šifrovanou datovou zálohu se nepodařilo vytvořit: '+(err.message||err), 'bad'); }
     }
+    function effectiveCompleteBackupLimit(){ return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent||'') ? MOBILE_COMPLETE_BACKUP_TOTAL_BYTES : MAX_COMPLETE_BACKUP_TOTAL_BYTES; }
     async function collectBackupFiles(){
       const files = [];
       const missing = [];
@@ -1512,10 +1649,11 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
           if(!file){ missing.push(`${fallbackName || item.fileName || item.title || item.id} – soubor není v IndexedDB`); return; }
           const record = await fileToBackupRecord({id:item.id, store, role}, file);
           totalBytes += Number(record.size) || 0;
-          if(totalBytes > MAX_COMPLETE_BACKUP_TOTAL_BYTES) throw new Error(`Kompletní záloha překročila limit ${formatBytes(MAX_COMPLETE_BACKUP_TOTAL_BYTES)}.`);
+          const limit = effectiveCompleteBackupLimit();
+          if(totalBytes > limit) throw new Error(`Kompletní záloha překročila bezpečný limit tohoto zařízení ${formatBytes(limit)}.`);
           files.push(record);
         }catch(error){
-          if(String(error.message||'').includes('překročila limit')) throw error;
+          if(String(error.message||'').includes('překročila')) throw error;
           console.warn(error);
           missing.push(`${fallbackName || item.fileName || item.title || item.id} – ${error.message || 'soubor se nepodařilo přečíst'}`);
         }
@@ -1536,6 +1674,11 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         if(!pass) return false;
         $('#saveStatus').textContent = 'Připravuji kompletní zálohu…';
         const packed = await collectBackupFiles();
+        if(packed.missing.length){
+          const fallback = await confirmDialog(`Kompletní zálohu nelze označit jako úplnou: ${packed.missing.length} očekávaných souborů chybí nebo je nelze přečíst. Datum kompletní zálohy nebude změněno.\n\nChcete místo toho vytvořit pouze šifrovanou datovou zálohu bez souborů?`,{title:'Neúplná kompletní záloha',confirmText:'Vytvořit datovou zálohu'});
+          if(fallback) await exportEncryptedJson();
+          return false;
+        }
         const createdAt = new Date().toISOString();
         const payload = {
           kind:'LifeHub complete backup',
@@ -1553,8 +1696,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         download(`lifehub-kompletni-sifrovana-zaloha-${today()}.json`, JSON.stringify(encrypted,null,2),'application/json;charset=utf-8');
         state.settings.lastCompleteBackupAt = new Date().toISOString();
         save(false); renderBackupStatus();
-        const warn = packed.missing.length ? ` Pozor: ${packed.missing.length} souborů se nepodařilo přibalit.` : '';
-        toast(`Kompletní záloha vytvořena (${packed.files.length} souborů, ${formatBytes(packed.totalBytes)}).${warn}`, packed.missing.length ? 'warn' : 'good');
+        toast(`Kompletní záloha vytvořena a ověřena jako úplná (${packed.files.length} souborů, ${formatBytes(packed.totalBytes)}).`, 'good');
         return true;
       }catch(err){ console.error(err); $('#saveStatus').textContent = 'Export selhal'; toast('Kompletní zálohu se nepodařilo vytvořit: '+(err.message||err), 'bad'); return false; }
     }
@@ -1583,7 +1725,8 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       });
       return out;
     }
-    function sanitizeImportedState(data, { preserveStoredFiles = false } = {}){
+    function sanitizeImportedState(input, { preserveStoredFiles = false } = {}){
+      const data = migrateStateSchema(input);
       if(!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Záloha nemá očekávaný formát.');
       const approxSize = new Blob([JSON.stringify(data)]).size;
       if(approxSize > 8 * 1024 * 1024) throw new Error('Záloha je příliš velká pro bezpečný import.');
@@ -1603,6 +1746,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         familyMemberId:/^[A-Za-z0-9_-]{1,80}$/.test(String(st.familyMemberId||''))?String(st.familyMemberId):'',
         familyPassword:textLimit(st.familyPassword,256),
         familySettingsUpdatedAt:textLimit(st.familySettingsUpdatedAt,40),
+        privateNotifications:st.privateNotifications!==false,
         lastDataBackupAt:textLimit(st.lastDataBackupAt,40),
         lastCompleteBackupAt:textLimit(st.lastCompleteBackupAt,40),
         lastVerifiedBackupAt:textLimit(st.lastVerifiedBackupAt,40),
@@ -1662,12 +1806,12 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       clean.gardenLogs = asArray(data.gardenLogs,10000).map(g=>({
         id:safeId(g?.id,'glog'), date:textLimit(g?.date,10), type:['hnojeni','vertikutace','aerifikace','dosev','postrik','sekani','zavlaha','servis','jine'].includes(g?.type)?g.type:'jine', area:textLimit(g?.area,120), note:textLimit(g?.note,500), shared:g?.shared!==false, createdAt:textLimit(g?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(g?.updatedAt,40)||new Date().toISOString()
       })).filter(g=>/^\d{4}-\d{2}-\d{2}$/.test(g.date));
-      clean.familyDeleted = asArray(data.familyDeleted,5000).map(t=>({collection:FAMILY_COLLECTIONS.includes(t?.collection)?t.collection:'',id:textLimit(t?.id,80),deletedAt:textLimit(t?.deletedAt,40)})).filter(t=>t.collection&&t.id&&t.deletedAt);
       clean.partner = sanitizePartnerBlock(data.partner);
       clean.createdAt = textLimit(data.createdAt,40) || clean.createdAt;
       clean.updatedAt = new Date().toISOString();
       clean.version = VERSION;
-      return clean;
+      clean.schemaVersion = STATE_SCHEMA_VERSION;
+      return ensureUniqueIds(clean);
     }
     function confirmPrivateExport(label='Soukromý export'){
       return confirmDialog(`${label} může obsahovat citlivá data, osobní finance, URL, poznámky nebo extrahovaný text z PDF. Pro sdílení použijte anonymizovaný export nebo šifrovanou zálohu. Opravdu pokračovat?`, {title:'Soukromý export', confirmText:'Exportovat'});
@@ -1850,6 +1994,9 @@ Import může přepsat novější změny starší zálohou.`;
     }
     async function parseBackupFile(file){
       assertBackupFileSize(file);
+      if(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent||'') && Number(file?.size) > MOBILE_BACKUP_JSON_BYTES){
+        throw new Error(`Záloha je pro bezpečné zpracování na tomto mobilním zařízení příliš velká (${formatBytes(file.size)}). Limit je ${formatBytes(MOBILE_BACKUP_JSON_BYTES)}. Obnovu proveďte na počítači nebo použijte menší datovou zálohu.`);
+      }
       let data = JSON.parse(await file.text());
       const encryptedEnvelope = data?.kind === 'LifeHub encrypted backup';
       if(encryptedEnvelope){
@@ -1965,10 +2112,9 @@ Poslední pojistka: pro potvrzení importu napiš ${word}.`,
       imported.settings.lastRestoreAt = new Date().toISOString();
       const envelope = await createEncryptedStateEnvelope(imported, vaultKey, vaultSalt, vaultIterations);
       const restoreId = uid('restore');
-      const serializedEnvelope = assertEncryptedStateFits(envelope);
       $('#saveStatus').textContent = 'Obnovuji kompletní zálohu…';
       await idbReplaceEncryptedStores({payrollEntries:prepared.payrollEntries, vaultEntries:prepared.vaultEntries, restoreMarker:{restoreId, createdAt:new Date().toISOString(), newEnvelope:envelope}});
-      localStorage.setItem(ENC_STORE, serializedEnvelope);
+      await writeEncryptedStateEnvelope(envelope);
       await idbDeleteMeta('restoreImport');
       state = imported;
       setTheme(state.settings.theme || 'dark');
@@ -2013,17 +2159,20 @@ Poslední pojistka: pro potvrzení importu napiš ${word}.`,
       const existing=!!String(state.settings.familyPassword||'');
       const pass=await passwordDialog({
         title:existing?'Změnit rodinné heslo':'Nastavit rodinné heslo',
-        message:'Stejné heslo nastavte také v LifeHubu partnera. Uloží se uvnitř šifrovaného trezoru tohoto zařízení a po 15minutovém automatickém zamknutí se nebude zadávat znovu.',
+        message:`Stejné heslo nastavte také v LifeHubu partnera. Heslo musí mít alespoň ${MIN_PASSWORD_LENGTH} znaků. Uloží se uvnitř šifrovaného trezoru tohoto zařízení a po 15minutovém automatickém zamknutí se nebude zadávat znovu.`,
         repeat:true,
-        minLength:8,
+        minLength:MIN_PASSWORD_LENGTH,
         confirmText:existing?'Změnit heslo':'Uložit heslo'
       });
       if(!pass) return '';
       state.settings.familyPassword=pass;
       state.settings.familySettingsUpdatedAt=new Date().toISOString();
-      save(false);
-      await saveInFlight.catch(()=>{});
+      const saved = await save(false);
       renderFamilyPasswordStatus();
+      if(!saved){
+        toast('Rodinné heslo se nepodařilo bezpečně uložit. Zkuste uložení zopakovat.', 'bad');
+        return '';
+      }
       toast(existing?'Rodinné heslo bylo změněno.':'Rodinné heslo bylo bezpečně uloženo v tomto zařízení.','good');
       return pass;
     }
@@ -2031,16 +2180,23 @@ Poslední pojistka: pro potvrzení importu napiš ${word}.`,
       if(!state.settings.familyPassword){ toast('Rodinné heslo zatím není uložené.','warn'); return; }
       const ok=await confirmDialog('Odstranit uložené rodinné heslo z tohoto zařízení? Při příštím vytvoření nebo načtení rodinného souboru ho bude nutné zadat znovu.',{title:'Odstranit rodinné heslo',confirmText:'Odstranit',danger:true});
       if(!ok)return;
+      const previous = state.settings.familyPassword;
       state.settings.familyPassword='';
-      save(false);
-      await saveInFlight.catch(()=>{});
+      const saved = await save(false);
+      if(!saved){
+        state.settings.familyPassword=previous;
+        renderFamilyPasswordStatus();
+        toast('Rodinné heslo se nepodařilo odstranit, protože uložení selhalo.', 'bad');
+        return;
+      }
       renderFamilyPasswordStatus();
       toast('Uložené rodinné heslo bylo odstraněno.','warn');
     }
-    function hydrateSettings(){ $('#greetName').value=state.settings.greetName||''; $('#deviceName').value=state.settings.deviceName||''; $('#ownerName').value=state.settings.ownerName||''; $('#ownerFooter').value=state.settings.ownerFooter||''; $('#currency').value=state.settings.currency||'Kč'; $('#savingGoal').value=state.settings.savingGoal||0; renderFamilyPasswordStatus(); }
-    function saveSettings(e){e.preventDefault(); state.settings.greetName=$('#greetName').value.trim(); state.settings.deviceName=$('#deviceName').value.trim(); state.settings.ownerName=$('#ownerName').value.trim(); state.settings.ownerFooter=$('#ownerFooter').value.trim(); state.settings.currency=sanitizeCurrency($('#currency').value); state.settings.savingGoal=number($('#savingGoal').value); state.settings.familySettingsUpdatedAt=new Date().toISOString(); save(); toast('Nastavení uloženo.');}
+    function hydrateSettings(){ $('#greetName').value=state.settings.greetName||''; $('#deviceName').value=state.settings.deviceName||''; $('#ownerName').value=state.settings.ownerName||''; $('#ownerFooter').value=state.settings.ownerFooter||''; $('#currency').value=state.settings.currency||'Kč'; $('#savingGoal').value=state.settings.savingGoal||0; if($('#privateNotifications')) $('#privateNotifications').checked=state.settings.privateNotifications!==false; renderFamilyPasswordStatus(); }
+    function saveSettings(e){e.preventDefault(); state.settings.greetName=$('#greetName').value.trim(); state.settings.deviceName=$('#deviceName').value.trim(); state.settings.ownerName=$('#ownerName').value.trim(); state.settings.ownerFooter=$('#ownerFooter').value.trim(); state.settings.currency=sanitizeCurrency($('#currency').value); state.settings.savingGoal=number($('#savingGoal').value); state.settings.privateNotifications=$('#privateNotifications')?.checked!==false; state.settings.familySettingsUpdatedAt=new Date().toISOString(); save(); toast('Nastavení uloženo.');}
     // Krátký changelog (nejnovější nahoře, drž ~5 položek). Zobrazí se klepnutím na verzi v patičce.
     const CHANGELOG = [
+      'v4.4.0 · Stabilizační a bezpečnostní release: IndexedDB pro hlavní stav, ochrana neuložených změn, úplné zálohy, bezpečné zamykání, čisté testovací podklady a jednodušší rodinný snapshot.',
       'v4.3.3 · Kompletní interaktivní manuál je vložen přímo do aplikace, dostupný z horní lišty i postranní nabídky a funguje offline.',
       'v4.3.2 · Rodinné heslo lze uložit jednou uvnitř šifrovaného trezoru. Export i načtení ho používají automaticky a 15minutové zamknutí ho nemaže.',
       'v4.3.1 · Rodinné sdílení je zjednodušeno na bezpečný náhled pouze pro čtení. Načtený soubor nikdy nemění ani neslučuje vlastní data.',
@@ -2178,7 +2334,7 @@ Co chceš udělat teď?`,
     async function clearAllData(){
       if(!await confirmDialog('Opravdu smazat všechna lokální data aplikace včetně šifrovaného stavu, PDF a dokumentů v IndexedDB?', {title:'Smazat všechna lokální data', confirmText:'Smazat vše', danger:true}))return;
       state=defaultState();
-      try{ localStorage.removeItem(ENC_STORE); localStorage.removeItem(LEGACY_STORE); }catch(e){ console.warn(e); }
+      try{ await deleteEncryptedStateEnvelope(); localStorage.removeItem(LEGACY_STORE); }catch(e){ console.warn(e); }
       try{ await idbClear(PDF_STORE); await idbClear(VAULT_STORE); }catch(e){ console.warn(e); toast('Metadata byla smazána, ale vyčištění IndexedDB se nemuselo podařit.', 'warn'); }
       vaultKey=null; vaultSalt=null; vaultIterations=KDF_ITERATIONS; appReady=false;
       hydrateSettings(); setTheme(state.settings.theme); renderAll(); toast('Lokální data byla smazána včetně šifrovaného úložiště.','warn');
@@ -2242,10 +2398,10 @@ Co chceš udělat teď?`,
         return `<article class="item"><div class="item-top"><div><h4>${esc(i.creditor)}${done?' ✅':''}</h4><p><span class="installment-remaining ${done?'money-plus':'money-minus'}">${done?'Doplaceno':'Zbývá '+fmt(c.remaining)}</span> • měsíčně ${fmt(i.monthly)} • celkem ${fmt(c.total)}</p>${i.note?`<p>${esc(i.note)}</p>`:''}</div><div class="actions">${done?'':`<button class="mini-btn" data-pay-inst="${attr(i.id)}" type="button">+ splátka</button><button class="mini-btn" data-extra-inst="${attr(i.id)}" type="button">+ mimořádná</button>`}<button class="mini-btn" data-edit-inst="${attr(i.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-inst="${attr(i.id)}" type="button">Smazat</button></div></div>${barRow(`Splaceno ${fmt(c.paid)} z ${fmt(c.total)}`, c.progress+'%', c.progress)}<div class="meta">${c.endMonth?`<span class="tag">konec ${esc(monthLabel(c.endMonth))}</span>`:''}<span class="tag">zbývá ${c.remainingMonths} měs.</span>${i.startMonth?`<span class="tag">od ${esc(monthLabel(i.startMonth))}</span>`:''}${i.dueDay?`<span class="tag">splatnost ${esc(String(i.dueDay))}. v měsíci</span>`:''}<span class="tag">${esc(assignedToLabel(i.assignedTo))}</span>${i.shared!==false?'<span class="tag">👥 sdílené</span>':'<span class="tag">🔒 soukromé</span>'}</div>${historyHtml}</article>`;
       }).join('') || empty('Zatím žádné splátky. Přidej první přes tlačítko +.');
     }
-    function saveInstallment(e){e.preventDefault(); const id=$('#instId').value||uid('inst'); const existing=state.installments.find(x=>x.id===id); const i={id,creditor:$('#instCreditor').value.trim(),total:number($('#instTotal').value),monthly:number($('#instMonthly').value),startMonth:$('#instStart').value,paid:number($('#instPaid').value),dueDay:Math.min(31,Math.max(0,Math.round(number($('#instDueDay').value)))),note:$('#instNote').value.trim(),assignedTo:['me','partner','both'].includes($('#instAssignedTo')?.value)?$('#instAssignedTo').value:'both',shared:!!$('#instShared')?.checked,paymentHistory:Array.isArray(existing?.paymentHistory)?existing.paymentHistory:[],createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()}; recordPrivacyTransition('installments',existing,i); if(existing)Object.assign(existing,i); else state.installments.unshift(i); save(); resetInstallmentForm(); toast('Splátkový kalendář uložen.');}
+    function saveInstallment(e){e.preventDefault(); const total=number($('#instTotal').value), monthly=number($('#instMonthly').value); if(!(total>0) || !(monthly>0)){toast('Celková částka i měsíční splátka musí být vyšší než nula.','bad');return;} const id=$('#instId').value||uid('inst'); const existing=state.installments.find(x=>x.id===id); const i={id,creditor:$('#instCreditor').value.trim(),total,monthly,startMonth:$('#instStart').value,paid:number($('#instPaid').value),dueDay:Math.min(31,Math.max(0,Math.round(number($('#instDueDay').value)))),note:$('#instNote').value.trim(),assignedTo:['me','partner','both'].includes($('#instAssignedTo')?.value)?$('#instAssignedTo').value:'both',shared:!!$('#instShared')?.checked,paymentHistory:Array.isArray(existing?.paymentHistory)?existing.paymentHistory:[],createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()}; if(existing)Object.assign(existing,i); else state.installments.unshift(i); save(); resetInstallmentForm(); toast('Splátkový kalendář uložen.');}
     function resetInstallmentForm(){ $('#instForm').reset(); $('#instId').value=''; $('#instStart').value=monthNow(); if($('#instShared')) $('#instShared').checked=true; if($('#instAssignedTo')) $('#instAssignedTo').value='both'; }
     function editInstallment(id){const i=state.installments.find(x=>x.id===id); if(!i)return; toggleAddCard('instAddCard',true); $('#instId').value=i.id; $('#instCreditor').value=i.creditor; $('#instTotal').value=i.total||''; $('#instMonthly').value=i.monthly||''; $('#instStart').value=i.startMonth||monthNow(); $('#instPaid').value=i.paid||''; $('#instDueDay').value=i.dueDay||''; $('#instNote').value=i.note||''; if($('#instAssignedTo')) $('#instAssignedTo').value=i.assignedTo||'both'; if($('#instShared')) $('#instShared').checked=i.shared!==false; $('#instCreditor').focus();}
-    function recordInstallmentPayment(id){const i=state.installments.find(x=>x.id===id); if(!i)return; const c=computeInstallment(i); const newPaid=Math.min(c.total, c.paid + Math.max(0,number(i.monthly))); i.paid=newPaid; i.paymentHistory=Array.isArray(i.paymentHistory)?i.paymentHistory:[]; i.paymentHistory.unshift({id:uid('ipay'),date:today(),amount:Math.max(0,number(i.monthly)),type:'regular',createdAt:new Date().toISOString()}); i.updatedAt=new Date().toISOString(); save(); toast(newPaid>=c.total?'Splátka zaznamenána – doplaceno! 🎉':'Splátka zaznamenána.');}
+    function recordInstallmentPayment(id){const i=state.installments.find(x=>x.id===id); if(!i)return; const payment=calculateRegularInstallmentPayment(i); if(payment.appliedAmount<=0){toast('Není co zaplatit nebo není nastavena kladná měsíční splátka.','warn');return;} i.paid=payment.newPaid; i.paymentHistory=Array.isArray(i.paymentHistory)?i.paymentHistory:[]; i.paymentHistory.unshift({id:uid('ipay'),date:today(),amount:payment.appliedAmount,type:'regular',createdAt:new Date().toISOString()}); i.updatedAt=new Date().toISOString(); save(); toast(payment.completed?'Splátka zaznamenána – doplaceno! 🎉':`Splátka ${fmt(payment.appliedAmount)} zaznamenána.`);}
     async function recordExtraPayment(id){
       const i=state.installments.find(x=>x.id===id); if(!i)return;
       const c=computeInstallment(i);
@@ -2281,8 +2437,9 @@ Co chceš udělat teď?`,
       if(!force && (now-last) < 7*24*3600*1000) return;
       try{ localStorage.setItem(key,String(now)); }catch(e){}
       if('Notification' in window && Notification.permission==='granted'){
-        const lines=state.installments.map(i=>({i,c:computeInstallment(i)})).filter(x=>x.c.remaining>0).map(x=>`${x.i.creditor}: zbývá ${fmt(x.c.remaining)}`).join('\n');
-        try{ new Notification('LifeHub – splátky', {body:lines, tag:'lifehub-installments'}); }catch(e){}
+        const activeItems=state.installments.map(i=>({i,c:computeInstallment(i)})).filter(x=>x.c.remaining>0);
+        const body=state.settings.privateNotifications!==false ? `Máte ${activeItems.length} aktivních splátek. Podrobnosti zobrazíte po odemčení LifeHubu.` : activeItems.map(x=>`${x.i.creditor}: zbývá ${fmt(x.c.remaining)}`).join('\n');
+        try{ new Notification('LifeHub – splátky', {body, tag:'lifehub-installments'}); }catch(e){}
       }
     }
     // ===== Popup dluhu ze splátek při každém odemčení =====
@@ -2320,7 +2477,7 @@ Co chceš udělat teď?`,
         updatedAt:new Date().toISOString()
       };
       if(!payment.title || !/^\d{4}-\d{2}-\d{2}$/.test(payment.dueDate)){ toast('Vyplňte název a platný termín splatnosti.','warn'); return; }
-      recordPrivacyTransition('householdPayments',existing,payment);
+      if(!(payment.amount>0)){ toast('Částka platby musí být vyšší než nula.','bad'); return; }
       if(existing) Object.assign(existing,payment); else state.householdPayments.unshift(payment);
       save(); resetHouseholdPaymentForm(); toast('Platba uložena.');
     }
@@ -2343,6 +2500,7 @@ Co chceš udělat teď?`,
       if(payment.frequency==='once' && payment.status==='paid'){
         payment.status='pending'; payment.lastPaidAt=''; payment.updatedAt=new Date().toISOString(); save(); toast('Platba byla vrácena mezi neuhrazené.','warn'); return;
       }
+      if(!(number(payment.amount)>0)){ toast('Platbu s nulovou částkou nelze zaznamenat. Nejdříve ji upravte.','bad'); return; }
       const paidDate=today();
       payment.paymentHistory=Array.isArray(payment.paymentHistory)?payment.paymentHistory:[];
       payment.paymentHistory.unshift({id:uid('hpay'),date:paidDate,amount:Math.max(0,number(payment.amount)),createdAt:new Date().toISOString()});
@@ -2390,7 +2548,7 @@ Co chceš udělat teď?`,
 
     // ===== Jídlo & benzín (měsíční rozpočet) =====
     function budgetLimits(){ return { food: state.settings.foodBudget===undefined?DEFAULT_FOOD_BUDGET:Math.max(0,number(state.settings.foodBudget)), fuel: state.settings.fuelBudget===undefined?DEFAULT_FUEL_BUDGET:Math.max(0,number(state.settings.fuelBudget)) }; }
-    function saveBudgetEntry(e){e.preventDefault(); const id=$('#budgetId').value||uid('budget'); const existing=state.budgetEntries.find(x=>x.id===id); const b={id,date:$('#budgetDate').value,kind:$('#budgetKind').value==='fuel'?'fuel':'food',amount:Math.max(0,number($('#budgetAmount').value)),note:$('#budgetNote').value.trim(),shared:true,createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()}; if(!/^\d{4}-\d{2}-\d{2}$/.test(b.date)){toast('Zadejte platné datum útraty.','warn');return;} if(existing)Object.assign(existing,b); else state.budgetEntries.unshift(b); save(); resetBudgetForm(); toast('Útrata uložena.');}
+    function saveBudgetEntry(e){e.preventDefault(); const id=$('#budgetId').value||uid('budget'); const existing=state.budgetEntries.find(x=>x.id===id); const b={id,date:$('#budgetDate').value,kind:$('#budgetKind').value==='fuel'?'fuel':'food',amount:Math.max(0,number($('#budgetAmount').value)),note:$('#budgetNote').value.trim(),shared:true,createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()}; if(!/^\d{4}-\d{2}-\d{2}$/.test(b.date)){toast('Zadejte platné datum útraty.','warn');return;} if(!(b.amount>0)){toast('Částka útraty musí být vyšší než nula.','bad');return;} if(existing)Object.assign(existing,b); else state.budgetEntries.unshift(b); save(); resetBudgetForm(); toast('Útrata uložena.');}
     function resetBudgetForm(){ $('#budgetForm').reset(); $('#budgetId').value=''; $('#budgetDate').value=today(); $('#budgetKind').value='food'; }
     function editBudgetForm(id){const b=state.budgetEntries.find(x=>x.id===id); if(!b)return; showTab('budget'); toggleAddCard('budgetAddCard',true); $('#budgetId').value=b.id; $('#budgetDate').value=b.date; $('#budgetKind').value=b.kind==='fuel'?'fuel':'food'; $('#budgetAmount').value=b.amount; $('#budgetNote').value=b.note||'';}
     function saveBudgetLimits(e){e.preventDefault(); state.settings.foodBudget=Math.max(0,number($('#budgetFoodLimit').value)); state.settings.fuelBudget=Math.max(0,number($('#budgetFuelLimit').value)); state.settings.familySettingsUpdatedAt=new Date().toISOString(); save(); toast('Měsíční limity uloženy.');}
@@ -2482,7 +2640,6 @@ Co chceš udělat teď?`,
       const bought=state.groceries.filter(g=>g.done);
       if(!bought.length){ toast('Žádné koupené položky k vymazání.','warn'); return; }
       if(!await confirmDialog(`Odstranit ${bought.length} koupených položek ze seznamu?`, {title:'Vymazat koupené', confirmText:'Vymazat', danger:true})) return;
-      bought.forEach(g=>recordFamilyDeletion(state,'groceries',g));
       state.groceries=state.groceries.filter(g=>!g.done);
       save();
       toast('Koupené položky odstraněny.','warn');
@@ -2690,7 +2847,6 @@ Co chceš udělat teď?`,
       const existing=state.gardenItems.find(x=>x.id===id);
       const g={id, name:$('#gardenItemName').value.trim(), price:Math.max(0,number($('#gardenItemPrice').value)), horizon:['now','season','year','someday'].includes($('#gardenItemHorizon').value)?$('#gardenItemHorizon').value:'season', url:safeUrl($('#gardenItemUrl').value), note:$('#gardenItemNote').value.trim(), done:existing?.done||false, shared:!!$('#gardenItemShared')?.checked, createdAt:existing?.createdAt||new Date().toISOString(), updatedAt:new Date().toISOString()};
       if(!g.name){ toast('Zadejte, co je potřeba pořídit.','warn'); return; }
-      recordPrivacyTransition('gardenItems',existing,g);
       if(existing)Object.assign(existing,g); else state.gardenItems.unshift(g);
       save(); resetGardenItemForm(); toast('Položka na zahradu uložena.');
     }
@@ -2703,7 +2859,6 @@ Co chceš udělat teď?`,
       const existing=state.gardenLogs.find(x=>x.id===id);
       const g={id, date:$('#gardenLogDate').value, type:Object.prototype.hasOwnProperty.call(GARDEN_TYPES,$('#gardenLogType').value)?$('#gardenLogType').value:'jine', area:$('#gardenLogArea').value.trim(), note:$('#gardenLogNote').value.trim(), shared:!!$('#gardenLogShared')?.checked, createdAt:existing?.createdAt||new Date().toISOString(), updatedAt:new Date().toISOString()};
       if(!/^\d{4}-\d{2}-\d{2}$/.test(g.date)){ toast('Zadejte platné datum údržby.','warn'); return; }
-      recordPrivacyTransition('gardenLogs',existing,g);
       if(existing)Object.assign(existing,g); else state.gardenLogs.unshift(g);
       save(); resetGardenLogForm(); toast('Záznam údržby uložen.');
     }
@@ -2753,44 +2908,35 @@ Co chceš udělat teď?`,
       let changed=false;
       if(!state.settings.familyMemberId){ state.settings.familyMemberId=uid('member'); changed=true; }
       if(!state.settings.familySettingsUpdatedAt){ state.settings.familySettingsUpdatedAt=state.updatedAt||new Date().toISOString(); changed=true; }
-      if(changed) save(false);
+      return changed ? save(false) : Promise.resolve(true);
     }
     function buildPartnerSharePayload(){
-      ensureFamilyIdentity();
       const name=(state.settings.greetName||'').trim()||reportOwner().name;
-      const data={};
-      FAMILY_COLLECTIONS.forEach(collection=>{
-        const source=Array.isArray(state[collection])?state[collection]:[];
-        data[collection]=source
-          .filter(item=>item?.shared!==false && !(collection==='transactions'&&item?.source==='payroll'))
-          .map(item=>cloneFamilyValue(item));
-      });
-      return {
-        kind:'LifeHub family sync',
-        schema:2,
-        version:VERSION,
-        exportedAt:new Date().toISOString(),
-        owner:{id:state.settings.familyMemberId,name},
-        note:'Šifrovaný náhled sdílených financí, rozpočtů, nákupů, úkolů, splátek, plateb a zahrady pro partnera. Importovaný obsah je pouze ke čtení. Neobsahuje výplatní pásky, dokumenty, poznámky, AI výkaz, odměny ani aplikace.',
-        householdSettings:{
-          foodBudget:Math.max(0,number(state.settings.foodBudget)),
-          fuelBudget:Math.max(0,number(state.settings.fuelBudget)),
-          savingGoal:Math.max(0,number(state.settings.savingGoal)),
-          updatedAt:state.settings.familySettingsUpdatedAt||state.updatedAt||new Date().toISOString()
-        },
-        data,
-        tombstones:cloneFamilyValue(state.familyDeleted||[])
-      };
+      return buildFamilySnapshot({state,version:VERSION,ownerId:state.settings.familyMemberId,ownerName:name});
     }
     async function exportPartnerShare(){
-      let credentials=String(state.settings.familyPassword||'');
-      if(!credentials) credentials=await setFamilyPassword();
-      if(!credentials) return;
       try{
+        if(!await ensureFamilyIdentity()){
+          toast('Rodinný soubor nelze vytvořit, dokud se nepodaří bezpečně uložit identitu tohoto zařízení.', 'bad');
+          return;
+        }
         const payload=buildPartnerSharePayload();
+        const summary=summarizeFamilySnapshot(payload);
+        const labels={transactions:'sdílené transakce',budgetEntries:'útraty za jídlo a benzín',groceries:'nákupní seznam',tasks:'úkoly',shopping:'velké nákupy',installments:'splátky',householdPayments:'platby domácnosti',gardenItems:'zahradní nákupy',gardenLogs:'zahradní deník'};
+        const included=FAMILY_COLLECTIONS.filter(key=>summary.counts[key]>0).map(key=>`- ${labels[key]}: ${summary.counts[key]}`).join('\n') || '- žádné sdílené položky';
+        const confirmed=await confirmDialog(`Rodinný soubor bude pouze pro čtení a zahrne celkem ${summary.total} sdílených položek:
+${included}
+
+${FAMILY_EXCLUDED_DESCRIPTION}
+
+Pokračovat ve vytvoření šifrovaného souboru?`,{title:'Obsah rodinného souboru',confirmText:'Vytvořit rodinný soubor'});
+        if(!confirmed) return;
+        let credentials=String(state.settings.familyPassword||'');
+        if(credentials.length < MIN_PASSWORD_LENGTH) credentials=await setFamilyPassword();
+        if(!credentials) return;
         const encrypted=await encryptBackupObject(payload,credentials,VERSION);
-        encrypted.contentType='family-sync';
-        encrypted.familySchema=2;
+        encrypted.contentType='family-snapshot';
+        encrypted.familySchema=3;
         download(`lifehub-rodina-${today()}.lifehub-family`,JSON.stringify(encrypted,null,2),'application/json;charset=utf-8');
         toast('Šifrovaný rodinný soubor byl vytvořen pomocí uloženého rodinného hesla.','good');
       }catch(err){ console.error(err); toast('Rodinný soubor se nepodařilo vytvořit: '+(err.message||err),'bad'); }
@@ -2801,8 +2947,8 @@ Co chceš udělat teď?`,
       const d=raw?.data&&typeof raw.data==='object'?raw.data:{};
       const stamp=(prefix,item)=>({id:legacyFamilyId(prefix,{ownerName,item}),shared:true,createdAt:exportedAt,updatedAt:exportedAt,...item});
       return {
-        kind:'LifeHub family sync',schema:1,version:textLimit(raw?.version,30),exportedAt,
-        owner:{id:legacyFamilyId('member',{ownerName}),name:ownerName},householdSettings:null,tombstones:[],
+        kind:'LifeHub family snapshot',schema:1,version:textLimit(raw?.version,30),exportedAt,
+        owner:{id:legacyFamilyId('member',{ownerName}),name:ownerName},householdSettings:null,
         data:{
           transactions:[],budgetEntries:[],householdPayments:[],gardenLogs:[],
           groceries:(Array.isArray(d.groceries)?d.groceries:[]).map(x=>stamp('groc',x)),
@@ -2816,26 +2962,25 @@ Co chceš udělat teď?`,
     function sanitizeFamilyPayload(raw){
       if(!raw||typeof raw!=='object'||Array.isArray(raw)) throw new Error('Rodinný soubor nemá očekávaný formát.');
       if(raw.kind==='LifeHub partner share') raw=normalizeLegacyFamilyPayload(raw);
-      if(raw.kind!=='LifeHub family sync') throw new Error('Toto není rodinný synchronizační soubor LifeHubu.');
+      if(!['LifeHub family snapshot','LifeHub family sync'].includes(raw.kind)) throw new Error('Toto není podporovaný rodinný náhled LifeHubu.');
       const d=raw.data&&typeof raw.data==='object'&&!Array.isArray(raw.data)?raw.data:{};
       const hs=raw.householdSettings&&typeof raw.householdSettings==='object'?raw.householdSettings:{};
       const sanitized=sanitizeImportedState({
         settings:{foodBudget:hs.foodBudget,fuelBudget:hs.fuelBudget,savingGoal:hs.savingGoal,familySettingsUpdatedAt:hs.updatedAt},
         transactions:d.transactions,budgetEntries:d.budgetEntries,groceries:d.groceries,tasks:d.tasks,shopping:d.shopping,
-        installments:d.installments,householdPayments:d.householdPayments,gardenItems:d.gardenItems,gardenLogs:d.gardenLogs,
-        familyDeleted:raw.tombstones
+        installments:d.installments,householdPayments:d.householdPayments,gardenItems:d.gardenItems,gardenLogs:d.gardenLogs
       });
       const data={};
       FAMILY_COLLECTIONS.forEach(collection=>{ data[collection]=(sanitized[collection]||[]).filter(item=>item.shared!==false); });
       return {
-        kind:'LifeHub family sync',schema:Math.max(1,Math.round(number(raw.schema)||1)),version:textLimit(raw.version,30),
+        kind:'LifeHub family snapshot',schema:Math.max(1,Math.round(number(raw.schema)||1)),version:textLimit(raw.version,30),
         exportedAt:textLimit(raw.exportedAt,40)||new Date().toISOString(),
         owner:{id:textLimit(raw.owner?.id,80)||legacyFamilyId('member',raw.owner),name:textLimit(raw.owner?.name,60)||'Partner'},
         householdSettings:raw.householdSettings?{
           foodBudget:Math.max(0,number(hs.foodBudget)),fuelBudget:Math.max(0,number(hs.fuelBudget)),savingGoal:Math.max(0,number(hs.savingGoal)),
           updatedAt:textLimit(hs.updatedAt,40)||textLimit(raw.exportedAt,40)
         }:null,
-        data,tombstones:sanitized.familyDeleted||[]
+        data
       };
     }
     function partnerFromFamily(family,mergedAt=''){
@@ -2873,7 +3018,8 @@ Co chceš udělat teď?`,
             if(!replacement)return null;
             try{
               const family=sanitizeFamilyPayload(await decryptBackupObject(envelope,replacement));
-              state.settings.familyPassword=replacement;
+              if(replacement.length>=MIN_PASSWORD_LENGTH) state.settings.familyPassword=replacement;
+              else toast(`Starší krátké rodinné heslo soubor odemklo, ale nebylo uloženo. Pro další export nastavte heslo alespoň ${MIN_PASSWORD_LENGTH} znaků.`,'warn');
               save(false);
               await saveInFlight.catch(()=>{});
               renderFamilyPasswordStatus();
@@ -2885,14 +3031,15 @@ Co chceš udělat teď?`,
         if(!values) return null;
         try{
           const family=sanitizeFamilyPayload(await decryptBackupObject(envelope,values));
-          state.settings.familyPassword=values;
+          if(values.length>=MIN_PASSWORD_LENGTH) state.settings.familyPassword=values;
+          else toast(`Starší krátké rodinné heslo soubor odemklo, ale nebylo uloženo. Pro další export nastavte heslo alespoň ${MIN_PASSWORD_LENGTH} znaků.`,'warn');
           save(false);
           await saveInFlight.catch(()=>{});
           renderFamilyPasswordStatus();
           return family;
         }catch(err){ throw new Error('Soubor se nepodařilo odemknout. Zkontrolujte heslo a neporušenost souboru.'); }
       }
-      if(envelope?.kind==='LifeHub family sync'||envelope?.kind==='LifeHub partner share'){
+      if(['LifeHub family snapshot','LifeHub family sync','LifeHub partner share'].includes(envelope?.kind)){
         const ok=await confirmDialog('Tento starší rodinný soubor není šifrovaný. Načíst ho pouze kvůli kompatibilitě?',{title:'Nešifrovaný rodinný soubor',confirmText:'Načíst'});
         return ok?sanitizeFamilyPayload(envelope):null;
       }
