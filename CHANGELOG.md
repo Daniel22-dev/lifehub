@@ -1,5 +1,21 @@
 # Changelog
 
+## v4.6.1 – spolehlivé aktualizace PWA
+
+- detekce čekající nové verze,
+- bezpečné potvrzení aktualizace,
+- aktivace nového service workeru a jednorázové obnovení,
+- obcházení staré HTTP cache při kontrole aktualizací,
+- ochrana před restartem při neuložených změnách.
+
+## v4.6.0 – prémiové osobní rozhraní
+
+- nový dashboard s dnešním souhrnem úkolů, plateb, nákupního seznamu a záloh,
+- spodní mobilní navigace s přístupem ke všem modulům,
+- přepracovaná zamykací obrazovka a nová ikona aplikace,
+- kompaktnější bezpečnostní panel a sjednocená vizuální hierarchie,
+- klávesová zkratka Ctrl/Cmd + F otevře globální hledání.
+
 ## v4.5.2 – čistá mzda na první pohled
 
 - výplatní karty mají dominantní údaj **Čistá mzda**,

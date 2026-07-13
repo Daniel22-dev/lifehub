@@ -19,3 +19,19 @@ test('integrovaný manuál hlásí aktivitu a iframe je sandboxovaný', async ()
   assert.match(index,/sandbox="allow-scripts allow-same-origin allow-popups allow-modals"/);
   assert.match(index,/18 částí/);
 });
+
+test('PWA nabídne čekající aktualizaci a aktivuje ji až po potvrzení', async () => {
+  const [registration,sw,app]=await Promise.all([
+    readFile(new URL('../src/pwa/register-sw.js',import.meta.url),'utf8'),
+    readFile(new URL('../public/sw.js',import.meta.url),'utf8'),
+    readFile(new URL('../src/app/lifehub-app.js',import.meta.url),'utf8')
+  ]);
+  assert.match(registration,/updateViaCache:\s*'none'/);
+  assert.match(registration,/lifehub:update-ready/);
+  assert.match(registration,/controllerchange/);
+  assert.match(registration,/window\.location\.reload\(\)/);
+  assert.match(sw,/SKIP_WAITING/);
+  assert.match(sw,/self\.skipWaiting\(\)/);
+  assert.match(app,/Aktualizovat nyní/);
+  assert.match(app,/saveLifecycle\.blocksSafeLock/);
+});

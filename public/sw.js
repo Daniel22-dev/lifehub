@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lifehub-vite-shell-v4-5-4-whatsapp-share-1';
+const CACHE_NAME = 'lifehub-vite-shell-v4-6-1-update-1';
 const STATIC_SHELL = [
   './', './index.html', './manifest.json', './icon.svg', './icon-192.png', './icon-512.png',
   './vendor/pdf.min.mjs', './vendor/pdf.worker.min.mjs', './manual.html'
@@ -23,6 +23,10 @@ self.addEventListener('install', event => {
     const assets = await discoverBuildAssets();
     await cache.addAll([...STATIC_SHELL, ...assets]);
   })());
+});
+
+self.addEventListener('message', event => {
+  if(event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {

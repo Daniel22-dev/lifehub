@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#20134d">
+  <meta name="theme-color" content="#11152f">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'none'; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
-  <title>LifeHub 4.5.4 | osobní šifrovaný trezor</title>
+  <title>LifeHub 4.6.1 | osobní digitální centrum</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./icon-192.png">
@@ -14,10 +14,10 @@
   <div class="app">
     <header class="topbar">
       <div class="brand">
-        <div class="brand-mark">LH</div>
+        <div class="brand-mark" aria-hidden="true"><span>LH</span></div>
         <div class="brand-copy">
-          <h1>LifeHub <span id="appTitleVersion">4.0</span></h1>
-          <p>Poznámky • finance • šifrovaný trezor</p>
+          <h1>LifeHub <span id="appTitleVersion">4.6.1</span></h1>
+          <p>Soukromé centrum · offline · šifrované</p>
         </div>
       </div>
       <div class="save-status-row">
@@ -38,7 +38,7 @@
     </div>
 
     <div class="layout">
-      <aside class="sidebar">
+      <aside class="sidebar" id="primarySidebar">
         <nav class="nav" aria-label="Hlavní navigace">
           <div class="nav-group-label">Hlavní</div>
           <button class="active" data-tab="dashboard" type="button"><span class="emoji">🏠</span><span class="label">Přehled</span></button>
@@ -72,60 +72,68 @@
       <main class="content">
         <section class="view active" id="dashboard">
           <div class="hero">
+            <div class="hero-orbit" aria-hidden="true"><span></span><span></span><span></span></div>
             <div class="hero-grid">
-              <div>
-                <p class="eyebrow">Osobní pracovní paměť</p>
+              <div class="hero-copy">
+                <p class="eyebrow">Osobní řídicí centrum</p>
                 <h2 id="dashGreeting">Vítej v LifeHubu</h2>
-                <p>Jedno barevné centrum pro poznámky z AI, finance, výplatní pásky, splátky, dokumenty, úkoly i nákupy. Vše běží jako statická aplikace vhodná pro GitHub Pages.</p>
+                <p class="hero-lead">Tvůj soukromý prostor pro každodenní rozhodování — finance, úkoly, nákupy, dokumenty, poznámky i rodinné sdílení na jednom místě.</p>
+                <div class="hero-meta" aria-label="Stav aplikace">
+                  <span id="dashDate">Dnešní datum</span>
+                  <span>🔐 Data zůstávají v zařízení</span>
+                  <span>⚡ Funguje i bez internetu</span>
+                </div>
                 <div class="quick-title">Rychlé přidání</div>
                 <div class="quick-actions">
-                  <button class="quick-btn" data-quick="task" type="button"><span class="q-emoji">✅</span> Nový úkol</button>
-                  <button class="quick-btn" data-quick="grocery" type="button"><span class="q-emoji">🛒</span> Nákupní seznam</button>
-                  <button class="quick-btn" data-quick="budget" type="button"><span class="q-emoji">⛽</span> Jídlo / benzín</button>
-                  <button class="quick-btn" data-quick="shopping" type="button"><span class="q-emoji">🏠</span> Velký nákup</button>
-                  <button class="quick-btn" data-quick="trans" type="button"><span class="q-emoji">💸</span> Příjem / výdaj</button>
-                  <button class="quick-btn" data-quick="note" type="button"><span class="q-emoji">🧠</span> Nová poznámka</button>
-                  <button class="quick-btn" data-quick="installment" type="button"><span class="q-emoji">📆</span> Nová splátka</button>
+                  <button class="quick-btn" data-quick="task" type="button"><span class="q-emoji">✅</span><span>Nový úkol</span></button>
+                  <button class="quick-btn" data-quick="grocery" type="button"><span class="q-emoji">🛒</span><span>Nákupní seznam</span></button>
+                  <button class="quick-btn" data-quick="budget" type="button"><span class="q-emoji">⛽</span><span>Jídlo / benzín</span></button>
+                  <button class="quick-btn" data-quick="trans" type="button"><span class="q-emoji">💸</span><span>Příjem / výdaj</span></button>
+                  <button class="quick-btn" data-quick="note" type="button"><span class="q-emoji">🧠</span><span>Nová poznámka</span></button>
+                  <button class="quick-btn" data-quick="installment" type="button"><span class="q-emoji">📆</span><span>Nová splátka</span></button>
                 </div>
               </div>
-              <div class="hero-actions">
-                <button class="btn secondary" data-jump="finance" type="button">Načíst výplatní pásku</button>
-                <button class="btn" data-jump="vault" type="button">Uložit dokument</button>
-                <button class="btn ok" data-action="export-complete-backup" type="button">Kompletní záloha</button><button class="btn secondary" data-action="export-encrypted-json" type="button">Datová záloha</button>
-              </div>
+              <aside class="hero-command" aria-label="Hlavní akce">
+                <div class="hero-command-head">
+                  <div class="command-orb" aria-hidden="true">◆</div>
+                  <div><span>Soukromý trezor</span><strong>Připraven k práci</strong></div>
+                </div>
+                <p>Nejdůležitější akce máš po ruce, ale nezahlcují hlavní přehled.</p>
+                <div class="hero-command-actions">
+                  <button class="btn primary" data-quick="task" type="button">Přidat dnešní úkol</button>
+                  <button class="btn secondary" data-jump="finance" type="button">Otevřít finance</button>
+                  <button class="btn" data-jump="vault" type="button">Uložit dokument</button>
+                  <button class="btn ok" data-action="export-complete-backup" type="button">Kompletní záloha</button>
+                </div>
+              </aside>
             </div>
           </div>
-          <article class="panel" id="securityPanel"></article>
+
+          <div class="focus-strip" id="dashboardFocus" aria-label="Dnešní souhrn"></div>
           <div class="kpis" id="dashboardKpis"></div>
-          <div class="grid two">
-            <article class="panel">
+
+          <div class="grid two dashboard-main-grid">
+            <article class="panel chart-panel">
               <div class="panel-head">
-                <div>
-                  <p class="eyebrow">Finance</p>
-                  <h3>Roční bilance</h3>
-                </div>
+                <div><p class="eyebrow">Finance</p><h3>Roční bilance</h3></div>
                 <input id="dashYear" type="number" min="2000" max="2100" class="control-max-130" title="Rok">
               </div>
               <div class="chart" id="dashboardFinanceChart"></div>
             </article>
-            <article class="panel">
-              <div class="panel-head">
-                <div>
-                  <p class="eyebrow">Priority</p>
-                  <h3>Úkoly a nákupy podle naléhavosti</h3>
-                </div>
-              </div>
+            <article class="panel priority-panel">
+              <div class="panel-head"><div><p class="eyebrow">Priority</p><h3>Co právě vyžaduje pozornost</h3></div></div>
               <div id="priorityBars" class="bar-list"></div>
             </article>
           </div>
-          <article class="panel">
+
+          <article class="panel security-summary-panel" id="securityPanel"></article>
+
+          <article class="panel search-panel">
             <div class="panel-head">
-              <div>
-                <p class="eyebrow">Hledání</p>
-                <h3>Najít informaci napříč aplikací</h3>
-              </div>
+              <div><p class="eyebrow">Chytré hledání</p><h3>Najít informaci napříč LifeHubem</h3></div>
+              <span class="search-shortcut" aria-hidden="true">⌘ / Ctrl + F</span>
             </div>
-            <input id="globalSearch" type="search" placeholder="Např. maturita, sleva na poplatníka, Notion, cestování…">
+            <div class="search-shell"><span aria-hidden="true">⌕</span><input id="globalSearch" type="search" placeholder="Např. maturita, pojištění, dovolená, faktura…"></div>
             <div id="globalResults" class="search-results"></div>
           </article>
         </section>
@@ -1039,26 +1047,47 @@
     </div>
   </div>
 
+  <div class="mobile-nav-backdrop" id="mobileNavBackdrop" aria-hidden="true"></div>
+  <nav class="mobile-dock" aria-label="Rychlá mobilní navigace">
+    <button class="active" data-tab="dashboard" type="button"><span>⌂</span><small>Přehled</small></button>
+    <button data-tab="tasks" type="button"><span>✓</span><small>Úkoly</small></button>
+    <button data-tab="finance" type="button"><span>₭</span><small>Finance</small></button>
+    <button data-tab="groceries" type="button"><span>🛒</span><small>Nákup</small></button>
+    <button id="mobileMoreBtn" type="button" aria-expanded="false" aria-controls="primarySidebar"><span>•••</span><small>Více</small></button>
+  </nav>
+
   <button class="fab" id="fab" type="button" hidden aria-label="Rychlé přidání"><span class="fab-label" id="fabLabel"></span>+</button>
 
   <div class="lock-screen active" id="lockScreen" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
     <div class="lock-card">
-      <p class="eyebrow">LifeHub <span id="lockVersion">4.0</span> secure vault</p>
-      <h2 id="lockTitle">Odemknout šifrovaný LifeHub</h2>
-      <p id="lockIntro">Data aplikace jsou chráněná heslem. Bez hesla se lokální poznámky, finance ani dokumenty nenačtou.</p>
-      <div class="lock-note" id="lockNote">Při prvním spuštění si nastavíte heslo. Starší nešifrovaná data z LifeHub 2.x lze jednorázově převést do šifrovaného úložiště.</div>
-      <form id="lockForm" autocomplete="off">
-        <div class="lock-grid">
-          <label>Heslo<input id="lockPassword" type="password" autocomplete="current-password" minlength="14" required placeholder="Minimálně 14 znaků"></label>
-          <label id="lockRepeatWrap">Zopakovat heslo<input id="lockPasswordRepeat" type="password" autocomplete="new-password" minlength="14" placeholder="Jen při založení trezoru"></label>
+      <div class="lock-visual" aria-hidden="true">
+        <div class="vault-emblem"><span>LH</span><i></i><i></i><i></i></div>
+        <p class="lock-visual-kicker">LifeHub Secure</p>
+        <h2>Tvůj život.<br>Jedno soukromé centrum.</h2>
+        <div class="lock-trust-list">
+          <span>✓ šifrování AES-GCM</span>
+          <span>✓ data lokálně v zařízení</span>
+          <span>✓ provoz bez cloudu</span>
         </div>
-        <label class="checkline check-strong" id="lockRememberWrap"><input id="lockMigrateLegacy" type="checkbox" checked>Převést starší nešifrovaná data, pokud existují</label>
-        <div class="lock-actions">
-          <button class="btn primary" id="unlockBtn" type="submit">Odemknout</button>
-          <button class="btn danger" id="wipeEncryptedBtn" type="button">Nouzově smazat šifrovaný trezor</button>
-        </div>
-        <div class="lock-status" id="lockStatus"></div>
-      </form>
+      </div>
+      <div class="lock-content">
+        <p class="eyebrow">LifeHub <span id="lockVersion">4.6.1</span></p>
+        <h2 id="lockTitle">Odemknout LifeHub</h2>
+        <p id="lockIntro">Zadej své heslo. Poznámky, finance ani dokumenty se před odemčením nenačtou.</p>
+        <div class="lock-note" id="lockNote">Při prvním spuštění si nastavíš bezpečné heslo. Starší data lze jednorázově převést do šifrovaného úložiště.</div>
+        <form id="lockForm" autocomplete="off">
+          <div class="lock-grid">
+            <label>Heslo<input id="lockPassword" type="password" autocomplete="current-password" minlength="14" required placeholder="Minimálně 14 znaků"></label>
+            <label id="lockRepeatWrap">Zopakovat heslo<input id="lockPasswordRepeat" type="password" autocomplete="new-password" minlength="14" placeholder="Jen při založení trezoru"></label>
+          </div>
+          <label class="checkline check-strong" id="lockRememberWrap"><input id="lockMigrateLegacy" type="checkbox" checked>Převést starší nešifrovaná data, pokud existují</label>
+          <div class="lock-actions">
+            <button class="btn primary" id="unlockBtn" type="submit">Odemknout LifeHub</button>
+            <button class="btn danger" id="wipeEncryptedBtn" type="button">Nouzově smazat trezor</button>
+          </div>
+          <div class="lock-status" id="lockStatus"></div>
+        </form>
+      </div>
     </div>
   </div>
 

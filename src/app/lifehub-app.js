@@ -389,7 +389,7 @@ export function bootLifeHub(){
     function setTheme(theme){
       state.settings.theme = theme;
       document.documentElement.dataset.theme = theme;
-      document.querySelector('meta[name="theme-color"]').setAttribute('content', theme==='dark'?'#20134d':'#f7f2ff');
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', theme==='dark'?'#11152f':'#f5f7ff');
       $('#themeBtn').textContent = theme==='dark' ? '☀︎' : '☾';
     }
     async function init(){
@@ -422,6 +422,9 @@ export function bootLifeHub(){
     }
     function bind(){
       $$('.nav button').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
+      $$('.mobile-dock [data-tab]').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
+      $('#mobileMoreBtn')?.addEventListener('click',toggleMobileNav);
+      $('#mobileNavBackdrop')?.addEventListener('click',closeMobileNav);
       document.addEventListener('click', handleActions);
       $('#themeBtn').addEventListener('click',()=>{setTheme(state.settings.theme==='dark'?'light':'dark'); save(false);});
       $('#manualBtn')?.addEventListener('click',()=>showTab('help'));
@@ -440,6 +443,14 @@ export function bootLifeHub(){
       window.addEventListener('beforeunload',event=>{ if(pendingSaveCount>0 || saveLifecycle.blocksSafeLock){ event.preventDefault(); event.returnValue=''; } });
       window.addEventListener('message',event=>{ if(event.origin===location.origin && event.data?.type==='lifehub-manual-activity') markActivity(); });
       document.addEventListener('keydown',trapLockFocus);
+      document.addEventListener('keydown',event=>{
+        if(event.key==='Escape') closeMobileNav();
+        if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='f'&&appReady){
+          event.preventDefault();
+          showTab('dashboard');
+          setTimeout(()=>$('#globalSearch')?.focus(),80);
+        }
+      });
       $('#fullscreenBtn').addEventListener('click',toggleFullscreen);
       $('#noteForm').addEventListener('submit', saveNote);
       $('#resetNote').addEventListener('click', resetNoteForm);
@@ -522,9 +533,27 @@ export function bootLifeHub(){
       $('#verifyBackupFile')?.addEventListener('change',verifyBackupFile);
       $('#copyMarkdown').addEventListener('click',()=>navigator.clipboard?.writeText(buildMarkdown()).then(()=>toast('Markdown zkopírován.')).catch(()=>toast('Kopírování se nepovedlo.', 'bad')));
     }
+    function closeMobileNav(){
+      document.body.classList.remove('mobile-nav-open');
+      $('#mobileMoreBtn')?.setAttribute('aria-expanded','false');
+      $('#mobileNavBackdrop')?.setAttribute('aria-hidden','true');
+    }
+    function toggleMobileNav(){
+      const open=!document.body.classList.contains('mobile-nav-open');
+      document.body.classList.toggle('mobile-nav-open',open);
+      $('#mobileMoreBtn')?.setAttribute('aria-expanded',String(open));
+      $('#mobileNavBackdrop')?.setAttribute('aria-hidden',String(!open));
+    }
+    function syncMobileDock(id){
+      const primaryTabs=new Set(['dashboard','tasks','finance','groceries']);
+      $$('.mobile-dock [data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));
+      $('#mobileMoreBtn')?.classList.toggle('active',!primaryTabs.has(id));
+    }
     function showTab(id){
       $$('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));
       $$('.view').forEach(v=>v.classList.toggle('active',v.id===id));
+      syncMobileDock(id);
+      closeMobileNav();
       window.scrollTo({top:0,behavior:'smooth'});
       if(id==='exports') $('#markdownPreview').textContent = buildMarkdown();
       updateFab(id);
@@ -682,7 +711,7 @@ export function bootLifeHub(){
       await loadEncryptedStateEnvelope();
       const screen = $('#lockScreen');
       if(!window.crypto?.subtle){
-        $('#lockStatus').textContent = 'Web Crypto API není dostupné. LifeHub 4.0 vyžaduje moderní prohlížeč a bezpečný kontext.';
+        $('#lockStatus').textContent = `Web Crypto API není dostupné. LifeHub ${SHORT_VERSION} vyžaduje moderní prohlížeč a bezpečný kontext.`;
         return;
       }
       screen?.classList.add('active');
@@ -994,6 +1023,9 @@ export function bootLifeHub(){
       renderSecurityPanel();
       const who = (state.settings.greetName||'').trim();
       const greetEl = $('#dashGreeting'); if(greetEl) greetEl.textContent = `${greeting()}${who?', '+who:''}!`;
+      const dateEl = $('#dashDate');
+      if(dateEl) dateEl.textContent = new Date().toLocaleDateString('cs-CZ',{weekday:'long',day:'numeric',month:'long'});
+      renderDashboardFocus();
       const month = $('#financeMonth')?.value || monthNow();
       const year = Number($('#dashYear')?.value || currentYear());
       const m = monthSummary(month);
@@ -1010,6 +1042,35 @@ export function bootLifeHub(){
       renderPriorityBars();
       renderGlobalSearch();
     }
+    function renderDashboardFocus(){
+      const box=$('#dashboardFocus'); if(!box) return;
+      const todayIso=today();
+      const soonDate=new Date(); soonDate.setDate(soonDate.getDate()+7);
+      const soonIso=soonDate.toISOString().slice(0,10);
+      const dueTasks=state.tasks.filter(t=>!t.done&&t.due&&t.due<=todayIso);
+      const overdueTasks=dueTasks.filter(t=>t.due<todayIso);
+      const duePayments=state.householdPayments.filter(p=>!p.automatic&&p.status!=='paid'&&p.dueDate&&p.dueDate<=soonIso);
+      const groceryOpen=state.groceries.filter(g=>!g.done).length;
+      const backupRaw=state.settings.lastCompleteBackupAt||'';
+      let backupValue='Chybí'; let backupSub='Vytvořit první kompletní zálohu'; let backupTone='warn';
+      if(backupRaw){
+        const stamp=new Date(backupRaw).getTime();
+        if(Number.isFinite(stamp)){
+          const diff=Math.max(0,Math.floor((Date.now()-stamp)/86400000));
+          backupValue=diff===0?'Dnes':diff===1?'Včera':`Před ${diff} dny`;
+          backupSub=diff<=7?'Záloha je aktuální':'Doporučena nová záloha';
+          backupTone=diff<=7?'good':'warn';
+        }
+      }
+      const cards=[
+        {icon:'✓',label:'Úkoly k řešení',value:String(dueTasks.length),sub:overdueTasks.length?`${overdueTasks.length} po termínu`:'Dnes nic nehoří',tab:'tasks',tone:overdueTasks.length?'bad':'good'},
+        {icon:'₭',label:'Platby do 7 dní',value:String(duePayments.length),sub:duePayments.length?fmt(duePayments.reduce((sum,p)=>sum+number(p.amount),0)):'Bez ručních plateb',tab:'payments',tone:duePayments.some(p=>p.dueDate<todayIso)?'bad':'neutral'},
+        {icon:'🛒',label:'Nákupní seznam',value:String(groceryOpen),sub:groceryOpen?'Položek zbývá koupit':'Seznam je prázdný',tab:'groceries',tone:'neutral'},
+        {icon:'⬡',label:'Kompletní záloha',value:backupValue,sub:backupSub,tab:'exports',tone:backupTone}
+      ];
+      box.innerHTML=cards.map(card=>`<button class="focus-card ${card.tone}" data-jump="${attr(card.tab)}" type="button"><span class="focus-icon" aria-hidden="true">${esc(card.icon)}</span><span class="focus-copy"><small>${esc(card.label)}</small><strong>${esc(card.value)}</strong><em>${esc(card.sub)}</em></span><span class="focus-arrow" aria-hidden="true">→</span></button>`).join('');
+    }
+
     function kpi(label,value,sub=''){return kpiText(label,value,sub);}
     function kpiText(label,value,sub=''){return `<div class="kpi"><div class="label">${esc(label)}</div><div class="value">${esc(value)}</div><div class="sub">${esc(sub)}</div></div>`}
     function kpiHtml(label,trustedHtml,sub=''){return `<div class="kpi"><div class="label">${esc(label)}</div><div class="value">${trustedHtml}</div><div class="sub">${esc(sub)}</div></div>`}
@@ -1040,7 +1101,8 @@ export function bootLifeHub(){
         [`${csp?'✅':'⚠️'} CSP`, csp ? 'Je nastavena základní Content Security Policy.' : 'Chybí Content Security Policy.'],
         [`${externalPdf?'⚠️':'✅'} PDF.js`, pdfLazy ? 'PDF.js se načte až při importu PDF z lokální vendor kopie; CDN fallback je odstraněn.' : (externalPdf ? 'PDF.js byl načten z externího zdroje, což by nemělo nastat.' : 'PDF.js byl načten z lokální kopie.')]
       ];
-      panel.innerHTML = `<div class="panel-head"><div><p class="eyebrow">Bezpečnostní stav</p><h3>Šifrovaný LifeHub ${esc(VERSION)}</h3><p>Stav aplikace a nově uložené soubory jsou po odemčení chráněné heslem. Pro přenos mezi telefonem a PC použij kompletní šifrovanou zálohu.</p></div><div class="actions"><button class="btn ok" data-action="export-complete-backup" type="button">Kompletní záloha</button><button class="btn secondary" data-action="export-encrypted-json" type="button">Datová záloha</button><button class="btn" data-action="lock-app" type="button">Zamknout</button></div></div><div class="security-list">${items.map(([h,t])=>`<div class="security-item"><strong>${esc(h)}</strong><span class="small">${esc(t)}</span></div>`).join('')}</div>`;
+      const backupLabel=state.settings.lastCompleteBackupAt?fmtDate(state.settings.lastCompleteBackupAt):'zatím nevytvořena';
+      panel.innerHTML = `<div class="security-summary-head"><div class="security-summary-title"><span class="security-shield" aria-hidden="true">◆</span><div><p class="eyebrow">Soukromí a bezpečnost</p><h3>LifeHub je odemčený a chráněný</h3><p>Kompletní záloha: <strong>${esc(backupLabel)}</strong></p></div></div><div class="actions security-actions"><button class="btn ok" data-action="export-complete-backup" type="button">Vytvořit zálohu</button><button class="btn" data-action="lock-app" type="button">Zamknout</button></div></div><div class="security-highlight-list">${items.slice(0,3).map(([h,t])=>`<div class="security-highlight"><strong>${esc(h)}</strong><span>${esc(t)}</span></div>`).join('')}</div><details class="security-details"><summary>Technické podrobnosti zabezpečení</summary><div class="security-list">${items.slice(3).map(([h,t])=>`<div class="security-item"><strong>${esc(h)}</strong><span class="small">${esc(t)}</span></div>`).join('')}</div></details>`;
     }
     function renderPriorityBars(){
       const openTasks = state.tasks.filter(t=>!t.done);
@@ -2412,6 +2474,7 @@ Poslední pojistka: pro potvrzení importu napiš ${word}.`,
     function saveSettings(e){e.preventDefault(); state.settings.greetName=$('#greetName').value.trim(); state.settings.deviceName=$('#deviceName').value.trim(); state.settings.ownerName=$('#ownerName').value.trim(); state.settings.ownerFooter=$('#ownerFooter').value.trim(); state.settings.currency=sanitizeCurrency($('#currency').value); state.settings.savingGoal=number($('#savingGoal').value); state.settings.privateNotifications=$('#privateNotifications')?.checked!==false; state.settings.familySettingsUpdatedAt=new Date().toISOString(); save(); toast('Nastavení uloženo.');}
     // Krátký changelog (nejnovější nahoře, drž ~5 položek). Zobrazí se klepnutím na verzi v patičce.
     const CHANGELOG = [
+      'v4.6.1 · Spolehlivé aktualizace PWA: nový osobní dashboard, dnešní souhrn, mobilní spodní navigace, kompaktní bezpečnostní panel a přepracované odemknutí.',
       'v4.5.4 · Oprava přímého sdílení přes WhatsApp na Androidu: při systémovém sdílení se používá bezpečný textový obal .lifehub-family.txt, který WhatsApp přijímá; stažená záloha zůstává .lifehub-family.',
       'v4.5.3 · Spolehlivější rodinné sdílení na Androidu: přímá systémová nabídka Sdílet přes…, vlastní přípona .lifehub-family a obecný typ souboru místo JSON.',
       'v4.5.2 · Přehlednější výplatní pásky: dominantní čistá mzda, samostatná částka na účet a méně rušivých technických údajů.',
@@ -2528,11 +2591,11 @@ Co chceš udělat teď?`,
       ok('Content Security Policy', document.querySelector('meta[http-equiv="Content-Security-Policy"]')?'Základní CSP je nastavena.':'CSP meta tag chybí.', !!document.querySelector('meta[http-equiv="Content-Security-Policy"]'));
       ok('Externí skripty', pdfJsSource==='cdn'?'PDF.js byl načten z CDN, což je chyba konfigurace.':'Při startu se nenačítá žádný externí CDN skript; PDF.js je lokální lazy-load.', pdfJsSource!=='cdn');
       ok('Šifrované úložiště', vaultKey && appReady ? 'Aplikace je odemčená a šifrované ukládání je aktivní.' : 'Aplikace není v odemčeném režimu.', !!vaultKey && appReady);
-      ok('Web Crypto API', window.crypto?.subtle?'Web Crypto API je dostupné pro šifrování stavu, souborů i záloh.':'Web Crypto API není dostupné; LifeHub 4.0 nebude fungovat bezpečně.', !!window.crypto?.subtle);
+      ok('Web Crypto API', window.crypto?.subtle?'Web Crypto API je dostupné pro šifrování stavu, souborů i záloh.':`Web Crypto API není dostupné; LifeHub ${SHORT_VERSION} nebude fungovat bezpečně.`, !!window.crypto?.subtle);
       ok('Dialogy aplikace','Potvrzení a hesla používají vlastní modální dialogy místo nativních prompt/confirm, takže jsou použitelné i testovatelné na mobilu.', true);
       const bytes=new Blob([JSON.stringify(state)]).size; ok('Velikost JSON dat', `${(bytes/1024).toFixed(1)} kB v localStorage.`);
       ok('Počty položek', `${state.notes.length} poznámek, ${state.transactions.length} transakcí, ${state.payrolls.length} pásek, ${state.documents.length} dokumentů, ${state.tasks.length} úkolů, ${state.shopping.length} nákupů.`);
-      ok('Citlivý obsah', `${state.payrolls.filter(p=>p.rawText).length} uložených raw textů z PDF, ${state.payrolls.filter(p=>p.storedPdf).length} uložených PDF pásek, ${state.documents.length} dokumentů v archivu. V LifeHub 4.0 se ukládají šifrovaně po odemčení.`, true);
+      ok('Citlivý obsah', `${state.payrolls.filter(p=>p.rawText).length} uložených raw textů z PDF, ${state.payrolls.filter(p=>p.storedPdf).length} uložených PDF pásek, ${state.documents.length} dokumentů v archivu. V LifeHub ${SHORT_VERSION} se ukládají šifrovaně po odemčení.`, true);
       $('#diagnostics').innerHTML=rows.join('');
     }
     async function seedDemo(){
@@ -3498,7 +3561,32 @@ Pokračovat ve vytvoření šifrovaného souboru?`,{title:'Obsah rodinného soub
 
     function fmtDate(iso){ try{ return new Date(iso).toLocaleDateString('cs-CZ',{day:'numeric',month:'long',year:'numeric'}); }catch(e){ return ''; } }
     function empty(text){return `<div class="empty">${esc(text)}</div>`;}
-    function registerSW(){ registerServiceWorker('./sw.js'); }
+    let updatePromptOpen = false;
+    async function handleUpdateReady(event){
+      const activate = event.detail?.activate;
+      if(typeof activate !== 'function' || updatePromptOpen) return;
+      if(pendingSaveCount > 0 || saveLifecycle.blocksSafeLock){
+        toast('Nová verze LifeHubu je připravena. Dokončete nejprve bezpečné uložení změn.', 'warn');
+        return;
+      }
+      updatePromptOpen = true;
+      try{
+        const accepted = await confirmDialog(
+          'Nová verze LifeHubu je připravena. Aplikace se bezpečně obnoví; uložená data ani PIN se nezmění.',
+          {title:'Aktualizace LifeHubu', confirmText:'Aktualizovat nyní', cancelText:'Později'}
+        );
+        if(!accepted) return;
+        closeAllModals();
+        toast('Aktualizuji LifeHub…', 'good');
+        activate();
+      }finally{
+        updatePromptOpen = false;
+      }
+    }
+    function registerSW(){
+      window.addEventListener('lifehub:update-ready', handleUpdateReady);
+      registerServiceWorker('./sw.js');
+    }
     init().catch(error => {
       console.error('LifeHub se nepodařilo spustit.', error);
       const screen = $('#lockScreen');
