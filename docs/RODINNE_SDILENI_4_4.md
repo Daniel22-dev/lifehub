@@ -1,4 +1,4 @@
-# Rodinný náhled v LifeHubu 4.5.2
+# Rodinný náhled v LifeHubu 4.5.3
 
 ## Základní princip
 
@@ -26,6 +26,13 @@ Poznámky, dokumenty, PDF, výplatní pásky, AI výkaz, odměny a přehled apli
 5. Další exporty a načtení probíhají bez zadávání hesla. Novější soubor nahradí předchozí náhled.
 
 Automatické zamknutí LifeHubu po 15 minutách rodinné heslo nemaže. Po odemčení hlavního trezoru je opět dostupné. V Nastavení ho lze změnit nebo odstranit.
+
+
+## Předání přes WhatsApp na Androidu
+
+Při vytváření souboru na telefonu zvolte **Sdílet přes…** a potom WhatsApp. LifeHub soubor posílá s vlastní příponou `.lifehub-family` jako obecný šifrovaný dokument, nikoli jako JSON určený k otevření v editoru.
+
+Příjemce soubor v WhatsAppu **neotevírá**. Po jeho stažení otevře LifeHub a zvolí **Rodina → Načíst rodinný soubor**. V systémovém výběru souborů bývá dokument v části **Nedávné** nebo **WhatsApp Documents**. Na novějších Androidech je fyzicky obvykle uložen ve složce `Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Documents`.
 
 ## Co příjemce nemůže dělat
 

@@ -2412,6 +2412,7 @@ Poslední pojistka: pro potvrzení importu napiš ${word}.`,
     function saveSettings(e){e.preventDefault(); state.settings.greetName=$('#greetName').value.trim(); state.settings.deviceName=$('#deviceName').value.trim(); state.settings.ownerName=$('#ownerName').value.trim(); state.settings.ownerFooter=$('#ownerFooter').value.trim(); state.settings.currency=sanitizeCurrency($('#currency').value); state.settings.savingGoal=number($('#savingGoal').value); state.settings.privateNotifications=$('#privateNotifications')?.checked!==false; state.settings.familySettingsUpdatedAt=new Date().toISOString(); save(); toast('Nastavení uloženo.');}
     // Krátký changelog (nejnovější nahoře, drž ~5 položek). Zobrazí se klepnutím na verzi v patičce.
     const CHANGELOG = [
+      'v4.5.3 · Spolehlivější rodinné sdílení na Androidu: přímá systémová nabídka Sdílet přes…, vlastní přípona .lifehub-family a obecný typ souboru místo JSON.',
       'v4.5.2 · Přehlednější výplatní pásky: dominantní čistá mzda, samostatná částka na účet a méně rušivých technických údajů.',
       'v4.5.1 · Čistší mobilní navigace bez duplicitních názvů kategorií, přehlednější horní lišta, srozumitelnější splátky, automatické platby, hromadný import pásek a chytré hromadné nákupy.',
       'v4.4.1 · Opravena kritická regresní chyba startu: aplikace znovu rozpozná původní trezor, bezpečně dokončí migraci z localStorage do IndexedDB a při chybě úložiště už nikdy nenabídne založení nového trezoru.',
@@ -3192,6 +3193,52 @@ Co chceš udělat teď?`,
       const name=(state.settings.greetName||'').trim()||reportOwner().name;
       return buildFamilySnapshot({state,version:VERSION,ownerId:state.settings.familyMemberId,ownerName:name});
     }
+    async function deliverPartnerShareFile(encrypted){
+      const fileName=`lifehub-rodina-${today()}.lifehub-family`;
+      const content=JSON.stringify(encrypted,null,2);
+      const mime='application/octet-stream';
+      const blob=new Blob([content],{type:mime});
+      let shareFile=null;
+      try{ shareFile=new File([blob],fileName,{type:mime,lastModified:Date.now()}); }
+      catch(err){ console.warn('Prohlížeč neumí vytvořit sdílený File objekt.',err); }
+
+      let canShare=false;
+      try{
+        canShare=!!shareFile && typeof navigator.share==='function' &&
+          (typeof navigator.canShare!=='function' || navigator.canShare({files:[shareFile]}));
+      }catch(err){ console.warn('Kontrola systémového sdílení selhala.',err); }
+
+      if(canShare){
+        const action=await choiceDialog({
+          title:'Rodinný soubor je připraven',
+          message:'Na telefonu doporučujeme zvolit Sdílet přes… a následně WhatsApp. Soubor se odešle jako obecný šifrovaný dokument, takže se příjemci nebude nabízet ChatGPT ani editor JSON.',
+          choices:[
+            {value:'share',text:'Sdílet přes…',className:'btn primary',autofocus:true},
+            {value:'download',text:'Stáhnout do zařízení',className:'btn'},
+            {value:null,text:'Zrušit',className:'btn'}
+          ]
+        });
+        if(!action) return false;
+        if(action==='share'){
+          try{
+            await navigator.share({title:'LifeHub – rodinný soubor',files:[shareFile]});
+            toast('Šifrovaný rodinný soubor byl předán systémové nabídce sdílení.','good');
+            return true;
+          }catch(err){
+            if(err?.name==='AbortError') return false;
+            console.warn('Systémové sdílení selhalo, používám stažení.',err);
+            download(fileName,blob,mime);
+            toast('Systémové sdílení se nepodařilo, proto byl soubor stažen do zařízení.','warn');
+            return true;
+          }
+        }
+      }
+
+      download(fileName,blob,mime);
+      toast('Šifrovaný rodinný soubor byl stažen do zařízení.','good');
+      return true;
+    }
+
     async function exportPartnerShare(){
       try{
         if(!await ensureFamilyIdentity()){
@@ -3215,8 +3262,7 @@ Pokračovat ve vytvoření šifrovaného souboru?`,{title:'Obsah rodinného soub
         const encrypted=await encryptBackupObject(payload,credentials,VERSION);
         encrypted.contentType='family-snapshot';
         encrypted.familySchema=3;
-        download(`lifehub-rodina-${today()}.lifehub-family`,JSON.stringify(encrypted,null,2),'application/json;charset=utf-8');
-        toast('Šifrovaný rodinný soubor byl vytvořen pomocí uloženého rodinného hesla.','good');
+        await deliverPartnerShareFile(encrypted);
       }catch(err){ console.error(err); toast('Rodinný soubor se nepodařilo vytvořit: '+(err.message||err),'bad'); }
     }
     function normalizeLegacyFamilyPayload(raw){
