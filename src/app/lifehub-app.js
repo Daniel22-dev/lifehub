@@ -2412,6 +2412,7 @@ Poslední pojistka: pro potvrzení importu napiš ${word}.`,
     function saveSettings(e){e.preventDefault(); state.settings.greetName=$('#greetName').value.trim(); state.settings.deviceName=$('#deviceName').value.trim(); state.settings.ownerName=$('#ownerName').value.trim(); state.settings.ownerFooter=$('#ownerFooter').value.trim(); state.settings.currency=sanitizeCurrency($('#currency').value); state.settings.savingGoal=number($('#savingGoal').value); state.settings.privateNotifications=$('#privateNotifications')?.checked!==false; state.settings.familySettingsUpdatedAt=new Date().toISOString(); save(); toast('Nastavení uloženo.');}
     // Krátký changelog (nejnovější nahoře, drž ~5 položek). Zobrazí se klepnutím na verzi v patičce.
     const CHANGELOG = [
+      'v4.5.4 · Oprava přímého sdílení přes WhatsApp na Androidu: při systémovém sdílení se používá bezpečný textový obal .lifehub-family.txt, který WhatsApp přijímá; stažená záloha zůstává .lifehub-family.',
       'v4.5.3 · Spolehlivější rodinné sdílení na Androidu: přímá systémová nabídka Sdílet přes…, vlastní přípona .lifehub-family a obecný typ souboru místo JSON.',
       'v4.5.2 · Přehlednější výplatní pásky: dominantní čistá mzda, samostatná částka na účet a méně rušivých technických údajů.',
       'v4.5.1 · Čistší mobilní navigace bez duplicitních názvů kategorií, přehlednější horní lišta, srozumitelnější splátky, automatické platby, hromadný import pásek a chytré hromadné nákupy.',
@@ -3194,26 +3195,35 @@ Co chceš udělat teď?`,
       return buildFamilySnapshot({state,version:VERSION,ownerId:state.settings.familyMemberId,ownerName:name});
     }
     async function deliverPartnerShareFile(encrypted){
-      const fileName=`lifehub-rodina-${today()}.lifehub-family`;
+      const baseName=`lifehub-rodina-${today()}`;
+      const downloadFileName=`${baseName}.lifehub-family`;
+      const shareFileName=`${baseName}.lifehub-family.txt`;
       const content=JSON.stringify(encrypted,null,2);
-      const mime='application/octet-stream';
-      const blob=new Blob([content],{type:mime});
+      const downloadMime='application/octet-stream';
+      const shareMime='text/plain;charset=utf-8';
+      const downloadBlob=new Blob([content],{type:downloadMime});
+      const shareBlob=new Blob([content],{type:shareMime});
       let shareFile=null;
-      try{ shareFile=new File([blob],fileName,{type:mime,lastModified:Date.now()}); }
-      catch(err){ console.warn('Prohlížeč neumí vytvořit sdílený File objekt.',err); }
+      let shareData=null;
+      try{
+        shareFile=new File([shareBlob],shareFileName,{type:shareMime,lastModified:Date.now()});
+        shareData={files:[shareFile]};
+      }catch(err){
+        console.warn('Prohlížeč neumí vytvořit sdílený File objekt.',err);
+      }
 
       let canShare=false;
       try{
-        canShare=!!shareFile && typeof navigator.share==='function' &&
-          (typeof navigator.canShare!=='function' || navigator.canShare({files:[shareFile]}));
+        canShare=!!shareData && typeof navigator.share==='function' &&
+          (typeof navigator.canShare!=='function' || navigator.canShare(shareData));
       }catch(err){ console.warn('Kontrola systémového sdílení selhala.',err); }
 
       if(canShare){
         const action=await choiceDialog({
           title:'Rodinný soubor je připraven',
-          message:'Na telefonu doporučujeme zvolit Sdílet přes… a následně WhatsApp. Soubor se odešle jako obecný šifrovaný dokument, takže se příjemci nebude nabízet ChatGPT ani editor JSON.',
+          message:'Pro WhatsApp se soubor odešle jako kompatibilní textový dokument. Obsah zůstává zašifrovaný a LifeHub ho umí načíst stejně jako soubor .lifehub-family.',
           choices:[
-            {value:'share',text:'Sdílet přes…',className:'btn primary',autofocus:true},
+            {value:'share',text:'Sdílet přes WhatsApp…',className:'btn primary',autofocus:true},
             {value:'download',text:'Stáhnout do zařízení',className:'btn'},
             {value:null,text:'Zrušit',className:'btn'}
           ]
@@ -3221,21 +3231,22 @@ Co chceš udělat teď?`,
         if(!action) return false;
         if(action==='share'){
           try{
-            await navigator.share({title:'LifeHub – rodinný soubor',files:[shareFile]});
-            toast('Šifrovaný rodinný soubor byl předán systémové nabídce sdílení.','good');
+            await navigator.share(shareData);
+            toast('Soubor byl předán systémové nabídce sdílení. Vyberte WhatsApp.','good');
             return true;
           }catch(err){
             if(err?.name==='AbortError') return false;
+            const detail=[err?.name,err?.message].filter(Boolean).join(': ');
             console.warn('Systémové sdílení selhalo, používám stažení.',err);
-            download(fileName,blob,mime);
-            toast('Systémové sdílení se nepodařilo, proto byl soubor stažen do zařízení.','warn');
+            download(downloadFileName,downloadBlob,downloadMime);
+            toast(`Sdílení selhalo${detail?` (${detail})`:''}. Soubor byl stažen do zařízení.`,'warn');
             return true;
           }
         }
       }
 
-      download(fileName,blob,mime);
-      toast('Šifrovaný rodinný soubor byl stažen do zařízení.','good');
+      download(downloadFileName,downloadBlob,downloadMime);
+      toast('Tento prohlížeč neumí bezpečně sdílet soubor přímo. Soubor byl stažen do zařízení.','warn');
       return true;
     }
 

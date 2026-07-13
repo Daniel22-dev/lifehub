@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#20134d">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'none'; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
-  <title>LifeHub 4.5.3 | osobní šifrovaný trezor</title>
+  <title>LifeHub 4.5.4 | osobní šifrovaný trezor</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./assets/icon-CXUaSErS.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/icon-192-DNUOgkEh.png">
-  <script type="module" crossorigin src="./assets/index-DVxIOymd.js"></script>
+  <script type="module" crossorigin src="./assets/index-DQgwGqpX.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-DrqDpQLO.css">
 </head>
 <body>
@@ -820,10 +820,10 @@
               <button class="btn primary" id="partnerImportBtn" type="button">Načíst rodinný soubor</button>
               <button class="btn" data-action="export-partner-share" type="button">Vytvořit šifrovaný rodinný soubor</button>
               <button class="btn danger" id="partnerDeleteBtn" type="button">Odebrat načtený náhled</button>
-              <input id="partnerImportFile" type="file" accept=".lifehub-family,application/octet-stream,application/json,.json" hidden>
+              <input id="partnerImportFile" type="file" accept=".lifehub-family,.txt,text/plain,application/octet-stream,application/json,.json" hidden>
             </div>
             <div class="security-item family-password-inline"><strong>Rodinné heslo</strong><span id="familyPasswordStatusPartner" class="status warn">Zatím nenastaveno</span></div>
-            <p class="small family-transfer-help"><strong>WhatsApp / Android:</strong> Soubor neotevírejte v jiné aplikaci. Po přijetí ho stáhněte a potom zde zvolte <strong>Načíst rodinný soubor</strong> → <strong>Nedávné</strong> nebo <strong>WhatsApp Documents</strong>.</p>
+            <p class="small family-transfer-help"><strong>WhatsApp / Android:</strong> Pro přímé sdílení se soubor posílá jako kompatibilní <code>.txt</code>, uvnitř ale zůstává zašifrovaný. Příjemce ho neotevírá v jiné aplikaci; v LifeHubu zvolí <strong>Načíst rodinný soubor</strong> → <strong>Nedávné</strong> nebo <strong>WhatsApp Documents</strong>.</p>
             <div id="partnerInfo" class="small"></div>
           </article>
           <div id="partnerContent"></div>
@@ -1018,7 +1018,7 @@
           </div>
           <article class="panel manual-intro-panel">
             <div>
-              <p class="eyebrow">LifeHub 4.5.3</p>
+              <p class="eyebrow">LifeHub 4.5.4</p>
               <h3>Celá aplikace vysvětlená na jednom místě</h3>
               <p class="small">Manuál je součástí instalačního balíčku, funguje i offline a nečte žádná osobní data z tvého trezoru. Níže ho můžeš používat přímo uvnitř LifeHubu.</p>
             </div>

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lifehub-vite-shell-v4-5-3-family-share-1';
+const CACHE_NAME = 'lifehub-vite-shell-v4-5-4-whatsapp-share-1';
 const STATIC_SHELL = [
   './', './index.html', './manifest.json', './icon.svg', './icon-192.png', './icon-512.png',
   './vendor/pdf.min.mjs', './vendor/pdf.worker.min.mjs', './manual.html'
