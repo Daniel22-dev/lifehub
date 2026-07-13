@@ -1,3 +1,10 @@
+# LifeHub 4.6.3
+
+- Finance přejmenovány na **Příjmy a výdaje**.
+- Platby přejmenovány na **Účty a závazky**.
+- Obě záložky mají jasné vysvětlení, příklady a vzájemný proklik.
+- Aplikace výslovně uvádí, že úhrada závazku zatím automaticky nevytváří finanční transakci.
+
 # Changelog
 
 ## v4.6.1 – spolehlivé aktualizace PWA

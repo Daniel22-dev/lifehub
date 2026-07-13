@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lifehub-vite-shell-v4-6-1-update-1';
+const CACHE_NAME = 'lifehub-vite-shell-v4-6-3-finance-payments-1';
 const STATIC_SHELL = [
   './', './index.html', './manifest.json', './icon.svg', './icon-192.png', './icon-512.png',
   './vendor/pdf.min.mjs', './vendor/pdf.worker.min.mjs', './manual.html'

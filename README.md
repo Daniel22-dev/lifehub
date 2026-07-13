@@ -1,8 +1,8 @@
-# LifeHub 4.6.1
+# LifeHub 4.6.3
 
 LifeHub je osobní offline PWA pro poznámky, finance, výplatní pásky, splátky, platby domácnosti, dokumenty, úkoly, nákupní seznam, zahradu a pracovní výkazy. Stav aplikace i lokální soubory jsou po odemčení uloženy šifrovaně v zařízení.
 
-## Prémiové rozhraní 4.6.1
+## Prémiové rozhraní 4.6.3
 
 - nový osobní dashboard s dnešním souhrnem,
 - spodní mobilní navigace a přehledné menu všech modulů,

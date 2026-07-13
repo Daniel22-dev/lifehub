@@ -652,6 +652,9 @@ export function bootLifeHub(){
 
     // ===== Tooltipy, rozbalovací karty, plovoucí +, rychlé přidání =====
     function handleInfoAndAddCards(e){
+      const fabAction = e.target.closest('[data-fab-action]');
+      if(fabAction){ e.preventDefault(); runFabAction(fabAction); return; }
+      if(!e.target.closest('#fabMenu') && !e.target.closest('#fab')) closeFabMenu();
       const dot = e.target.closest('.info-dot');
       const openDots = $$('.info-dot[data-open="true"]');
       openDots.forEach(d=>{ if(d!==dot) d.removeAttribute('data-open'); });
@@ -667,6 +670,7 @@ export function bootLifeHub(){
     }
     function toggleAddCard(id, forceOpen=false){
       const card = document.getElementById(id); if(!card) return;
+      closeFabMenu();
       const willOpen = forceOpen || card.getAttribute('data-collapsed')==='true';
       card.setAttribute('data-collapsed', willOpen ? 'false' : 'true');
       if(willOpen){
@@ -675,30 +679,88 @@ export function bootLifeHub(){
         setTimeout(()=>field?.focus(), 220);
       }
     }
-    const FAB_TARGET = {notes:'noteAddCard', finance:'transAddCard', tasks:'taskAddCard', shopping:'shopAddCard', vault:'vaultAddCard', installments:'instAddCard', payments:'paymentAddCard', budget:'budgetAddCard', ailog:'aiAddCard', rewards:'rewardAddCard', garden:'gardenItemAddCard'};
-    const FAB_LABEL = {notes:'Nová poznámka', finance:'Příjem / výdaj', tasks:'Nový úkol', shopping:'Nový velký nákup', vault:'Nový dokument', installments:'Nová splátka', payments:'Nová platba', apps:'Přidat', budget:'Zapsat útratu', groceries:'Přidat položku', ailog:'Zapsat činnost', rewards:'Přidat položku', garden:'Přidat na zahradu'};
+    const FAB_TARGET = {notes:'noteAddCard', tasks:'taskAddCard', shopping:'shopAddCard', vault:'vaultAddCard', installments:'instAddCard', payments:'paymentAddCard', budget:'budgetAddCard', ailog:'aiAddCard', rewards:'rewardAddCard'};
+    const FAB_LABEL = {notes:'Nová poznámka', finance:'Přidat', tasks:'Nový úkol', shopping:'Nový velký nákup', vault:'Nový dokument', installments:'Nová splátka', payments:'Nová platba', apps:'Přidat', budget:'Zapsat útratu', groceries:'Přidat', ailog:'Zapsat činnost', rewards:'Přidat položku', garden:'Přidat'};
+    const FAB_MENU = {
+      finance:[
+        {label:'Příjem nebo výdaj', target:'transAddCard'},
+        {label:'Výplatní páska PDF', target:'payrollAddCard'}
+      ],
+      groceries:[
+        {label:'Rychlá položka', focus:'#groceryName'},
+        {label:'Hromadné vložení', target:'groceryBulkCard'},
+        {label:'Fotka seznamu', input:'#groceryPhotoInput'}
+      ],
+      garden:[
+        {label:'Věc k pořízení', target:'gardenItemAddCard'},
+        {label:'Údržba / servis', target:'gardenLogAddCard'}
+      ]
+    };
     function activeTab(){ return document.querySelector('.view.active')?.id || 'dashboard'; }
+    function closeFabMenu(){
+      const menu = $('#fabMenu');
+      if(menu){
+        menu.hidden = true;
+        menu.setAttribute('aria-hidden','true');
+        menu.innerHTML = '';
+      }
+      $('#fab')?.setAttribute('aria-expanded','false');
+    }
+    function focusFabField(selector){
+      const field = typeof selector==='string' ? document.querySelector(selector) : null;
+      if(!field) return;
+      closeFabMenu();
+      field.scrollIntoView({behavior:'smooth', block:'center'});
+      setTimeout(()=>field?.focus?.(), 220);
+    }
+    function openFabMenu(tab){
+      const actions = FAB_MENU[tab];
+      const menu = $('#fabMenu');
+      if(!menu || !actions?.length) return false;
+      const title = tab==='finance' ? 'Co chceš přidat ve Financích?' : tab==='groceries' ? 'Co chceš přidat do nákupního seznamu?' : 'Co chceš přidat na Zahradě?';
+      menu.innerHTML = `<p class="fab-menu-title">${esc(title)}</p>` + actions.map((action,index)=>`<button type="button" data-fab-action="${index}"${action.target?` data-target="${action.target}"`:''}${action.focus?` data-focus="${action.focus}"`:''}${action.input?` data-input="${action.input}"`:''}>${esc(action.label)}</button>`).join('');
+      menu.hidden = false;
+      menu.setAttribute('aria-hidden','false');
+      $('#fab')?.setAttribute('aria-expanded','true');
+      return true;
+    }
+    function runFabAction(button){
+      const target = button.dataset.target;
+      const focus = button.dataset.focus;
+      const input = button.dataset.input;
+      if(target){ toggleAddCard(target, true); return; }
+      if(focus){ focusFabField(focus); return; }
+      if(input){ closeFabMenu(); document.querySelector(input)?.click(); }
+    }
     function updateFab(tab){
       const fab = $('#fab'); if(!fab) return;
-      const hasTarget = tab==='apps' || tab==='groceries' || Object.prototype.hasOwnProperty.call(FAB_TARGET, tab);
+      const hasTarget = tab==='apps' || Object.prototype.hasOwnProperty.call(FAB_TARGET, tab) || Object.prototype.hasOwnProperty.call(FAB_MENU, tab);
       fab.hidden = !hasTarget;
+      if(!hasTarget) closeFabMenu();
       const label = $('#fabLabel'); if(label) label.textContent = FAB_LABEL[tab] || 'Přidat';
     }
     function handleFabClick(){
       const tab = activeTab();
+      if(FAB_MENU[tab]){
+        const menu=$('#fabMenu');
+        if(menu && !menu.hidden){ closeFabMenu(); return; }
+        openFabMenu(tab);
+        return;
+      }
       if(tab==='apps'){
         if(selectedAppId) toggleAddCard('appNoteAddCard', true); else toggleAddCard('appAddCard', true);
         return;
       }
-      if(tab==='groceries'){ const field=$('#groceryName'); field?.scrollIntoView({behavior:'smooth', block:'center'}); setTimeout(()=>field?.focus(), 220); return; }
       const target = FAB_TARGET[tab];
       if(target) toggleAddCard(target, true);
     }
     function handleQuick(kind){
       const map = {task:'tasks', shopping:'shopping', trans:'finance', note:'notes', installment:'installments', grocery:'groceries', budget:'budget'};
       const tab = map[kind]; if(!tab) return;
+      closeFabMenu();
       showTab(tab);
-      if(tab==='groceries'){ setTimeout(()=>$('#groceryName')?.focus(), 120); return; }
+      if(tab==='groceries'){ setTimeout(()=>focusFabField('#groceryName'), 120); return; }
+      if(tab==='finance'){ setTimeout(()=>toggleAddCard('transAddCard', true), 60); return; }
       const target = FAB_TARGET[tab];
       if(target) setTimeout(()=>toggleAddCard(target, true), 60);
     }
@@ -1124,7 +1186,7 @@ export function bootLifeHub(){
       if(!q){box.innerHTML='<div class="empty">Začněte psát a aplikace bude hledat v poznámkách, financích, úkolech i nákupech.</div>'; return;}
       const res = [];
       state.notes.forEach(n=>{const text=strip([n.title,n.summary,n.content,n.tags,n.source,n.type].join(' ')); if(text.includes(q)) res.push(['Poznámka',n.title,n.summary,'notes']);});
-      state.transactions.forEach(t=>{const text=strip([t.category,t.description,t.amount,t.date].join(' ')); if(text.includes(q)) res.push(['Finance',`${t.kind==='income'?'Příjem':'Výdaj'}: ${t.category}`,`${fmt(t.amount)} • ${t.date} • ${t.description||''}`,'finance']);});
+      state.transactions.forEach(t=>{const text=strip([t.category,t.description,t.amount,t.date].join(' ')); if(text.includes(q)) res.push(['Příjmy a výdaje',`${t.kind==='income'?'Příjem':'Výdaj'}: ${t.category}`,`${fmt(t.amount)} • ${t.date} • ${t.description||''}`,'finance']);});
       state.payrolls.forEach(p=>{const text=strip([p.month,p.employer,p.note,p.fileName,p.rawText].join(' ')); if(text.includes(q)) res.push(['Výplatní páska',`${p.month} ${p.employer||''}`,`Čistá mzda: ${fmt(payrollCleanAmount(p))} • Na účet: ${fmt(payrollAccountAmount(p))} • ${p.fileName || ''}`,'finance']);});
       state.documents.forEach(d=>{const text=strip([d.title,d.category,d.note,d.fileName].join(' ')); if(text.includes(q)) res.push(['Archiv',d.title,`${docCategoryLabel(d.category)} • ${d.fileName||''}`,'vault']);});
       state.tasks.forEach(t=>{const text=strip([t.title,t.note,t.area,t.priority].join(' ')); if(text.includes(q)) res.push(['Úkol',t.title,`${taskPriorityLabel(t.priority)} • ${t.area||''}`,'tasks']);});
@@ -2118,7 +2180,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
     function shoppingMarkdown(){return ['# Velké nákupy LifeHub',...state.shopping.map(s=>`\n- **${s.name}**${s.store?' ('+s.store+')':''} — ${shopPriorityLabel(s.priority)}, ${fmt(s.price)}, ${s.month||'bez měsíce'}, ${shopStatusLabel(s.status)}\n  ${s.note||''}${s.url?'\n  '+s.url:''}`)].join('\n');}
     function appsMarkdown(){return ['# Moje aplikace',...state.apps.map(a=>`\n## ${a.name}${a.tag?' ('+a.tag+')':''}\n${a.note||''}${a.url?'\n'+a.url:''}\n${(a.notes||[]).map(n=>`- ${mdEscape(n.text)}`).join('\n')}`)].join('\n');}
     function installmentsMarkdown(){return ['# Splátkový kalendář',...state.installments.map(i=>{const c=computeInstallment(i); const history=(i.paymentHistory||[]).map(h=>`\n  - ${h.date}: ${h.type==='extra'?'mimořádná':'běžná'} splátka ${fmt(h.amount)}`).join(''); return `\n- **${i.creditor}** — zbývá ${fmt(c.remaining)} z ${fmt(c.total)}, měsíčně ${fmt(i.monthly)}${c.endMonth?', konec '+monthLabel(c.endMonth):''} • ${assignedToLabel(i.assignedTo)}${i.note?'\n  '+i.note:''}${history}`;})].join('\n');}
-    function paymentsMarkdown(){return ['# Platby domácnosti',...state.householdPayments.map(p=>`\n- [${p.status==='paid'?'x':' '}] **${p.title}** — ${fmt(p.amount)}, ${paymentFrequencyLabel(p.frequency)}, ${p.automatic?'automaticky hrazeno, další termín':'splatnost'} ${p.dueDate||'neuveden'} • ${assignedToLabel(p.assignedTo)}${p.note?'\n  '+p.note:''}`)].join('\n');}
+    function paymentsMarkdown(){return ['# Účty a závazky',...state.householdPayments.map(p=>`\n- [${p.status==='paid'?'x':' '}] **${p.title}** — ${fmt(p.amount)}, ${paymentFrequencyLabel(p.frequency)}, ${p.automatic?'automaticky hrazeno, další termín':'splatnost'} ${p.dueDate||'neuveden'} • ${assignedToLabel(p.assignedTo)}${p.note?'\n  '+p.note:''}`)].join('\n');}
     function groceriesMarkdown(){return ['# Nákupní seznam',...state.groceries.map(g=>`- [${g.done?'x':' '}] **${g.name}**${g.store?' — '+g.store:''}${g.note?' ('+g.note+')':''}`)].join('\n');}
     function budgetMarkdown(){return ['# Jídlo & benzín',...state.budgetEntries.map(b=>`- ${b.date} | ${b.kind==='fuel'?'Benzín':'Jídlo'} | ${fmt(b.amount)}${b.note?' | '+b.note:''}`)].join('\n');}
     function aiMarkdown(){return ['# AI výkaz',...state.aiEntries.map(a=>`- ${a.date} | ${minutesLabel(a.minutes)} | ${a.activity}${a.note?' | '+a.note:''}`)].join('\n');}
@@ -2126,7 +2188,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
     function rewardsMarkdown(){return ['# Odměny',...state.rewards.map(r=>`- ${rewardPeriodLabel(r.period)} | ${fmtHours(r.hours)} | ${r.title}${r.note?' | '+r.note:''}`)].join('\n');}
     function buildMarkdown(notion=false){
       const lines=[]; lines.push(`# LifeHub export ${today()}`,'',`Vlastník: ${state.settings.ownerName || ''}`,'');
-      lines.push(notesMarkdown(),'', '# Finance');
+      lines.push(notesMarkdown(),'', '# Příjmy a výdaje');
       state.transactions.forEach(t=>lines.push(`- ${t.date} | ${t.kind==='income'?'Příjem':'Výdaj'} | ${t.category} | ${fmt(t.amount)} | ${t.description||''}`));
       lines.push('', '# Výplatní pásky'); state.payrolls.forEach(p=>lines.push(`- ${p.month} | ${p.employer||''} | čistá ${fmt(p.fields?.netPay||0)} | hrubá ${fmt(p.fields?.grossPay||0)} | daň ${fmt(p.fields?.incomeTax||0)} | ${p.note||''}`));
       lines.push('', '# Šifrovaný trezor dokumentů'); state.documents.forEach(d=>lines.push(`- ${d.date||''} | ${d.title||''} | ${docCategoryLabel(d.category)} | ${d.fileName||''} | ${formatBytes(d.size)}`));
@@ -2474,6 +2536,8 @@ Poslední pojistka: pro potvrzení importu napiš ${word}.`,
     function saveSettings(e){e.preventDefault(); state.settings.greetName=$('#greetName').value.trim(); state.settings.deviceName=$('#deviceName').value.trim(); state.settings.ownerName=$('#ownerName').value.trim(); state.settings.ownerFooter=$('#ownerFooter').value.trim(); state.settings.currency=sanitizeCurrency($('#currency').value); state.settings.savingGoal=number($('#savingGoal').value); state.settings.privateNotifications=$('#privateNotifications')?.checked!==false; state.settings.familySettingsUpdatedAt=new Date().toISOString(); save(); toast('Nastavení uloženo.');}
     // Krátký changelog (nejnovější nahoře, drž ~5 položek). Zobrazí se klepnutím na verzi v patičce.
     const CHANGELOG = [
+      'v4.6.3 · Záložky Finance a Platby byly přejmenovány na Příjmy a výdaje a Účty a závazky. Obě nyní přímo vysvětlují svůj účel, mají vzájemný proklik a upozorňují, že záznamy zatím nejsou automaticky propojené.',
+      'v4.6.2 · Plovoucí + je sjednocené napříč záložkami: v Příjmech a výdajích nabízí transakci i výplatní pásku, v Nákupním seznamu rychlou položku, hromadné vložení i fotku a na Zahradě rozlišuje pořízení a údržbu.',
       'v4.6.1 · Spolehlivé aktualizace PWA: nový osobní dashboard, dnešní souhrn, mobilní spodní navigace, kompaktní bezpečnostní panel a přepracované odemknutí.',
       'v4.5.4 · Oprava přímého sdílení přes WhatsApp na Androidu: při systémovém sdílení se používá bezpečný textový obal .lifehub-family.txt, který WhatsApp přijímá; stažená záloha zůstává .lifehub-family.',
       'v4.5.3 · Spolehlivější rodinné sdílení na Androidu: přímá systémová nabídka Sdílet přes…, vlastní přípona .lifehub-family a obecný typ souboru místo JSON.',
@@ -3477,7 +3541,7 @@ Pokračovat ve vytvoření šifrovaného souboru?`,{title:'Obsah rodinného soub
       parts.push(partnerPanel('Souhrn rodinného souboru',`<div class="kpis"><div class="kpi"><div class="label">Příjmy ve sdílení</div><div class="value">${fmt(income)}</div><div class="sub">${c.transactions} transakcí</div></div><div class="kpi"><div class="label">Výdaje ve sdílení</div><div class="value">${fmt(expenses)}</div><div class="sub">Bilance ${fmt(income-expenses)}</div></div><div class="kpi"><div class="label">K ruční úhradě</div><div class="value">${(d.householdPayments||[]).filter(x=>x.status!=='paid'&&x.automatic!==true).length}</div><div class="sub">${(d.householdPayments||[]).filter(x=>x.status!=='paid'&&x.automatic===true).length} automatických</div></div><div class="kpi"><div class="label">Společné položky</div><div class="value">${Object.values(c).reduce((a,b)=>a+b,0)}</div><div class="sub">Bez soukromých modulů</div></div></div>`));
       if((d.transactions||[]).length){
         const rows=[...d.transactions].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,60).map(t=>`<article class="item"><div class="item-top"><div><h4>${t.kind==='income'?'Příjem':'Výdaj'}: ${esc(t.category)}</h4><p class="${t.kind==='income'?'money-plus':'money-minus'}">${t.kind==='income'?'+':'−'} ${fmt(t.amount)} • ${esc(t.date)}</p>${t.description?`<p>${esc(t.description)}</p>`:''}</div></div></article>`).join('');
-        parts.push(partnerPanel(`Finance (${c.transactions})`,`<div class="list">${rows}</div>`));
+        parts.push(partnerPanel(`Příjmy a výdaje (${c.transactions})`,`<div class="list">${rows}</div>`));
       }
       if((d.budgetEntries||[]).length){
         const totalFood=d.budgetEntries.filter(x=>x.kind==='food').reduce((a,x)=>a+number(x.amount),0),totalFuel=d.budgetEntries.filter(x=>x.kind==='fuel').reduce((a,x)=>a+number(x.amount),0);
@@ -3485,7 +3549,7 @@ Pokračovat ve vytvoření šifrovaného souboru?`,{title:'Obsah rodinného soub
       }
       if((d.householdPayments||[]).length){
         const rows=[...d.householdPayments].sort((a,b)=>String(a.dueDate).localeCompare(String(b.dueDate))).map(x=>`<article class="item"><div class="item-top"><div><h4>${x.status==='paid'?'✅ ':''}${x.automatic?'🏦 ':''}${esc(x.title)}</h4><p><strong>${fmt(x.amount)}</strong> • ${esc(paymentFrequencyLabel(x.frequency))} • ${x.automatic?'automaticky, další termín':'splatnost'} ${esc(x.dueDate)} • ${esc(partnerAssignedToLabel(x.assignedTo,partner.name))}</p>${x.note?`<p>${esc(x.note)}</p>`:''}</div></div></article>`).join('');
-        parts.push(partnerPanel(`Platby domácnosti (${c.householdPayments})`,`<div class="list">${rows}</div>`));
+        parts.push(partnerPanel(`Účty a závazky (${c.householdPayments})`,`<div class="list">${rows}</div>`));
       }
       if((d.groceries||[]).length){
         const rows=d.groceries.map(g=>`<div class="grocery-item ${g.done?'done':''}"><input type="checkbox" ${g.done?'checked':''} disabled><span class="g-name">${esc(g.name)}${g.store?` <span class="g-note">· ${esc(g.store)}</span>`:''}</span></div>`).join('');

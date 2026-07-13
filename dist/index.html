@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#11152f">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'none'; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
-  <title>LifeHub 4.6.1 | osobní digitální centrum</title>
+  <title>LifeHub 4.6.3 | osobní digitální centrum</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./assets/icon-DLtehok4.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/icon-192-B3v3tL0E.png">
-  <script type="module" crossorigin src="./assets/index-Du9aiFH2.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-F3T51nz0.css">
+  <script type="module" crossorigin src="./assets/index-Qxybdgiq.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-BWd-lxUm.css">
 </head>
 <body>
   <div class="app">
@@ -18,7 +18,7 @@
       <div class="brand">
         <div class="brand-mark" aria-hidden="true"><span>LH</span></div>
         <div class="brand-copy">
-          <h1>LifeHub <span id="appTitleVersion">4.6.1</span></h1>
+          <h1>LifeHub <span id="appTitleVersion">4.6.3</span></h1>
           <p>Soukromé centrum · offline · šifrované</p>
         </div>
       </div>
@@ -46,10 +46,10 @@
           <button class="active" data-tab="dashboard" type="button"><span class="emoji">🏠</span><span class="label">Přehled</span></button>
           <button data-tab="notes" type="button"><span class="emoji">🧠</span><span class="label">Poznámky</span></button>
           <div class="nav-group-label">Finance a domácnost</div>
-          <button data-tab="finance" type="button"><span class="emoji">💸</span><span class="label">Finance</span></button>
+          <button data-tab="finance" type="button"><span class="emoji">💸</span><span class="label">Příjmy a výdaje</span></button>
           <button data-tab="budget" type="button"><span class="emoji">⛽</span><span class="label">Jídlo &amp; benzín</span></button>
           <button data-tab="installments" type="button"><span class="emoji">📆</span><span class="label">Splátky</span></button>
-          <button data-tab="payments" type="button"><span class="emoji">🧾</span><span class="label">Platby</span></button>
+          <button data-tab="payments" type="button"><span class="emoji">🧾</span><span class="label">Účty a závazky</span></button>
           <button data-tab="vault" type="button"><span class="emoji">🗄️</span><span class="label">Archiv</span></button>
           <div class="nav-group-label">Organizace</div>
           <button data-tab="tasks" type="button"><span class="emoji">✅</span><span class="label">To-do</span></button>
@@ -117,7 +117,7 @@
           <div class="grid two dashboard-main-grid">
             <article class="panel chart-panel">
               <div class="panel-head">
-                <div><p class="eyebrow">Finance</p><h3>Roční bilance</h3></div>
+                <div><p class="eyebrow">Příjmy a výdaje</p><h3>Roční bilance</h3></div>
                 <input id="dashYear" type="number" min="2000" max="2100" class="control-max-130" title="Rok">
               </div>
               <div class="chart" id="dashboardFinanceChart"></div>
@@ -193,16 +193,24 @@
           <div class="section-head">
             <div class="head-main">
               <div>
-                <h2 class="tab-title">Finance a výplatní pásky</h2>
-                <p class="tab-sub">Měsíční přehled příjmů, výdajů a bilance</p>
+                <h2 class="tab-title">Příjmy a výdaje</h2>
+                <p class="tab-sub">Skutečné pohyby peněz: co už přišlo nebo odešlo z účtu či hotovosti</p>
               </div>
-              <button class="info-dot" type="button" data-tip="Měsíční přehled se počítá z transakcí. PDF výplatní pásku lze načíst níže – čte se lokálně v prohlížeči přes PDF.js, čte jen prvních pár stran a má limit 10 MB. Nalezené částky jsou návrh, vždy je zkontroluj.">i</button>
+              <button class="info-dot" type="button" data-tip="Tato záložka je peněžní deník: obsahuje jen skutečně uskutečněné příjmy a výdaje. Budoucí účty, faktury a termíny splatnosti patří do záložky Účty a závazky. PDF výplatní pásku lze načíst níže; čte se pouze lokálně v zařízení.">i</button>
             </div>
             <div class="actions">
               <input id="financeMonth" type="month" class="control-w-170" title="Měsíc">
               <input id="financeYear" type="number" min="2000" max="2100" class="control-w-130" title="Rok">
             </div>
           </div>
+
+          <article class="panel distinction-panel">
+            <div class="panel-head">
+              <div><p class="eyebrow">Jak tuto záložku používat</p><h3>Sem patří skutečně uskutečněné pohyby peněz</h3></div>
+              <button class="btn secondary" type="button" data-jump="payments">Přejít na účty a závazky</button>
+            </div>
+            <p class="small"><strong>Příklad:</strong> výplata už přišla, nákup už proběhl nebo účet už byl stržen z účtu. Budoucí splatnosti a pravidelné platby se plánují v záložce <strong>Účty a závazky</strong>.</p>
+          </article>
 
           <div class="kpis" id="financeKpis"></div>
 
@@ -318,7 +326,7 @@
                 <h2 class="tab-title">Jídlo &amp; benzín</h2>
                 <p class="tab-sub">Měsíční limity, útrata a bilance v průběhu roku</p>
               </div>
-              <button class="info-dot" type="button" data-tip="Samostatné sledování dvou obálek: jídlo a benzín. Zapisuj jednotlivé útraty a aplikace hlídá, kolik ti do měsíčního limitu zbývá. Bilance = limit minus útrata; zelená znamená plus, červená mínus. Roční graf ukazuje vývoj po měsících. Záznamy se nepočítají do záložky Finance – jde o oddělenou evidenci.">i</button>
+              <button class="info-dot" type="button" data-tip="Samostatné sledování dvou obálek: jídlo a benzín. Zapisuj jednotlivé útraty a aplikace hlídá, kolik ti do měsíčního limitu zbývá. Bilance = limit minus útrata; zelená znamená plus, červená mínus. Roční graf ukazuje vývoj po měsících. Záznamy se nepočítají do záložky Příjmy a výdaje – jde o oddělenou evidenci.">i</button>
             </div>
             <div class="actions">
               <input id="budgetMonth" type="month" class="control-w-170" title="Měsíc">
@@ -420,12 +428,20 @@
           <div class="section-head">
             <div class="head-main">
               <div>
-                <h2 class="tab-title">Platby domácnosti</h2>
-                <p class="tab-sub">Pravidelné platby, faktury a termíny splatnosti na jednom místě</p>
+                <h2 class="tab-title">Účty a závazky</h2>
+                <p class="tab-sub">Co je potřeba zaplatit, kdy je splatnost a zda se platba hradí automaticky</p>
               </div>
-              <button class="info-dot" type="button" data-tip="Eviduj elektřinu, plyn, vodu, internet, pojištění, předplatná i jednorázové faktury. U plateb hrazených trvalým příkazem nebo inkasem zapni volbu Automaticky hrazeno: LifeHub je nebude vyžadovat k ručnímu odškrtnutí a po termínu posune další splatnost. Sdílené platby se zobrazí v šifrovaném rodinném náhledu partnera.">i</button>
+              <button class="info-dot" type="button" data-tip="Tato záložka je kalendář účtů a závazků: hlídá částku, splatnost, opakování a odpovědnou osobu. Nejde o finanční bilanci. Po úhradě se záznam uloží do historie platby, ale zatím se automaticky nevytvoří výdaj v záložce Příjmy a výdaje.">i</button>
             </div>
           </div>
+          <article class="panel distinction-panel">
+            <div class="panel-head">
+              <div><p class="eyebrow">Jak tuto záložku používat</p><h3>Sem patří to, co musí být zaplaceno a kdy</h3></div>
+              <button class="btn secondary" type="button" data-jump="finance">Přejít na příjmy a výdaje</button>
+            </div>
+            <p class="small"><strong>Příklad:</strong> elektřina splatná 20. dne, měsíční internet nebo roční pojištění. Tlačítko <strong>Zaplaceno</strong> uloží úhradu do historie této položky. Pro započtení do celkové finanční bilance je zatím potřeba výdaj zapsat také v záložce <strong>Příjmy a výdaje</strong>.</p>
+          </article>
+
           <div class="kpis" id="paymentKpis"></div>
           <article class="panel">
             <div class="panel-head"><div><p class="eyebrow">Závazky</p><h3>Co je potřeba zaplatit</h3></div></div>
@@ -929,7 +945,7 @@
               <div class="actions">
                 <button class="btn secondary" data-action="export-notion-md" type="button">Soukromý Notion Markdown</button>
                 <button class="btn" data-action="export-notes-csv" type="button">Poznámky CSV</button>
-                <button class="btn" data-action="export-transactions-csv" type="button">Finance CSV</button>
+                <button class="btn" data-action="export-transactions-csv" type="button">Příjmy a výdaje CSV</button>
                 <button class="btn" data-action="export-tasks-csv" type="button">Úkoly CSV</button>
                 <button class="btn" data-action="export-shopping-csv" type="button">Nákupy CSV</button>
               </div>
@@ -1053,12 +1069,13 @@
   <nav class="mobile-dock" aria-label="Rychlá mobilní navigace">
     <button class="active" data-tab="dashboard" type="button"><span>⌂</span><small>Přehled</small></button>
     <button data-tab="tasks" type="button"><span>✓</span><small>Úkoly</small></button>
-    <button data-tab="finance" type="button"><span>₭</span><small>Finance</small></button>
+    <button data-tab="finance" type="button"><span>₭</span><small>Transakce</small></button>
     <button data-tab="groceries" type="button"><span>🛒</span><small>Nákup</small></button>
     <button id="mobileMoreBtn" type="button" aria-expanded="false" aria-controls="primarySidebar"><span>•••</span><small>Více</small></button>
   </nav>
 
-  <button class="fab" id="fab" type="button" hidden aria-label="Rychlé přidání"><span class="fab-label" id="fabLabel"></span>+</button>
+  <div class="fab-menu" id="fabMenu" hidden aria-hidden="true"></div>
+  <button class="fab" id="fab" type="button" hidden aria-label="Rychlé přidání" aria-expanded="false" aria-controls="fabMenu"><span class="fab-label" id="fabLabel"></span>+</button>
 
   <div class="lock-screen active" id="lockScreen" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
     <div class="lock-card">
@@ -1073,7 +1090,7 @@
         </div>
       </div>
       <div class="lock-content">
-        <p class="eyebrow">LifeHub <span id="lockVersion">4.6.1</span></p>
+        <p class="eyebrow">LifeHub <span id="lockVersion">4.6.3</span></p>
         <h2 id="lockTitle">Odemknout LifeHub</h2>
         <p id="lockIntro">Zadej své heslo. Poznámky, finance ani dokumenty se před odemčením nenačtou.</p>
         <div class="lock-note" id="lockNote">Při prvním spuštění si nastavíš bezpečné heslo. Starší data lze jednorázově převést do šifrovaného úložiště.</div>

@@ -421,7 +421,21 @@
     .fab[hidden]{display:none}
     .fab .fab-label{position:absolute;right:72px;white-space:nowrap;background:var(--surface-solid);color:var(--text);border:1px solid var(--border);border-radius:12px;padding:8px 11px;font-size:.82rem;font-weight:800;box-shadow:var(--shadow-card);opacity:0;visibility:hidden;transition:.16s ease}
     @media(hover:hover){.fab:hover .fab-label{opacity:1;visibility:visible}}
-    @media(max-width:680px){.fab{right:16px;bottom:16px;width:56px;height:56px}.toast-wrap{bottom:84px}}
+    .fab-menu{
+      position:fixed;right:22px;bottom:92px;z-index:95;display:grid;gap:10px;min-width:min(280px,calc(100vw - 32px));
+      padding:14px;border:1px solid var(--border);border-radius:18px;background:rgba(17,21,47,.96);backdrop-filter:blur(18px);
+      box-shadow:0 24px 60px rgba(8,12,28,.42)
+    }
+    .fab-menu[hidden]{display:none}
+    .fab-menu-title{margin:0 0 2px;font-size:.76rem;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--primary-2)}
+    .fab-menu button{
+      width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;
+      border:1px solid var(--border);border-radius:14px;padding:12px 14px;background:var(--surface);color:var(--text);font-weight:800;
+      box-shadow:var(--shadow-card);transition:.16s ease
+    }
+    .fab-menu button::after{content:"›";font-size:1.1rem;color:var(--muted)}
+    .fab-menu button:hover,.fab-menu button:focus{transform:translateY(-1px);border-color:var(--primary)}
+    @media(max-width:680px){.fab{right:16px;bottom:16px;width:56px;height:56px}.fab-menu{right:16px;left:16px;bottom:84px;min-width:0}.toast-wrap{bottom:84px}}
     .toast-wrap{bottom:92px}
 
     /* Rozbalovací karta pro přidání (formuláře skryté, otevírá je + nebo hlavička) */
@@ -436,6 +450,11 @@
     .add-card[data-collapsed="false"] .add-card-head{border-bottom-left-radius:0;border-bottom-right-radius:0}
     .add-card-body{margin-top:14px}
     .add-card[data-collapsed="true"] .add-card-body{display:none}
+
+    .distinction-panel{border-color:rgba(110,231,255,.28);background:linear-gradient(135deg,rgba(6,182,212,.10),rgba(139,92,246,.08))}
+    .distinction-panel .panel-head{align-items:flex-start}
+    .distinction-panel .small{font-size:.92rem;line-height:1.6;color:var(--text)}
+    @media(max-width:680px){.distinction-panel .panel-head{display:grid}.distinction-panel .panel-head .btn{width:100%}}
 
     /* Rychlé přidání na úvodní stránce */
     .quick-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:16px}
