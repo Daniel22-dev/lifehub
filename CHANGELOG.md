@@ -1,5 +1,15 @@
 # Changelog
 
+## v4.8.5 – výplata ze starších dat, skutečný fullscreen a automatická biometrika
+
+- Měsíční plán na Přehledu načte výplatu přímo z výplatní pásky podle data připsání, i když ve starších datech chybí propojená mzdová transakce.
+- Při odemčení aplikace se chybějící mzdová transakce automaticky vytvoří nebo opraví, takže se částka propíše také do Příjmů a výdajů.
+- Ochrana proti dvojímu započtení zajišťuje, že stejná mzda není sečtena zároveň z pásky i z propojené transakce.
+- Tlačítko v horní liště používá skutečné Fullscreen API; pokud jej telefon odmítne, aktivuje se viditelný záložní rozšířený režim.
+- Stav tlačítka se synchronizuje i při ukončení celé obrazovky systémovým gestem.
+- Aktivované rychlé odemčení se po otevření nebo opětovném zamknutí LifeHubu spustí automaticky. Ruční tlačítko zůstává jako záložní možnost.
+- Interaktivní manuál byl kompletně aktualizován pro všechny změny 4.8.5.
+
 ## v4.8.4 – skutečný měsíční finanční souhrn a propojené splátky
 
 - Přehled obsahuje nový blok **Výplata vs. všechny aktuální a plánované výdaje**.

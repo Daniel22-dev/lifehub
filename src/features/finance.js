@@ -41,6 +41,7 @@ function monthEnd(month){
 export function summarizeMonthlyFinancialPlan({
   month,
   transactions = [],
+  payrolls = [],
   budgetEntries = [],
   householdPayments = [],
   installments = [],
@@ -66,11 +67,40 @@ export function summarizeMonthlyFinancialPlan({
     };
   }
 
-  const salaryRows = transactions.filter(row =>
-    row?.kind === 'income' && row?.source === 'payroll' && String(row?.date || '').startsWith(selectedMonth)
+  // Výplatní páska je hlavní zdroj pravdy. Starší verze LifeHubu někdy
+  // obsahovaly pásku a datum připsání, ale chyběla jim odpovídající položka
+  // v transakcích. Přehled proto umí mzdu načíst přímo z pásky a transakce
+  // používá jen jako doplněk pro osiřelé/starší záznamy.
+  const payrollRows = payrolls
+    .filter(row => String(row?.paymentDate || '').startsWith(selectedMonth))
+    .sort((a,b)=>String(b?.updatedAt || b?.createdAt || '').localeCompare(String(a?.updatedAt || a?.createdAt || '')));
+  const canonicalPayrolls = [];
+  const seenPayrollPeriods = new Set();
+  for(const row of payrollRows){
+    const period = String(row?.month || '');
+    const dedupeKey = /^\d{4}-\d{2}$/.test(period) ? period : String(row?.id || '');
+    if(dedupeKey && seenPayrollPeriods.has(dedupeKey)) continue;
+    if(dedupeKey) seenPayrollPeriods.add(dedupeKey);
+    canonicalPayrolls.push(row);
+  }
+
+  const linkedPayrollIds = new Set(canonicalPayrolls.map(row=>String(row?.id || '')).filter(Boolean));
+  const linkedPayrollPeriods = new Set(canonicalPayrolls.map(row=>String(row?.month || '')).filter(value=>/^\d{4}-\d{2}$/.test(value)));
+  const salaryTransactions = transactions.filter(row =>
+    row?.kind === 'income' &&
+    row?.source === 'payroll' &&
+    String(row?.date || '').startsWith(selectedMonth) &&
+    !linkedPayrollIds.has(String(row?.payrollId || '')) &&
+    !linkedPayrollPeriods.has(String(row?.payrollMonth || ''))
   );
-  const salaryCredited = salaryRows.reduce((sum,row)=>sum+amount(row?.amount),0);
-  const salaryPeriods = [...new Set(salaryRows.map(row=>String(row?.payrollMonth || '')).filter(value=>/^\d{4}-\d{2}$/.test(value)))].sort();
+  const salaryCredited = canonicalPayrolls.reduce((sum,row)=>{
+    const fields = row?.fields || {};
+    return sum + amount(fields.netPay || fields.cleanPay || fields.grossPay);
+  },0) + salaryTransactions.reduce((sum,row)=>sum+amount(row?.amount),0);
+  const salaryPeriods = [...new Set([
+    ...canonicalPayrolls.map(row=>String(row?.month || '')),
+    ...salaryTransactions.map(row=>String(row?.payrollMonth || ''))
+  ].filter(value=>/^\d{4}-\d{2}$/.test(value)))].sort();
 
   const transactionExpenses = transactions
     .filter(row => row?.kind === 'expense' && String(row?.date || '').startsWith(selectedMonth))

@@ -93,6 +93,7 @@ export async function unwrapVaultKey(wrappedKey, secret){
 async function requestPrfSecret(credentialId, prfSalt){
   requireWebAuthn();
   const assertion = await navigator.credentials.get({
+    mediation:'required',
     publicKey:{
       challenge:randomBytes(32),
       timeout:60000,

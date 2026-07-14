@@ -9,6 +9,10 @@ dist/
 !package-lock.json
 !public/manifest.json
 !dist/manifest.json
-!docs/*.json
 .DS_Store
 Thumbs.db
+# Soukrome exporty a importy LifeHubu nesmi do repozitare
+docs/vyplatni-pasky*.json
+**/vyplatni-pasky*.json
+*.lifehub
+*.lifehub-*

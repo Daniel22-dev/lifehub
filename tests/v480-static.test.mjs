@@ -33,10 +33,10 @@ test('pořízené zahradní položky jsou oddělené v rozbalovacím archivu', (
   assert.ok(app.includes("completedArchive.hidden=!completedItems.length"));
 });
 
-test('rozšířený režim nepoužívá nestabilní mobilní Fullscreen API', () => {
+test('tlačítko celé obrazovky používá Fullscreen API a zachovává záložní režim', () => {
   const functionBody = app.match(/function toggleFullscreen\(\)[\s\S]*?\n    }/)?.[0] || '';
-  assert.ok(functionBody.includes("classList.toggle('focus-mode'"));
-  assert.ok(!functionBody.includes('requestFullscreen'));
+  assert.ok(functionBody.includes('requestNativeFullscreen'));
+  assert.ok(functionBody.includes("fullscreenMode='fallback'"));
 });
 
 test('úhrady účtů mohou automaticky vytvořit propojený výdaj', () => {

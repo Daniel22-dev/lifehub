@@ -1,8 +1,16 @@
-# LifeHub 4.8.4
+# LifeHub 4.8.5
 
 LifeHub je osobní offline PWA pro poznámky, finance, výplatní pásky, splátky, účty a závazky, dokumenty, úkoly, nákupní seznam, zahradu a pracovní výkazy. Stav aplikace i lokální soubory jsou po odemčení uložené šifrovaně v zařízení.
 
-## Novinky 4.8.4
+## Novinky 4.8.5
+
+- výplata na Přehledu se načte i přímo z výplatní pásky podle data připsání, takže starší páska bez propojené mzdové transakce už nezobrazuje 0 Kč,
+- při odemčení se chybějící mzdová transakce bezpečně doplní a současně se zabrání dvojímu započtení téže výplaty,
+- tlačítko celé obrazovky nyní používá skutečné Fullscreen API; pokud jej telefon nepovolí, zapne se záložní rozšířený režim,
+- aktivovaný otisk prstu, obličej nebo zámek telefonu se při otevření LifeHubu vyvolá automaticky; ruční tlačítko zůstává jako záloha,
+- interaktivní manuál byl aktualizován pro všechny uvedené změny.
+
+### Změny 4.8.4
 
 - v úvodním **Přehledu** je nový měsíční finanční blok, který porovnává výplatu skutečně připsanou v daném kalendářním měsíci se všemi již provedenými i ještě plánovanými výdaji,
 - do souhrnu se započítávají finanční transakce, jídlo a benzín, neuhrazené účty a faktury, trvalé příkazy, běžné splátky a zbývající část měsíčních limitů,
@@ -16,7 +24,7 @@ LifeHub je osobní offline PWA pro poznámky, finance, výplatní pásky, splát
 - **Odměny** používají dvě skutečná období školního roku: září–prosinec a leden–červen; položky lze průběžně doplňovat a upravovat,
 - sekce **AI výkaz** vytváří barevný PDF/tisk a responzivní HTML výstup s logem školy; živý náhled byl kvůli výkonu telefonu odstraněn,
 - pořízené zahradní položky se přesunou do rozbalovacího archivu a neruší aktivní seznam,
-- nestabilní systémový fullscreen byl nahrazen stabilním rozšířeným režimem,
+- ve verzi 4.8.5 byl původní rozšířený režim doplněn skutečným fullscreenem se záložním chováním pro telefony, které jej odmítnou,
 - uhrazené účty a závazky se standardně zapisují jako propojené finanční výdaje,
 - výplatní páska rozlišuje mzdové období a datum připsání; bilance období a skutečný hotovostní tok se zobrazují samostatně,
 - pokud výplata za aktuální období ještě nepřišla, LifeHub zobrazí orientační odhad z posledních pásek,
@@ -50,8 +58,8 @@ Kontrolní řetězec zahrnuje syntaxi, skener citlivých dat, automatické testy
 GitHub Pages je připraven přes workflow v `.github/workflows/deploy.yml`. Nahrajte obsah ZIPu do kořene stejného repozitáře. Po aktualizaci použijte původní hlavní heslo a následně vytvořte kompletní šifrovanou zálohu.
 
 
-## Verze 4.8.4
+## Verze 4.8.5
 
-- interaktivní manuál je sjednocený s funkcemi verzí 4.7–4.8.4, včetně biometrie, rodinných URL, propojených financí a splátek, mzdového období, měsíčního souhrnu na Přehledu, prémiového AI výkazu a archivů dokončených položek.
+- interaktivní manuál je sjednocený s funkcemi verzí 4.7–4.8.5, včetně automatické biometrie, skutečného fullscreen režimu, opravy starších mzdových záznamů, rodinných URL, propojených financí a splátek, měsíčního souhrnu na Přehledu, prémiového AI výkazu a archivů dokončených položek.
 
 Aktivní úkoly, velké nákupy a splátky jsou oddělené od dokončených položek v rozbalovacích archivech optimalizovaných pro telefon.

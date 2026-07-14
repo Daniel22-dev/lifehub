@@ -133,6 +133,9 @@ export function bootLifeHub(){
     let pendingLegacyEnvelopeCleanup = false;
     let biometricUnlockRecord = null;
     let biometricPlatformAvailable = null;
+    let biometricUnlockInProgress = false;
+    let biometricGateAttempt = 0;
+    let fullscreenMode = 'none';
     const saveLifecycle = new SaveLifecycle();
     let autoLockTimer = null;
     let lastActivityAt = Date.now();
@@ -467,6 +470,8 @@ export function bootLifeHub(){
         }
       });
       $('#fullscreenBtn').addEventListener('click',toggleFullscreen);
+      document.addEventListener('fullscreenchange',handleFullscreenChange);
+      document.addEventListener('webkitfullscreenchange',handleFullscreenChange);
       $('#noteForm').addEventListener('submit', saveNote);
       $('#resetNote').addEventListener('click', resetNoteForm);
       ['noteSearch','noteSourceFilter','noteTypeFilter','noteTagFilter','noteSort'].forEach(id=>$('#'+id).addEventListener('input',renderNotes));
@@ -854,7 +859,21 @@ export function bootLifeHub(){
       if(error?.name==='InvalidStateError') return 'Biometrický klíč už pro tuto aplikaci existuje nebo ho správce hesel odmítl vytvořit.';
       return error?.message||'Biometrické odemčení se nepodařilo.';
     }
+    function scheduleAutomaticBiometricUnlock(){
+      const attempt=++biometricGateAttempt;
+      const tryStart=(remaining)=>{
+        if(attempt!==biometricGateAttempt || appReady || biometricUnlockInProgress) return;
+        if(!biometricUnlockRecord || !hasEncryptedState() || biometricPlatformAvailable===false || startupStorageError) return;
+        if(document.visibilityState!=='visible' || (typeof document.hasFocus==='function' && !document.hasFocus())){
+          if(remaining>0) setTimeout(()=>tryStart(remaining-1),300);
+          return;
+        }
+        handleBiometricUnlock({auto:true});
+      };
+      setTimeout(()=>tryStart(8),250);
+    }
     async function finishVaultUnlock({encrypted=true,method='password'}={}){
+      biometricGateAttempt++;
       appReady = true;
       $('#lockScreen')?.classList.remove('active');
       document.body.classList.remove('locked');
@@ -863,6 +882,7 @@ export function bootLifeHub(){
       hydrateSettings();
       const migratedGroceries = migrateLegacyGroceries();
       const automaticPaymentsAdvanced = reconcileAutomaticHouseholdPayments();
+      const payrollTransactionsReconciled = reconcilePayrollTransactions();
       const installmentTransactionsCreated = reconcileInstallmentTransactions();
       renderAll();
       refreshBiometricAvailability().catch(()=>{});
@@ -871,9 +891,10 @@ export function bootLifeHub(){
       saveLifecycle.reset();
       saveLifecycle.lastSavedAt = state.updatedAt || '';
       updateSaveUi();
-      if(migratedGroceries || automaticPaymentsAdvanced || installmentTransactionsCreated) save(false);
+      if(migratedGroceries || automaticPaymentsAdvanced || payrollTransactionsReconciled.changed || installmentTransactionsCreated) save(false);
       if(migratedGroceries) toast(`${migratedGroceries} položek potravin bylo přesunuto do nové záložky Nákupní seznam.`);
       if(automaticPaymentsAdvanced) toast(`Automatické platby byly posunuty podle termínů (${automaticPaymentsAdvanced}).`,'good');
+      if(payrollTransactionsReconciled.created) toast(`Do financí byla doplněna chybějící výplata (${payrollTransactionsReconciled.created}).`,'good');
       if(installmentTransactionsCreated) toast(`Do financí bylo doplněno ${installmentTransactionsCreated} dříve zaznamenaných splátek.`,'good');
       const who = (state.settings.greetName||'').trim();
       if(method==='biometric') toast(`Odemčeno zámkem zařízení${who?', '+who:''}. 👋`,'good');
@@ -881,14 +902,17 @@ export function bootLifeHub(){
       showInstallmentDebtOnOpen();
       maybeWeeklyInstallmentReminder();
     }
-    async function handleBiometricUnlock(){
+    async function handleBiometricUnlock(options={}){
+      const automatic=options?.auto===true;
+      if(biometricUnlockInProgress) return;
       const button=$('#biometricUnlockBtn');
       if(!biometricUnlockRecord||!hasEncryptedState()){
         $('#lockStatus').textContent='Biometrické odemčení není na tomto zařízení nastavené.';
         return;
       }
+      biometricUnlockInProgress=true;
       if(button) button.disabled=true;
-      $('#lockStatus').textContent='Čekám na ověření otiskem nebo zámkem telefonu…';
+      $('#lockStatus').textContent=automatic?'Automaticky spouštím ověření otiskem nebo zámkem telefonu…':'Čekám na ověření otiskem nebo zámkem telefonu…';
       try{
         const envelope=encryptedStateEnvelope;
         if(envelope?.kind!=='LifeHub encrypted local state'||envelope?.crypto?.alg!=='AES-GCM') throw new Error('Lokální trezor má neplatný formát.');
@@ -904,6 +928,7 @@ export function bootLifeHub(){
         vaultKey=null; vaultSalt=null; vaultIterations=KDF_ITERATIONS; appReady=false;
         $('#lockStatus').textContent=biometricErrorText(error);
       }finally{
+        biometricUnlockInProgress=false;
         if(button) button.disabled=false;
       }
     }
@@ -988,6 +1013,7 @@ export function bootLifeHub(){
         if($('#biometricUnlockBtn')) $('#biometricUnlockBtn').hidden=true;
       }
       setTimeout(()=>biometricUnlockRecord?$('#biometricUnlockBtn')?.focus():$('#lockPassword')?.focus(), 0);
+      if(encrypted && biometricUnlockRecord && biometricPlatformAvailable!==false) scheduleAutomaticBiometricUnlock();
     }
     async function handleUnlockSubmit(e){
       e.preventDefault();
@@ -1115,22 +1141,92 @@ export function bootLifeHub(){
       resetAutoLockTimer();
       return false;
     }
+    function nativeFullscreenElement(){
+      return document.fullscreenElement || document.webkitFullscreenElement || null;
+    }
     function updateFullscreenButton(){
-      const active=document.body.classList.contains('focus-mode');
+      const nativeActive=!!nativeFullscreenElement();
+      const fallbackActive=fullscreenMode==='fallback' || document.body.classList.contains('focus-mode');
+      const active=nativeActive || fallbackActive;
       const btn=$('#fullscreenBtn');
       if(!btn) return;
       btn.setAttribute('aria-pressed',String(active));
-      btn.title=active?'Ukončit rozšířený režim':'Rozšířený režim';
+      btn.title=nativeActive?'Ukončit celou obrazovku':fallbackActive?'Ukončit rozšířený režim':'Celá obrazovka';
+      btn.setAttribute('aria-label',btn.title);
       btn.textContent=active?'▣':'⛶';
     }
-    function toggleFullscreen(){
-      const active=!document.body.classList.contains('focus-mode');
-      document.body.classList.toggle('focus-mode',active);
+    function handleFullscreenChange(){
+      if(nativeFullscreenElement()){
+        fullscreenMode='native';
+        document.body.classList.add('focus-mode');
+      }else if(fullscreenMode==='native' || fullscreenMode==='native-pending'){
+        fullscreenMode='none';
+        document.body.classList.remove('focus-mode');
+      }
       updateFullscreenButton();
-      // Nepoužívá nestabilní mobilní Fullscreen API, které se ukončuje při klávesnici,
-      // přepnutí aplikace nebo systémovém dialogu a může změnit výšku viewportu.
       requestAnimationFrame(()=>window.dispatchEvent(new Event('resize')));
-      toast(active?'Zapnut stabilní rozšířený režim.':'Rozšířený režim ukončen.');
+    }
+    async function requestNativeFullscreen(){
+      const root=document.documentElement;
+      if(typeof root.requestFullscreen==='function'){
+        await root.requestFullscreen({navigationUI:'hide'});
+        return;
+      }
+      if(typeof root.webkitRequestFullscreen==='function'){
+        await Promise.resolve(root.webkitRequestFullscreen());
+        return;
+      }
+      throw new Error('Tento prohlížeč nepodporuje režim celé obrazovky.');
+    }
+    async function exitNativeFullscreen(){
+      const exit=document.exitFullscreen || document.webkitExitFullscreen;
+      if(typeof exit!=='function') return;
+      await Promise.resolve(exit.call(document));
+    }
+    async function toggleFullscreen(){
+      if(nativeFullscreenElement() || fullscreenMode==='native'){
+        try{
+          await exitNativeFullscreen();
+          if(!nativeFullscreenElement()){
+            fullscreenMode='none';
+            document.body.classList.remove('focus-mode');
+            updateFullscreenButton();
+          }
+          toast('Režim celé obrazovky ukončen.');
+        }catch(error){
+          console.error(error);
+          toast('Celou obrazovku se nepodařilo ukončit. Použijte systémové gesto Zpět.','bad');
+        }
+        return;
+      }
+      if(fullscreenMode==='fallback'){
+        fullscreenMode='none';
+        document.body.classList.remove('focus-mode');
+        updateFullscreenButton();
+        requestAnimationFrame(()=>window.dispatchEvent(new Event('resize')));
+        toast('Rozšířený režim ukončen.');
+        return;
+      }
+
+      document.body.classList.add('focus-mode');
+      fullscreenMode='native-pending';
+      updateFullscreenButton();
+      try{
+        await requestNativeFullscreen();
+        if(nativeFullscreenElement()){
+          fullscreenMode='native';
+          toast('Zapnut režim celé obrazovky.');
+        }else{
+          fullscreenMode='fallback';
+          toast('Telefon ponechal systémové lišty, aplikace je alespoň v rozšířeném režimu.','warn');
+        }
+      }catch(error){
+        console.warn('Nativní fullscreen nebyl povolen, používám CSS režim.',error);
+        fullscreenMode='fallback';
+        toast('Telefon nepovolil skutečnou celou obrazovku. Zapnut rozšířený režim.','warn');
+      }
+      updateFullscreenButton();
+      requestAnimationFrame(()=>window.dispatchEvent(new Event('resize')));
     }
     function trapLockFocus(e){
       const guard = $('#unsavedGuard');
@@ -1273,6 +1369,7 @@ export function bootLifeHub(){
       const summary=summarizeMonthlyFinancialPlan({
         month,
         transactions:state.transactions,
+        payrolls:state.payrolls,
         budgetEntries:state.budgetEntries,
         householdPayments:state.householdPayments,
         installments:state.installments,
@@ -1474,6 +1571,70 @@ export function bootLifeHub(){
       if(!match) return today();
       const date=new Date(Number(match[1]),Number(match[2]),10);
       return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`;
+    }
+
+    function payrollIncomeAmount(payroll){
+      const fields=payroll?.fields||{};
+      return Math.max(0,number(fields.netPay||fields.cleanPay||fields.grossPay));
+    }
+    function payrollTransactionDescription(payroll){
+      return `Výplatní páska${payroll?.employer?' • '+payroll.employer:''}${payroll?.fileName?' • '+payroll.fileName:''}`;
+    }
+    function reconcilePayrollTransactions(){
+      let created=0;
+      let changed=0;
+      const claimedTransactions=new Set();
+      const payrolls=[...state.payrolls].sort((a,b)=>String(a?.createdAt||'').localeCompare(String(b?.createdAt||'')));
+      for(const payroll of payrolls){
+        const amount=payrollIncomeAmount(payroll);
+        if(!(amount>0) || !/^\d{4}-\d{2}$/.test(String(payroll?.month||''))) continue;
+        let paymentDate=/^\d{4}-\d{2}-\d{2}$/.test(String(payroll?.paymentDate||''))
+          ? String(payroll.paymentDate)
+          : defaultPayrollPaymentDate(payroll.month);
+        // Před verzí 4.8.0 byla mzdová transakce vedena v účetním měsíci.
+        // Migrace ji mohla označit jako odhad data připsání, přestože šlo o
+        // datum ve stejném měsíci jako mzdové období. U takového výhradně
+        // odhadovaného údaje použij standardní výplatní den následujícího měsíce.
+        if(payroll.paymentDateEstimated===true && paymentDate.slice(0,7)===payroll.month){
+          paymentDate=defaultPayrollPaymentDate(payroll.month);
+        }
+        if(payroll.paymentDate!==paymentDate){
+          payroll.paymentDate=paymentDate;
+          payroll.paymentDateEstimated=true;
+          payroll.updatedAt=new Date().toISOString();
+          changed++;
+        }
+        let transaction=state.transactions.find(row=>row?.source==='payroll'&&row?.payrollId===payroll.id&&!claimedTransactions.has(row.id));
+        if(!transaction){
+          transaction=state.transactions.find(row=>row?.source==='payroll'&&row?.payrollMonth===payroll.month&&!row?.payrollId&&!claimedTransactions.has(row.id));
+        }
+        const values={
+          date:paymentDate,
+          kind:'income',
+          category:'mzda',
+          amount,
+          description:payrollTransactionDescription(payroll),
+          source:'payroll',
+          payrollId:payroll.id,
+          payrollMonth:payroll.month,
+          shared:false,
+          updatedAt:new Date().toISOString()
+        };
+        if(transaction){
+          const before=[transaction.date,transaction.kind,transaction.category,number(transaction.amount),transaction.description,transaction.source,transaction.payrollId,transaction.payrollMonth,transaction.shared].join('|');
+          Object.assign(transaction,values);
+          claimedTransactions.add(transaction.id);
+          const after=[transaction.date,transaction.kind,transaction.category,number(transaction.amount),transaction.description,transaction.source,transaction.payrollId,transaction.payrollMonth,transaction.shared].join('|');
+          if(before!==after) changed++;
+        }else{
+          const row={id:uid('trans'),...values,createdAt:new Date().toISOString()};
+          state.transactions.unshift(row);
+          claimedTransactions.add(row.id);
+          created++;
+          changed++;
+        }
+      }
+      return {created,changed};
     }
 
     function renderPayrollFieldInputs(){
@@ -2818,6 +2979,7 @@ Poslední pojistka: pro potvrzení importu napiš ${word}.`,
     function saveSettings(e){e.preventDefault(); state.settings.greetName=$('#greetName').value.trim(); state.settings.familyDisplayName=$('#familyDisplayName')?.value.trim()||''; state.settings.deviceName=$('#deviceName').value.trim(); state.settings.ownerName=$('#ownerName').value.trim(); state.settings.ownerFooter=$('#ownerFooter').value.trim(); state.settings.currency=sanitizeCurrency($('#currency').value); state.settings.savingGoal=number($('#savingGoal').value); state.settings.privateNotifications=$('#privateNotifications')?.checked!==false; state.settings.familySettingsUpdatedAt=new Date().toISOString(); save(); toast('Nastavení uloženo.');}
     // Krátký changelog (nejnovější nahoře, drž ~5 položek). Zobrazí se klepnutím na verzi v patičce.
     const CHANGELOG = [
+      'v4.8.5 · Přehled načte výplatu i ze starších pásek bez propojené transakce a chybějící mzdový příjem opraví. Tlačítko celé obrazovky používá skutečný Fullscreen API se záložním režimem. Aktivní otisk nebo zámek telefonu se při otevření spustí automaticky.',
       'v4.8.4 · Přehled nově porovnává připsanou výplatu se všemi skutečnými i plánovanými výdaji. Běžné i mimořádné splátky se automaticky zapisují do financí a starší záznamy se bezpečně doplní.',
       'v4.8.3 · Interaktivní manuál je kompletně sjednocený s biometrií, rodinným sdílením, propojenými financemi, prémiovým AI výkazem a archivy dokončených položek.',
       'v4.8.2 · Dokončené úkoly, koupené a odložené velké nákupy i doplacené splátky mají vlastní rozbalovací archivy s možností návratu.',

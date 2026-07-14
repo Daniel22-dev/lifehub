@@ -65,3 +65,28 @@ test('měsíční plán porovná připsanou výplatu se skutečnými i zbývají
   assert.equal(summary.totalExpectedExpenses,22000);
   assert.equal(summary.remainingAfterPlan,18000);
 });
+
+test('měsíční plán načte výplatu přímo z pásky, když starší transakce chybí', () => {
+  const summary=summarizeMonthlyFinancialPlan({
+    month:'2026-07',
+    transactions:[],
+    payrolls:[{
+      id:'payroll_1',
+      month:'2026-06',
+      paymentDate:'2026-07-10',
+      fields:{netPay:38950},
+      updatedAt:'2026-07-10T12:00:00.000Z'
+    }]
+  });
+  assert.equal(summary.salaryCredited,38950);
+  assert.deepEqual(summary.salaryPeriods,['2026-06']);
+});
+
+test('měsíční plán nepočítá stejnou výplatu dvakrát z pásky i transakce', () => {
+  const summary=summarizeMonthlyFinancialPlan({
+    month:'2026-07',
+    payrolls:[{id:'payroll_1',month:'2026-06',paymentDate:'2026-07-10',fields:{netPay:40000}}],
+    transactions:[{date:'2026-07-10',kind:'income',source:'payroll',amount:40000,payrollId:'payroll_1',payrollMonth:'2026-06'}]
+  });
+  assert.equal(summary.salaryCredited,40000);
+});
