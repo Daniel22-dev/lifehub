@@ -7,6 +7,7 @@ import {
   minutesLabel,
   rewardPeriodLabel,
   currentRewardPeriod,
+  normalizeRewardPeriod,
   sumRewardHours,
   parseGroceryLines,
   parseGroceryEntries
@@ -56,16 +57,19 @@ test('součet minut respektuje měsíční prefix a formát hodin', () => {
   assert.equal(minutesLabel(45), '45 min');
 });
 
-test('období odměn: popisky a aktuální období', () => {
-  assert.equal(rewardPeriodLabel('2026-L'), 'Léto 2026 (letní prázdniny)');
-  assert.equal(rewardPeriodLabel('2026-Z'), 'Konec roku 2026');
-  assert.equal(currentRewardPeriod(new Date('2026-03-15')), '2026-L');
-  assert.equal(currentRewardPeriod(new Date('2026-11-15')), '2026-Z');
+test('období odměn odpovídají školnímu roku', () => {
+  assert.equal(normalizeRewardPeriod('2026-Z'), '2026-2027-A');
+  assert.equal(normalizeRewardPeriod('2026-L'), '2025-2026-B');
+  assert.equal(rewardPeriodLabel('2026-2027-A'), 'Září–prosinec 2026 · školní rok 2026/2027');
+  assert.equal(rewardPeriodLabel('2025-2026-B'), 'Leden–červen 2026 · školní rok 2025/2026');
+  assert.equal(currentRewardPeriod(new Date('2026-03-15')), '2025-2026-B');
+  assert.equal(currentRewardPeriod(new Date('2026-07-15')), '2025-2026-B');
+  assert.equal(currentRewardPeriod(new Date('2026-11-15')), '2026-2027-A');
   assert.equal(sumRewardHours([
-    { period: '2026-L', hours: 4.5 },
-    { period: '2026-L', hours: '2,5' },
-    { period: '2026-Z', hours: 10 }
-  ], '2026-L'), 7);
+    { period: '2025-2026-B', hours: 4.5 },
+    { period: '2025-2026-B', hours: '2,5' },
+    { period: '2026-2027-A', hours: 10 }
+  ], '2025-2026-B'), 7);
 });
 
 test('hromadné vložení nákupního seznamu čistí odrážky a číslování', () => {

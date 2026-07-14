@@ -11,6 +11,8 @@ export function buildTransactionRecord(input, existing = null, now = new Date().
     source: existing?.source || 'manual',
     payrollId: existing?.payrollId || '',
     payrollMonth: existing?.payrollMonth || '',
+    paymentId: existing?.paymentId || '',
+    paymentHistoryId: existing?.paymentHistoryId || '',
     createdAt: existing?.createdAt || now,
     updatedAt: now
   };

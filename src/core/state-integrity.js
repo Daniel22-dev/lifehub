@@ -5,7 +5,7 @@ export const STATE_COLLECTIONS_WITH_IDS = Object.freeze([
   'householdPayments','budgetEntries','groceries','aiEntries','rewards','gardenItems','gardenLogs'
 ]);
 
-export function migrateStateSchema(input, targetSchema = 6){
+export function migrateStateSchema(input, targetSchema = 8){
   const migrated = JSON.parse(JSON.stringify(input || {}));
   const current = Math.max(1, Math.round(Number(migrated.schemaVersion) || 1));
   if(current < 6 && Array.isArray(migrated.payrolls)){
@@ -27,6 +27,30 @@ export function migrateStateSchema(input, targetSchema = 6){
       }
       if(!(Number(payroll.fields.netPay) > 0) && Number(payroll.fields.cleanPay) > 0){
         payroll.fields.netPay = Number(payroll.fields.cleanPay);
+      }
+    }
+  }
+  if(current < 8){
+    if(Array.isArray(migrated.rewards)){
+      for(const reward of migrated.rewards){
+        const match=/^(\d{4})-(L|Z)$/.exec(String(reward?.period||''));
+        if(!match) continue;
+        const year=Number(match[1]);
+        reward.period=match[2]==='Z' ? `${year}-${year+1}-A` : `${year-1}-${year}-B`;
+      }
+    }
+    if(Array.isArray(migrated.householdPayments)){
+      for(const payment of migrated.householdPayments){
+        if(payment && payment.trackFinance===undefined) payment.trackFinance=true;
+      }
+    }
+    if(Array.isArray(migrated.payrolls)){
+      const transactions=Array.isArray(migrated.transactions)?migrated.transactions:[];
+      for(const payroll of migrated.payrolls){
+        if(!payroll || typeof payroll!=='object' || payroll.paymentDate) continue;
+        const linked=transactions.find(t=>t?.source==='payroll' && (t.payrollId===payroll.id || t.payrollMonth===payroll.month));
+        payroll.paymentDate=String(linked?.date||'').slice(0,10);
+        payroll.paymentDateEstimated=true;
       }
     }
   }

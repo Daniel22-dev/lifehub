@@ -1,65 +1,31 @@
-# LifeHub 4.6.1
+# LifeHub 4.8.2
 
-LifeHub je osobní offline PWA pro poznámky, finance, výplatní pásky, splátky, platby domácnosti, dokumenty, úkoly, nákupní seznam, zahradu a pracovní výkazy. Stav aplikace i lokální soubory jsou po odemčení uloženy šifrovaně v zařízení.
+LifeHub je osobní offline PWA pro poznámky, finance, výplatní pásky, splátky, účty a závazky, dokumenty, úkoly, nákupní seznam, zahradu a pracovní výkazy. Stav aplikace i lokální soubory jsou po odemčení uložené šifrovaně v zařízení.
 
-## Prémiové rozhraní 4.6.1
+## Novinky 4.8.1
 
-- nový osobní dashboard s dnešním souhrnem,
-- spodní mobilní navigace a přehledné menu všech modulů,
-- přepracovaná zamykací obrazovka,
-- kompaktní bezpečnostní panel bez opakování stejných akcí,
-- sjednocený vizuální systém pro počítač i telefon.
+- úvodní stránka už neopakuje stejné rychlé akce v bezpečnostním panelu,
+- **Odměny** používají dvě skutečná období školního roku: září–prosinec a leden–červen; položky lze průběžně doplňovat a upravovat,
+- sekce **AI výkaz** obsahuje živý náhled tiskové/PDF podoby i staženého HTML souboru,
+- pořízené zahradní položky se přesunou do rozbalovacího archivu a neruší aktivní seznam,
+- nestabilní systémový fullscreen byl nahrazen stabilním rozšířeným režimem,
+- uhrazené účty a závazky se standardně zapisují jako propojené finanční výdaje,
+- výplatní páska rozlišuje mzdové období a datum připsání; bilance období a skutečný hotovostní tok se zobrazují samostatně,
+- pokud výplata za aktuální období ještě nepřišla, LifeHub zobrazí orientační odhad z posledních pásek,
+- zachováno rychlé odemčení přes zabezpečení telefonu a vylepšené rodinné sdílení z verze 4.7.0.
 
-## Čistá mzda na první pohled
+## Finance a mzda
 
-Výplatní karta zobrazuje jako hlavní údaj čistou mzdu. Částka skutečně připsaná na účet (dobírka), hrubá mzda a daň jsou samostatné vedlejší údaje. Do finančních transakcí se zapisuje skutečně vyplacená částka na účet.
+Záložka **Příjmy a výdaje** pracuje se dvěma pohledy:
 
+1. **Bilance období** přiřadí mzdu měsíci, za který náleží.
+2. **Hotovostní tok** respektuje skutečné datum připsání na účet.
 
-## Co přinesla verze 4.5.1
-
-- mobilní navigace bez duplicitních nadpisů skupin,
-
-- mobilní hlavičku bez překrývání názvu, verze a stavu ukládání,
-- srozumitelnější splátkový kalendář: aktivní kalendáře, měsíční úhrada a zbývající platby,
-- automatické platby pro trvalé příkazy a inkasa bez měsíčního ručního odškrtávání,
-- hromadné lokální načtení více PDF výplatních pásek,
-- chytřejší hromadné vložení nákupního seznamu podle obchodů s náhledem,
-- aktualizovaný interaktivní manuál přímo v aplikaci.
-
-Bezpečnostní oprava 4.4.1 zůstává zachována: aplikace rozpozná původní trezor v IndexedDB i bezpečnostní migrační kopii a technickou chybu úložiště nezamění za nový prázdný trezor.
+U nové výplatní pásky proto vyplňte mzdové období i datum připsání. Uhrazené položky ze záložky **Účty a závazky** mají ve výchozím nastavení zapnuté automatické vytvoření propojeného výdaje.
 
 ## Soukromí
 
 Zdrojový balík pro GitHub neobsahuje osobní data. Výplatní pásky, dokumenty, fotografie nákupních seznamů, zálohy a rodinné soubory se do repozitáře nikdy nevkládají. Přidávají se až po odemčení aplikace a zůstávají v lokálním šifrovaném úložišti konkrétního zařízení.
-
-## Výplatní pásky
-
-Ve Financích lze:
-
-1. vybrat jedno PDF a před uložením detailně zkontrolovat rozpoznané hodnoty,
-2. vybrat více PDF najednou a použít **Hromadně uložit vybraná PDF**,
-3. volitelně uložit původní PDF šifrovaně v zařízení,
-4. importovat soukromý JSON s částkami bez fyzických PDF.
-
-## Automatické platby
-
-U pravidelné platby zaškrtněte **Hrazeno automaticky z účtu (trvalý příkaz / inkaso)**. Taková položka se nezobrazuje mezi ručními úhradami. Po dosažení termínu se zapíše do historie a posune na další období.
-
-## Nákupní seznam
-
-Hromadné vložení podporuje řádky, čárky i středníky. Pro více obchodů použijte například:
-
-```text
-Lidl:
-mléko
-chleba
-2x vejce
-
-Albert:
-máslo, jogurty
-```
-
-Screenshot zůstává šifrovanou obrazovou přílohou; aplikace z něj automaticky nepřepisuje položky do odškrtávacího seznamu.
 
 ## Vývoj a kontrola
 
@@ -72,4 +38,9 @@ Kontrolní řetězec zahrnuje syntaxi, skener citlivých dat, automatické testy
 
 ## Nasazení
 
-GitHub Pages je připraven přes workflow v `.github/workflows/deploy.yml`. Nahrajte obsah ZIPu do kořene stejného repozitáře. Po aktualizaci použijte původní PIN a následně vytvořte kompletní šifrovanou zálohu.
+GitHub Pages je připraven přes workflow v `.github/workflows/deploy.yml`. Nahrajte obsah ZIPu do kořene stejného repozitáře. Po aktualizaci použijte původní hlavní heslo a následně vytvořte kompletní šifrovanou zálohu.
+
+
+## Verze 4.8.2
+
+Aktivní úkoly, velké nákupy a splátky jsou oddělené od dokončených položek v rozbalovacích archivech optimalizovaných pro telefon.

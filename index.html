@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#11152f">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'none'; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
-  <title>LifeHub 4.6.4 | osobní digitální centrum</title>
+  <title>LifeHub 4.8.2 | osobní digitální centrum</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./lifehub-icon-v2.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./lifehub-icon-192-v2.png">
@@ -16,7 +16,7 @@
       <div class="brand">
         <div class="brand-mark" aria-hidden="true"><span>LH</span></div>
         <div class="brand-copy">
-          <h1>LifeHub <span id="appTitleVersion">4.6.4</span></h1>
+          <h1>LifeHub <span id="appTitleVersion">4.8.2</span></h1>
           <p>Soukromé centrum · offline · šifrované</p>
         </div>
       </div>
@@ -26,7 +26,7 @@
       <div class="top-actions">
         <button class="icon-btn" id="manualBtn" type="button" title="Otevřít interaktivní manuál" aria-label="Otevřít interaktivní manuál">❔</button>
         <button class="icon-btn" id="lockBtn" type="button" title="Zamknout aplikaci">🔒</button>
-        <button class="icon-btn" id="fullscreenBtn" type="button" title="Celá obrazovka">⛶</button>
+        <button class="icon-btn" id="fullscreenBtn" type="button" title="Rozšířený režim" aria-pressed="false">⛶</button>
         <button class="icon-btn" id="themeBtn" type="button" title="Denní/noční režim">☾</button>
       </div>
     </header>
@@ -96,14 +96,14 @@
               <aside class="hero-command" aria-label="Hlavní akce">
                 <div class="hero-command-head">
                   <div class="command-orb" aria-hidden="true">◆</div>
-                  <div><span>Soukromý trezor</span><strong>Připraven k práci</strong></div>
+                  <div><span>Trezor a ochrana dat</span><strong>Bezpečnostní centrum</strong></div>
                 </div>
-                <p>Nejdůležitější akce máš po ruce, ale nezahlcují hlavní přehled.</p>
+                <p>Rychlé přidání je vlevo. Tato část je vyhrazena pouze pro dokumenty, zálohy a zabezpečení.</p>
                 <div class="hero-command-actions">
-                  <button class="btn primary" data-quick="task" type="button">Přidat dnešní úkol</button>
-                  <button class="btn secondary" data-jump="finance" type="button">Otevřít finance</button>
-                  <button class="btn" data-jump="vault" type="button">Uložit dokument</button>
+                  <button class="btn primary" data-jump="vault" type="button">Uložit dokument</button>
                   <button class="btn ok" data-action="export-complete-backup" type="button">Kompletní záloha</button>
+                  <button class="btn secondary" data-jump="settings" type="button">Nastavení zabezpečení</button>
+                  <button class="btn" data-action="lock-app" type="button">Zamknout LifeHub</button>
                 </div>
               </aside>
             </div>
@@ -207,7 +207,7 @@
               <div><p class="eyebrow">Jak tuto záložku používat</p><h3>Sem patří skutečně uskutečněné pohyby peněz</h3></div>
               <button class="btn secondary" type="button" data-jump="payments">Přejít na účty a závazky</button>
             </div>
-            <p class="small"><strong>Příklad:</strong> výplata už přišla, nákup už proběhl nebo účet už byl stržen z účtu. Budoucí splatnosti a pravidelné platby se plánují v záložce <strong>Účty a závazky</strong>.</p>
+            <p class="small"><strong>Příklad:</strong> nákup už proběhl nebo účet už byl stržen z účtu. Úhrady z <strong>Účtů a závazků</strong> se sem nově zapisují automaticky. U mzdy LifeHub rozlišuje <strong>mzdové období</strong> a skutečné datum připsání, takže bilance měsíce může počítat výplatu k období, za které náleží, a zároveň ukázat skutečný hotovostní tok.</p>
           </article>
 
           <div class="kpis" id="financeKpis"></div>
@@ -231,7 +231,7 @@
             <div class="filters filter-four">
               <input id="transSearch" type="search" placeholder="Hledat v transakcích…">
               <select id="transKindFilter" title="Typ"><option value="all">Vše</option><option value="income">Příjmy</option><option value="expense">Výdaje</option></select>
-              <select id="transSourceFilter" title="Zdroj"><option value="all">Všechny zdroje</option><option value="manual">Ruční</option><option value="payroll">Výplatní pásky</option></select>
+              <select id="transSourceFilter" title="Zdroj"><option value="all">Všechny zdroje</option><option value="manual">Ruční</option><option value="payroll">Výplatní pásky</option><option value="payment">Účty a závazky</option></select>
               <select id="transPeriodFilter" title="Období"><option value="selected">Vybraný měsíc</option><option value="year">Celý rok</option><option value="all">Vše</option></select>
             </div>
             <div class="list" id="transactionsList"></div>
@@ -273,7 +273,8 @@
                   </div>
                   <div>
                     <div class="form form-two">
-                      <label>Měsíc výplaty<input id="payMonth" type="month"></label>
+                      <label>Mzdové období<input id="payMonth" type="month"></label>
+                      <label>Datum připsání na účet<input id="payPaidDate" type="date"></label>
                       <label>Zaměstnavatel<input id="payEmployer" placeholder="Volitelné"></label>
                       <label class="wide">Poznámka<input id="payNote" placeholder="Např. mimořádné odměny, nemoc, dovolená…"></label>
                       <label class="checkline wide check-strong"><input id="payStorePdf" type="checkbox" checked>Uložit kopii PDF šifrovaně v tomto zařízení</label>
@@ -398,6 +399,10 @@
           <article class="panel">
             <div class="panel-head"><div><p class="eyebrow">Přehled</p><h3>Aktivní splátky</h3></div></div>
             <div class="list" id="installmentsList"></div>
+            <details class="history completed-items-archive" id="installmentsCompletedArchive" hidden>
+              <summary>Doplacené splátky (<span id="installmentsCompletedCount">0</span>)</summary>
+              <div class="list mt-14" id="installmentsCompletedList"></div>
+            </details>
           </article>
           <article class="panel add-card" id="instAddCard" data-collapsed="true">
             <button class="add-card-head" type="button" data-toggle-add="instAddCard"><span>➕ Nový splátkový kalendář</span><span class="chev">▾</span></button>
@@ -429,7 +434,7 @@
                 <h2 class="tab-title">Účty a závazky</h2>
                 <p class="tab-sub">Co je potřeba zaplatit, kdy je splatnost a zda se platba hradí automaticky</p>
               </div>
-              <button class="info-dot" type="button" data-tip="Tato záložka je kalendář účtů a závazků: hlídá částku, splatnost, opakování a odpovědnou osobu. Nejde o finanční bilanci. Po úhradě se záznam uloží do historie platby, ale zatím se automaticky nevytvoří výdaj v záložce Příjmy a výdaje.">i</button>
+              <button class="info-dot" type="button" data-tip="Tato záložka je kalendář účtů a závazků: hlídá částku, splatnost, opakování a odpovědnou osobu. Při označení platby jako uhrazené se podle nastavení automaticky vytvoří propojený výdaj v záložce Příjmy a výdaje.">i</button>
             </div>
           </div>
           <article class="panel distinction-panel">
@@ -437,7 +442,7 @@
               <div><p class="eyebrow">Jak tuto záložku používat</p><h3>Sem patří to, co musí být zaplaceno a kdy</h3></div>
               <button class="btn secondary" type="button" data-jump="finance">Přejít na příjmy a výdaje</button>
             </div>
-            <p class="small"><strong>Příklad:</strong> elektřina splatná 20. dne, měsíční internet nebo roční pojištění. Tlačítko <strong>Zaplaceno</strong> uloží úhradu do historie této položky. Pro započtení do celkové finanční bilance je zatím potřeba výdaj zapsat také v záložce <strong>Příjmy a výdaje</strong>.</p>
+            <p class="small"><strong>Příklad:</strong> elektřina splatná 20. dne, měsíční internet nebo roční pojištění. Tlačítko <strong>Zaplaceno</strong> uloží úhradu do historie a při zapnutém propojení ji současně zapíše jako výdaj. Automatické platby se do financí doplní ke dni skutečné splatnosti.</p>
           </article>
 
           <div class="kpis" id="paymentKpis"></div>
@@ -457,6 +462,7 @@
                 <label>Nejbližší splatnost<input id="paymentDueDate" type="date" required></label>
                 <label>Kdo platí<select id="paymentAssignedTo"><option value="both">Oba / společně</option><option value="me">Já</option><option value="partner">Partner</option></select></label>
                 <label class="check-label wide"><input id="paymentAutomatic" type="checkbox"> Hrazeno automaticky z účtu (trvalý příkaz / inkaso)</label>
+                <label class="check-label wide"><input id="paymentTrackFinance" type="checkbox" checked> Po úhradě automaticky zapsat jako výdaj v Příjmech a výdajích</label>
                 <label class="check-label"><input id="paymentShared" type="checkbox" checked> Sdílet v rodině</label>
                 <label class="wide">Poznámka<input id="paymentNote" placeholder="Variabilní symbol, účet, smlouva, detail…"></label>
                 <div class="actions wide"><button class="btn primary" type="submit">Uložit platbu</button><button class="btn" id="resetPayment" type="button">Vyčistit</button></div>
@@ -530,6 +536,10 @@
               <select id="taskSort" title="Řazení"><option value="priority">Priorita</option><option value="due">Termín</option><option value="new">Nejnovější</option></select>
             </div>
             <div class="task-board" id="taskBoard"></div>
+            <details class="history completed-items-archive" id="taskCompletedArchive" hidden>
+              <summary>Dokončené úkoly (<span id="taskCompletedCount">0</span>)</summary>
+              <div class="task-board task-flat mt-14" id="taskCompletedList"></div>
+            </details>
           </article>
           <article class="panel add-card" id="taskAddCard" data-collapsed="true">
             <button class="add-card-head" type="button" data-toggle-add="taskAddCard"><span>➕ Nový úkol</span><span class="chev">▾</span></button>
@@ -631,6 +641,14 @@
               <select id="shopSort" title="Řazení"><option value="priority">Priorita</option><option value="month">Měsíc</option><option value="price">Cena</option><option value="new">Nejnovější</option></select>
             </div>
             <div class="list" id="shoppingList"></div>
+            <details class="history completed-items-archive" id="shoppingPausedArchive" hidden>
+              <summary>Odložené položky (<span id="shoppingPausedCount">0</span>)</summary>
+              <div class="list mt-14" id="shoppingPausedList"></div>
+            </details>
+            <details class="history completed-items-archive" id="shoppingBoughtArchive" hidden>
+              <summary>Koupené položky (<span id="shoppingBoughtCount">0</span>)</summary>
+              <div class="list mt-14" id="shoppingBoughtList"></div>
+            </details>
           </article>
           <article class="panel add-card" id="shopAddCard" data-collapsed="true">
             <button class="add-card-head" type="button" data-toggle-add="shopAddCard"><span>➕ Přidat velký nákup</span><span class="chev">▾</span></button>
@@ -676,8 +694,12 @@
           </article>
 
           <article class="panel">
-            <div class="panel-head"><div><p class="eyebrow">K pořízení</p><h3>Věci na zahradu</h3></div></div>
+            <div class="panel-head"><div><p class="eyebrow">K pořízení</p><h3>Aktivní věci na zahradu</h3></div></div>
             <div class="list" id="gardenItemsList"></div>
+            <details class="history completed-items-archive" id="gardenCompletedArchive">
+              <summary>Pořízené položky (<span id="gardenCompletedCount">0</span>)</summary>
+              <div class="list mt-14" id="gardenCompletedList"></div>
+            </details>
           </article>
 
           <article class="panel add-card" id="gardenItemAddCard" data-collapsed="true">
@@ -729,7 +751,7 @@
                 <h2 class="tab-title">AI výkaz</h2>
                 <p class="tab-sub">Evidence času stráveného prací s AI pro měsíční výkaz vedení</p>
               </div>
-              <button class="info-dot" type="button" data-tip="Zapisuj, co jsi s AI dělal a jak dlouho (v minutách). Graf ukazuje celkový čas po měsících. Na konci měsíce měsíc uzavři a vygeneruj výkaz pro ředitelku: tlačítko PDF otevře tiskový náhled – v dialogu zvol Uložit jako PDF. Záložní možností je stažení výkazu jako HTML souboru.">i</button>
+              <button class="info-dot" type="button" data-tip="Zapisuj, co jsi s AI dělal a jak dlouho (v minutách). Graf ukazuje celkový čas po měsících. Na konci měsíce měsíc uzavři a vygeneruj profesionální výkaz pro vedení školy. PDF se vytvoří přes tiskový dialog volbou Uložit jako PDF; HTML se stáhne jako samostatný barevný dokument s logem školy.">i</button>
             </div>
             <div class="actions">
               <input id="aiMonth" type="month" class="control-w-170" title="Měsíc">
@@ -783,9 +805,9 @@
             <div class="head-main">
               <div>
                 <h2 class="tab-title">Odměny</h2>
-                <p class="tab-sub">Podklady pro odměny vyplácené v létě a na konci roku</p>
+                <p class="tab-sub">Průběžné podklady pro dvě odměnová období každého školního roku</p>
               </div>
-              <button class="info-dot" type="button" data-tip="Průběžně si zapisuj, co si vykážeš na odměnách: činnost a počet hodin. Položky lze kdykoli upravit. Pro každé období (léto / konec roku) vygeneruješ přehledný dokument pro vedení – tlačítko PDF otevře tiskový náhled, v dialogu zvol Uložit jako PDF.">i</button>
+              <button class="info-dot" type="button" data-tip="Každý školní rok má dvě období: září–prosinec a leden–červen. Činnosti a hodiny zapisuj průběžně; každou položku lze kdykoli upravit. Pro vybrané období lze vytvořit PDF nebo HTML podklady pro vedení.">i</button>
             </div>
             <div class="actions">
               <select id="rewardPeriodSelect" class="control-w-170" title="Období"></select>
@@ -980,6 +1002,7 @@
               <div class="panel-head"><div><p class="eyebrow">Osobní</p><h3>Oslovení a patička</h3></div></div>
               <form class="form form-one" id="settingsForm">
                 <label>Jméno pro pozdrav<input id="greetName" placeholder="Např. Dane"></label>
+                <label>Jméno v rodinném sdílení<input id="familyDisplayName" placeholder="Např. Daniel nebo Daniel Baláž"><span class="small">Zobrazuje se partnerovi jako autor souboru. Není to oslovení z úvodního pozdravu.</span></label>
                 <label>Název zařízení<input id="deviceName" placeholder="Např. Mobil, PC doma, Školní notebook"></label>
                 <label>Jméno/vlastník (patička)<input id="ownerName" placeholder="Např. Mgr. …"></label>
                 <label>Text patičky<textarea id="ownerFooter" rows="3" placeholder="Text ve spodní části aplikace"></textarea></label>
@@ -1004,6 +1027,15 @@
               <p class="small">Ukázková data pomohou ověřit grafy. Před smazáním aplikace nabídne potvrzení. Pro přenos mezi telefonem a PC používej kompletní zálohu.</p>
             </article>
           </div>
+          <article class="panel">
+            <div class="panel-head"><div><p class="eyebrow">Rychlé odemčení</p><h3>Otisk prstu nebo zámek zařízení</h3></div><span id="biometricStatus" class="status warn">Zjišťuji podporu…</span></div>
+            <p id="biometricInfo" class="small">LifeHub ověřuje možnosti tohoto zařízení.</p>
+            <div class="alert good"><strong>Hlavní heslo zůstává:</strong> biometrie ho nenahrazuje při obnově zálohy ani při přesunu na jiné zařízení. Slouží jen k rychlému odemčení tohoto lokálního trezoru.</div>
+            <div class="actions">
+              <button class="btn primary" id="enableBiometricBtn" type="button">Aktivovat rychlé odemčení</button>
+              <button class="btn danger" id="removeBiometricBtn" type="button" hidden>Vypnout na tomto zařízení</button>
+            </div>
+          </article>
           <article class="panel">
             <div class="panel-head"><div><p class="eyebrow">Rodina</p><h3>Uložené rodinné heslo</h3></div><span id="familyPasswordStatus" class="status warn">Zatím nenastaveno</span></div>
             <p id="familyPasswordInfo" class="small">Při prvním vytvoření nebo načtení rodinného souboru ho zadáte jednou.</p>
@@ -1088,7 +1120,7 @@
         </div>
       </div>
       <div class="lock-content">
-        <p class="eyebrow">LifeHub <span id="lockVersion">4.6.4</span></p>
+        <p class="eyebrow">LifeHub <span id="lockVersion">4.8.2</span></p>
         <h2 id="lockTitle">Odemknout LifeHub</h2>
         <p id="lockIntro">Zadej své heslo. Poznámky, finance ani dokumenty se před odemčením nenačtou.</p>
         <div class="lock-note" id="lockNote">Při prvním spuštění si nastavíš bezpečné heslo. Starší data lze jednorázově převést do šifrovaného úložiště.</div>
@@ -1099,7 +1131,8 @@
           </div>
           <label class="checkline check-strong" id="lockRememberWrap"><input id="lockMigrateLegacy" type="checkbox" checked>Převést starší nešifrovaná data, pokud existují</label>
           <div class="lock-actions">
-            <button class="btn primary" id="unlockBtn" type="submit">Odemknout LifeHub</button>
+            <button class="btn biometric-btn" id="biometricUnlockBtn" type="button" hidden>◉ Odemknout otiskem / zámkem telefonu</button>
+            <button class="btn primary" id="unlockBtn" type="submit">Odemknout hlavním heslem</button>
             <button class="btn danger" id="wipeEncryptedBtn" type="button">Nouzově smazat trezor</button>
           </div>
           <div class="lock-status" id="lockStatus"></div>

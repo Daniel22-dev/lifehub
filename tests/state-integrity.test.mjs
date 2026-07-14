@@ -5,7 +5,7 @@ import { ensureUniqueIds, migrateStateSchema } from '../src/core/state-integrity
 test('migrace doplní aktuální schemaVersion bez změny vstupu', () => {
   const original={schemaVersion:2,notes:[{id:'a'}]};
   const migrated=migrateStateSchema(original);
-  assert.equal(migrated.schemaVersion,6);
+  assert.equal(migrated.schemaVersion,8);
   assert.equal(original.schemaVersion,2);
 });
 
@@ -29,4 +29,14 @@ test('migrace pásek oddělí čistou mzdu od částky na účet', () => {
   assert.equal(out.schemaVersion,6);
   assert.equal(out.payrolls[0].fields.cleanPay,35711);
   assert.equal(out.payrolls[0].fields.netPay,35521);
+});
+
+
+test('migrace převádí stará odměnová období a zapíná propojení plateb', () => {
+  const input={schemaVersion:7,rewards:[{id:'r1',period:'2026-Z'},{id:'r2',period:'2026-L'}],householdPayments:[{id:'p1'}]};
+  const out=migrateStateSchema(input);
+  assert.equal(out.rewards[0].period,'2026-2027-A');
+  assert.equal(out.rewards[1].period,'2025-2026-B');
+  assert.equal(out.householdPayments[0].trackFinance,true);
+  assert.equal(out.schemaVersion,8);
 });

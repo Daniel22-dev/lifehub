@@ -47,18 +47,34 @@ export function minutesLabel(minutes){
   return `${h} h ${m} min`;
 }
 
-// ===== Odměny (období: léto / konec roku) =====
+// ===== Odměny (školní rok: září–prosinec / leden–červen) =====
+
+export function normalizeRewardPeriod(period){
+  const raw=String(period||'');
+  if(/^\d{4}-\d{4}-(A|B)$/.test(raw)) return raw;
+  const legacy=/^(\d{4})-(L|Z)$/.exec(raw);
+  if(!legacy) return raw;
+  const year=Number(legacy[1]);
+  return legacy[2]==='Z' ? `${year}-${year+1}-A` : `${year-1}-${year}-B`;
+}
 
 export function rewardPeriodLabel(period){
-  const match = /^(\d{4})-(L|Z)$/.exec(String(period || ''));
+  const normalized=normalizeRewardPeriod(period);
+  const match=/^(\d{4})-(\d{4})-(A|B)$/.exec(normalized);
   if(!match) return String(period || 'neznámé období');
-  return match[2] === 'L' ? `Léto ${match[1]} (letní prázdniny)` : `Konec roku ${match[1]}`;
+  const schoolYear=`${match[1]}/${match[2]}`;
+  return match[3]==='A'
+    ? `Září–prosinec ${match[1]} · školní rok ${schoolYear}`
+    : `Leden–červen ${match[2]} · školní rok ${schoolYear}`;
 }
 
 export function currentRewardPeriod(date = new Date()){
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1;
-  return month <= 7 ? `${year}-L` : `${year}-Z`;
+  const year=date.getFullYear();
+  const month=date.getMonth()+1;
+  if(month>=9) return `${year}-${year+1}-A`;
+  if(month<=6) return `${year-1}-${year}-B`;
+  // O prázdninách zůstává jako výchozí právě uzavřené období leden–červen.
+  return `${year-1}-${year}-B`;
 }
 
 export function sumRewardHours(entries, period){

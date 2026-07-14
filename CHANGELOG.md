@@ -1,5 +1,44 @@
 # Changelog
 
+## v4.8.2 – čisté aktivní seznamy a archivy
+
+- Dokončené úkoly se v běžném zobrazení přesouvají do rozbalovacího archivu a lze je odškrtnutím vrátit zpět.
+- Velké nákupy zobrazují nahoře pouze plánované položky; koupené a odložené mají vlastní rozbalovací archivy.
+- Koupené i odložené velké nákupy lze jedním tlačítkem vrátit do aktivního plánu.
+- Doplacené splátkové kalendáře se přesouvají do archivu a lze je bezpečně znovu otevřít se zadanou zbývající částkou.
+- Mobilní rozložení archivních akcí bylo upraveno pro pohodlné ovládání palcem.
+
+## v4.8.1 – finální mobilní verze a prémiový pracovní výkaz
+
+- Měsíční pracovní výkaz z LifeHubu má nový barevný profesionální design pro vedení školy.
+- V záhlaví je vloženo oficiální černobílé logo Gymnázia Ostrava-Hrabůvka a úplný název školy.
+- Výkaz zobrazuje přesně jednotlivé činnosti, poznámky, dílčí časy, jejich podíly a celkový vykázaný čas.
+- HTML export je responzivní; PDF používá optimalizované rozvržení A4.
+- Náročný živý iframe náhled byl z mobilní aplikace odstraněn, protože náhled už není potřeba přímo v LifeHubu.
+- KPI Měsíční závazky nově zahrnuje také všechny aktivní měsíční splátky (např. splátku 10 000 Kč).
+
+## v4.8.0 – propojené finance a praktičtější pracovní postupy
+
+- odstraněny duplicitní akce z bezpečnostního panelu na úvodní stránce,
+- odměny používají školní období září–prosinec a leden–červen a zachovávají průběžně upravitelné položky,
+- přidán náhled tiskové/PDF podoby a HTML souboru v sekci AI výkaz,
+- pořízené zahradní položky se ukládají do rozbalovacího archivu,
+- systémový fullscreen nahrazen stabilním rozšířeným režimem bez změn mobilního viewportu,
+- ručně i automaticky uhrazené účty vytvářejí propojený výdaj ve finanční evidenci,
+- smazání závazku odstraní také jeho propojené finanční záznamy; samostatný výdaj lze bezpečně odpojit bez ztráty historie úhrady,
+- výplatní pásky rozlišují mzdové období a datum připsání na účet,
+- měsíční přehled odděluje bilanci období, odhad dosud nepřijaté mzdy a skutečný hotovostní tok,
+- migrace starších dat zachovává stávající záznamy a doplňuje bezpečné výchozí hodnoty.
+
+## v4.7.0 – rychlé odemčení a lepší rodinné sdílení
+
+- volitelné lokální odemčení přes WebAuthn PRF a zámek zařízení,
+- hlavní heslo se neukládá a zůstává nouzovou možností i heslem pro obnovu,
+- změna hlavního hesla rychlé odemčení bezpečně vypne a vyžádá jeho nové nastavení,
+- nové samostatné pole **Jméno v rodinném sdílení**; oslovení „Dane“ se už nepoužívá jako jméno autora,
+- rodinný náhled už neopakuje jméno partnera nad každou sekcí,
+- URL u velkých nákupů a zahradních položek lze v partnerově náhledu otevřít.
+
 ## v4.6.1 – spolehlivé aktualizace PWA
 
 - detekce čekající nové verze,

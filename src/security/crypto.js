@@ -59,7 +59,7 @@ export async function deriveVaultKey(password, salt, iterations = KDF_ITERATIONS
     { name: 'PBKDF2', salt, iterations: rounds, hash: 'SHA-256' },
     base,
     { name: 'AES-GCM', length: 256 },
-    false,
+    true,
     ['encrypt', 'decrypt']
   );
 }
