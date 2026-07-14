@@ -2536,6 +2536,7 @@ Poslední pojistka: pro potvrzení importu napiš ${word}.`,
     function saveSettings(e){e.preventDefault(); state.settings.greetName=$('#greetName').value.trim(); state.settings.deviceName=$('#deviceName').value.trim(); state.settings.ownerName=$('#ownerName').value.trim(); state.settings.ownerFooter=$('#ownerFooter').value.trim(); state.settings.currency=sanitizeCurrency($('#currency').value); state.settings.savingGoal=number($('#savingGoal').value); state.settings.privateNotifications=$('#privateNotifications')?.checked!==false; state.settings.familySettingsUpdatedAt=new Date().toISOString(); save(); toast('Nastavení uloženo.');}
     // Krátký changelog (nejnovější nahoře, drž ~5 položek). Zobrazí se klepnutím na verzi v patičce.
     const CHANGELOG = [
+      'v4.6.4 · Oprava aktualizace ikony na Androidu: manifest používá nové URL souborů ikon, aby Chrome vytvořil aktualizovaný WebAPK bez odinstalace aplikace.',
       'v4.6.3 · Záložky Finance a Platby byly přejmenovány na Příjmy a výdaje a Účty a závazky. Obě nyní přímo vysvětlují svůj účel, mají vzájemný proklik a upozorňují, že záznamy zatím nejsou automaticky propojené.',
       'v4.6.2 · Plovoucí + je sjednocené napříč záložkami: v Příjmech a výdajích nabízí transakci i výplatní pásku, v Nákupním seznamu rychlou položku, hromadné vložení i fotku a na Zahradě rozlišuje pořízení a údržbu.',
       'v4.6.1 · Spolehlivé aktualizace PWA: nový osobní dashboard, dnešní souhrn, mobilní spodní navigace, kompaktní bezpečnostní panel a přepracované odemknutí.',
