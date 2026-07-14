@@ -896,3 +896,15 @@ body.focus-mode .sidebar{top:92px}
   .archive-item .actions{width:100%;display:grid;grid-template-columns:1fr 1fr}
   .archive-item .actions .mini-btn{min-height:40px}
 }
+
+/* ===== LifeHub 4.8.4 – souhrn měsíčních financí ===== */
+.monthly-finance-panel{margin:16px 0}
+.monthly-finance-kpis{margin-bottom:14px}
+.monthly-finance-breakdown{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}
+.monthly-finance-breakdown>div{display:grid;gap:6px;padding:13px 14px;border:1px solid var(--border);border-radius:16px;background:color-mix(in srgb,var(--surface-soft) 88%,transparent)}
+.monthly-finance-breakdown span{color:var(--muted);font-size:.73rem;line-height:1.35;font-weight:750}
+.monthly-finance-breakdown strong{font-size:1rem}
+.monthly-finance-note{margin:12px 2px 0}
+@media(max-width:1100px){.monthly-finance-breakdown{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:680px){.monthly-finance-breakdown{grid-template-columns:1fr 1fr}.monthly-finance-panel .panel-head{align-items:flex-start}.monthly-finance-panel .panel-head .actions{display:grid;grid-template-columns:1fr 1fr;width:100%}}
+@media(max-width:380px){.monthly-finance-breakdown{grid-template-columns:1fr}.monthly-finance-panel .panel-head .actions{grid-template-columns:1fr}}

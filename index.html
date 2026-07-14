@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#11152f">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'none'; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
-  <title>LifeHub 4.8.2 | osobní digitální centrum</title>
+  <title>LifeHub 4.8.4 | osobní digitální centrum</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./lifehub-icon-v2.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./lifehub-icon-192-v2.png">
@@ -16,7 +16,7 @@
       <div class="brand">
         <div class="brand-mark" aria-hidden="true"><span>LH</span></div>
         <div class="brand-copy">
-          <h1>LifeHub <span id="appTitleVersion">4.8.2</span></h1>
+          <h1>LifeHub <span id="appTitleVersion">4.8.4</span></h1>
           <p>Soukromé centrum · offline · šifrované</p>
         </div>
       </div>
@@ -111,6 +111,17 @@
 
           <div class="focus-strip" id="dashboardFocus" aria-label="Dnešní souhrn"></div>
           <div class="kpis" id="dashboardKpis"></div>
+
+          <article class="panel monthly-finance-panel">
+            <div class="panel-head">
+              <div><p class="eyebrow">Měsíční finanční plán</p><h3>Výplata vs. všechny aktuální a plánované výdaje</h3></div>
+              <div class="actions">
+                <button class="btn secondary" data-jump="finance" type="button">Příjmy a výdaje</button>
+                <button class="btn" data-jump="payments" type="button">Účty a závazky</button>
+              </div>
+            </div>
+            <div id="dashboardMonthlyFinance"></div>
+          </article>
 
           <div class="grid two dashboard-main-grid">
             <article class="panel chart-panel">
@@ -231,7 +242,7 @@
             <div class="filters filter-four">
               <input id="transSearch" type="search" placeholder="Hledat v transakcích…">
               <select id="transKindFilter" title="Typ"><option value="all">Vše</option><option value="income">Příjmy</option><option value="expense">Výdaje</option></select>
-              <select id="transSourceFilter" title="Zdroj"><option value="all">Všechny zdroje</option><option value="manual">Ruční</option><option value="payroll">Výplatní pásky</option><option value="payment">Účty a závazky</option></select>
+              <select id="transSourceFilter" title="Zdroj"><option value="all">Všechny zdroje</option><option value="manual">Ruční</option><option value="payroll">Výplatní pásky</option><option value="payment">Účty a závazky</option><option value="installment">Splátkový kalendář</option></select>
               <select id="transPeriodFilter" title="Období"><option value="selected">Vybraný měsíc</option><option value="year">Celý rok</option><option value="all">Vše</option></select>
             </div>
             <div class="list" id="transactionsList"></div>
@@ -1120,7 +1131,7 @@
         </div>
       </div>
       <div class="lock-content">
-        <p class="eyebrow">LifeHub <span id="lockVersion">4.8.2</span></p>
+        <p class="eyebrow">LifeHub <span id="lockVersion">4.8.4</span></p>
         <h2 id="lockTitle">Odemknout LifeHub</h2>
         <p id="lockIntro">Zadej své heslo. Poznámky, finance ani dokumenty se před odemčením nenačtou.</p>
         <div class="lock-note" id="lockNote">Při prvním spuštění si nastavíš bezpečné heslo. Starší data lze jednorázově převést do šifrovaného úložiště.</div>

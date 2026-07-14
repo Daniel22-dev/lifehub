@@ -1,5 +1,23 @@
 # Changelog
 
+## v4.8.4 – skutečný měsíční finanční souhrn a propojené splátky
+
+- Přehled obsahuje nový blok **Výplata vs. všechny aktuální a plánované výdaje**.
+- Souhrn spojuje připsanou výplatu, již provedené finanční výdaje, jídlo a benzín, neuhrazené účty a faktury, trvalé příkazy, splátky a zbývající měsíční rozpočet.
+- Ukazatel **Po všech výdajích** zobrazuje, kolik z připsané výplaty zbude po skutečných i očekávaných výdajích daného měsíce.
+- Tlačítka **+ splátka** a **+ mimořádná** nově automaticky vytvářejí propojený výdaj v záložce Příjmy a výdaje.
+- Při prvním otevření se do financí bezpečně doplní také starší zaznamenané splátky; shodný ruční výdaj se přednostně propojí, aby se omezily duplicity.
+- Smazání splátkového kalendáře odstraní i jeho propojené finanční záznamy; jednotlivý výdaj lze odpojit bez ztráty historie splátky.
+- Opravena syntaktická chyba interaktivního manuálu 4.8.3.
+
+## v4.8.3 – kompletně aktualizovaný interaktivní manuál
+
+- Manuál odpovídá biometrickému odemčení, rodinnému jménu a klikacím URL.
+- Popsáno propojení účtů s Příjmy a výdaji, mzdové období a datum připsání.
+- Opraven popis prémiového AI výkazu bez živého mobilního náhledu.
+- Doplněna dvě období odměn a všechny archivy dokončených položek.
+- Popsáno zahrnutí aktivních měsíčních splátek do KPI Měsíční závazky.
+
 ## v4.8.2 – čisté aktivní seznamy a archivy
 
 - Dokončené úkoly se v běžném zobrazení přesouvají do rozbalovacího archivu a lze je odškrtnutím vrátit zpět.
