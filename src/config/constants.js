@@ -1,4 +1,4 @@
-export const APP_VERSION = '4.8.5';
+export const APP_VERSION = '4.8.6';
 const runtimeBase = import.meta.env?.BASE_URL || './';
 const documentBase = globalThis.document?.baseURI || 'http://localhost/';
 export const PUBLIC_BASE_URL = new URL(runtimeBase, documentBase);
@@ -23,3 +23,7 @@ export const MAX_COMPLETE_BACKUP_TOTAL_BYTES = 100 * 1024 * 1024;
 export const MOBILE_COMPLETE_BACKUP_TOTAL_BYTES = 35 * 1024 * 1024;
 export const MOBILE_BACKUP_JSON_BYTES = 60 * 1024 * 1024;
 export const MAX_BACKUP_JSON_BYTES = 210 * 1024 * 1024;
+// Cizí vstupy se před sanitizací drží na přísném limitu. Vlastní dešifrovaný
+// trezor tento limit nepoužívá, protože jde o autentizovaná lokální data a
+// stejný limit by uživatele po čase mohl zamknout mimo jeho vlastní obsah.
+export const MAX_IMPORT_STATE_BYTES = 8 * 1024 * 1024;

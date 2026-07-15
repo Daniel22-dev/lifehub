@@ -15,7 +15,8 @@ import {
   MAX_COMPLETE_BACKUP_FILE_BYTES,
   MAX_COMPLETE_BACKUP_TOTAL_BYTES,
   MOBILE_COMPLETE_BACKUP_TOTAL_BYTES,
-  MOBILE_BACKUP_JSON_BYTES
+  MOBILE_BACKUP_JSON_BYTES,
+  MAX_IMPORT_STATE_BYTES
 } from '../config/constants.js';
 import { registerServiceWorker } from '../pwa/register-sw.js';
 import { SCHOOL_LOGO_DATA_URI } from '../assets/school-logo-data.js';
@@ -70,7 +71,6 @@ import {
   normalizeRewardPeriod,
   minutesLabel,
   parseGroceryEntries,
-  parseGroceryLines,
   rewardPeriodLabel,
   sumMinutes,
   sumRewardHours
@@ -106,7 +106,6 @@ export function bootLifeHub(){
     let pdfJsSource = '';
     let pdfjsLibRef = null;
     const fmt = n => `${(Number(n)||0).toLocaleString('cs-CZ',{maximumFractionDigits:0})} ${sanitizeCurrency(state.settings.currency)}`;
-    const fmt2 = n => `${(Number(n)||0).toLocaleString('cs-CZ',{maximumFractionDigits:2})} ${sanitizeCurrency(state.settings.currency)}`;
     const monthLabel = m => m ? new Date(`${m}-01T00:00:00`).toLocaleDateString('cs-CZ',{month:'long',year:'numeric'}) : 'bez měsíce';
     const defaultState = () => ({
       version: VERSION,
@@ -161,13 +160,36 @@ export function bootLifeHub(){
       ['employerCost','Náklad zaměstnavatele',['superhruba','naklady zamestnavatele','cena prace']]
     ];
 
+    // Ve verzi 4.8.5 chyběla funkce merge(). ReferenceError se zachytil a
+    // migrace pak tiše pokračovala s prázdným stavem. Při následném zápisu se
+    // původní plaintext smazal. Chyby čtení proto nyní vždy zastaví migraci.
+    function merge(base, patch){
+      if(!patch || typeof patch !== 'object' || Array.isArray(patch)) return base;
+      const out = Array.isArray(base) ? [...base] : {...base};
+      for(const key of Object.keys(patch)){
+        if(FORBIDDEN_IMPORT_KEYS.has(key)) continue;
+        const value = patch[key];
+        if(value === undefined) continue;
+        const current = out[key];
+        if(Array.isArray(value)) out[key] = value;
+        else if(value && typeof value === 'object' && current && typeof current === 'object' && !Array.isArray(current)) out[key] = merge(current, value);
+        else out[key] = value;
+      }
+      return out;
+    }
     function loadLegacyState(){
+      const raw = localStorage.getItem(LEGACY_STORE);
+      if(!raw) return null;
+      let parsed;
       try{
-        const raw = localStorage.getItem(LEGACY_STORE);
-        if(!raw) return defaultState();
-        const parsed = JSON.parse(raw);
-        return merge(defaultState(), parsed);
-      }catch(e){ return defaultState(); }
+        parsed = JSON.parse(raw);
+      }catch(error){
+        throw new Error('Starší nešifrovaná data nelze přečíst, migrace byla zrušena. Původní data zůstala beze změny.', {cause:error});
+      }
+      if(!parsed || typeof parsed !== 'object' || Array.isArray(parsed)){
+        throw new Error('Starší nešifrovaná data mají neočekávaný formát, migrace byla zrušena. Původní data zůstala beze změny.');
+      }
+      return merge(defaultState(), parsed);
     }
     function hasEncryptedState(){ return !!encryptedStateEnvelope; }
     function hasLegacyState(){
@@ -895,6 +917,7 @@ export function bootLifeHub(){
       if(migratedGroceries) toast(`${migratedGroceries} položek potravin bylo přesunuto do nové záložky Nákupní seznam.`);
       if(automaticPaymentsAdvanced) toast(`Automatické platby byly posunuty podle termínů (${automaticPaymentsAdvanced}).`,'good');
       if(payrollTransactionsReconciled.created) toast(`Do financí byla doplněna chybějící výplata (${payrollTransactionsReconciled.created}).`,'good');
+      if(payrollTransactionsReconciled.removedGrossFallbacks) toast(`Z financí bylo odstraněno ${payrollTransactionsReconciled.removedGrossFallbacks} chybně vytvořených příjmů z hrubé mzdy. Doplňte u těchto pásek čistou mzdu nebo částku na účet.`,'warn');
       if(installmentTransactionsCreated) toast(`Do financí bylo doplněno ${installmentTransactionsCreated} dříve zaznamenaných splátek.`,'good');
       const who = (state.settings.greetName||'').trim();
       if(method==='biometric') toast(`Odemčeno zámkem zařízení${who?', '+who:''}. 👋`,'good');
@@ -920,7 +943,7 @@ export function bootLifeHub(){
         vaultIterations=validateKdfIterations(envelope.crypto?.iterations);
         vaultKey=await unlockVaultKeyWithBiometrics(biometricUnlockRecord);
         const plain=await decryptObjectWithKey(envelope,vaultKey);
-        state=sanitizeImportedState(plain,{preserveStoredFiles:true});
+        state=sanitizeImportedState(plain,{preserveStoredFiles:true,trusted:true});
         await reconcileStoredFileFlags();
         await finishVaultUnlock({encrypted:true,method:'biometric'});
       }catch(error){
@@ -1035,7 +1058,7 @@ export function bootLifeHub(){
           vaultIterations = storedIterations;
           vaultKey = await deriveVaultKey(pass, vaultSalt, storedIterations);
           const plain = await decryptObjectWithKey(envelope, vaultKey);
-          state = sanitizeImportedState(plain, { preserveStoredFiles: true });
+          state = sanitizeImportedState(plain, { preserveStoredFiles: true, trusted: true });
           await reconcileStoredFileFlags();
           if(encryptedStateSource !== 'indexeddb' || pendingLegacyEnvelopeCleanup){
             await persistEncryptedState(vaultKey, vaultSalt, state, vaultIterations);
@@ -1052,7 +1075,14 @@ export function bootLifeHub(){
             if(!removeLegacy){ $('#lockStatus').textContent = 'Založení trezoru bylo zrušeno. Starší nešifrovaná data zůstala beze změny.'; vaultKey = null; vaultSalt = null; vaultIterations = KDF_ITERATIONS; return; }
             try{ localStorage.removeItem(LEGACY_STORE); }catch(e){ console.warn(e); }
           }
-          state = migrate ? sanitizeImportedState(loadLegacyState(), { preserveStoredFiles: true }) : defaultState();
+          let migratedState = null;
+          if(migrate){
+            migratedState = loadLegacyState();
+            if(!migratedState) throw new Error('Starší nešifrovaná data se nepodařilo načíst, migrace byla zrušena.');
+          }
+          state = migratedState
+            ? sanitizeImportedState(migratedState, { preserveStoredFiles: true, trusted: true })
+            : defaultState();
           state.version = VERSION;
           state.createdAt = state.createdAt || new Date().toISOString();
           await persistEncryptedState();
@@ -1376,11 +1406,15 @@ export function bootLifeHub(){
         foodBudget:limits.food,
         fuelBudget:limits.fuel
       });
-      const salaryPeriodText=summary.salaryPeriods.length===1
+      const salaryPeriodBase=summary.salaryPeriods.length===1
         ? `Mzda za ${monthLabel(summary.salaryPeriods[0])}`
         : summary.salaryPeriods.length>1
           ? `Mzdy za ${summary.salaryPeriods.map(monthLabel).join(', ')}`
           : 'V tomto měsíci zatím není připsaná výplata';
+      const missingPayNote=summary.payrollsMissingNetPay>0
+        ? ` · u ${summary.payrollsMissingNetPay} ${summary.payrollsMissingNetPay===1?'pásky chybí':'pásek chybí'} čistá mzda a částka se nezapočítává`
+        : '';
+      const salaryPeriodText=salaryPeriodBase+missingPayNote;
       const remainingClass=summary.remainingAfterPlan>=0?'money-plus':'money-minus';
       box.innerHTML=`
         <div class="kpis monthly-finance-kpis">
@@ -1575,7 +1609,7 @@ export function bootLifeHub(){
 
     function payrollIncomeAmount(payroll){
       const fields=payroll?.fields||{};
-      return Math.max(0,number(fields.netPay||fields.cleanPay||fields.grossPay));
+      return Math.max(0,number(fields.netPay||fields.cleanPay));
     }
     function payrollTransactionDescription(payroll){
       return `Výplatní páska${payroll?.employer?' • '+payroll.employer:''}${payroll?.fileName?' • '+payroll.fileName:''}`;
@@ -1583,11 +1617,24 @@ export function bootLifeHub(){
     function reconcilePayrollTransactions(){
       let created=0;
       let changed=0;
+      let removedGrossFallbacks=0;
       const claimedTransactions=new Set();
       const payrolls=[...state.payrolls].sort((a,b)=>String(a?.createdAt||'').localeCompare(String(b?.createdAt||'')));
       for(const payroll of payrolls){
         const amount=payrollIncomeAmount(payroll);
-        if(!(amount>0) || !/^\d{4}-\d{2}$/.test(String(payroll?.month||''))) continue;
+        if(!/^\d{4}-\d{2}$/.test(String(payroll?.month||''))) continue;
+        if(!(amount>0)){
+          const gross=Math.max(0,number(payroll?.fields?.grossPay));
+          if(gross>0){
+            state.transactions=state.transactions.filter(row=>{
+              const linked=row?.source==='payroll' && (row?.payrollId===payroll.id || (!row?.payrollId && row?.payrollMonth===payroll.month));
+              const isGrossFallback=linked && Math.abs(number(row?.amount)-gross)<0.01;
+              if(isGrossFallback){ changed++; removedGrossFallbacks++; return false; }
+              return true;
+            });
+          }
+          continue;
+        }
         let paymentDate=/^\d{4}-\d{2}-\d{2}$/.test(String(payroll?.paymentDate||''))
           ? String(payroll.paymentDate)
           : defaultPayrollPaymentDate(payroll.month);
@@ -1634,7 +1681,7 @@ export function bootLifeHub(){
           changed++;
         }
       }
-      return {created,changed};
+      return {created,changed,removedGrossFallbacks};
     }
 
     function renderPayrollFieldInputs(){
@@ -1690,9 +1737,16 @@ export function bootLifeHub(){
       if(!rows.length){ setPdfStatus('Všechny měsíce už existují','warn'); toast('Všechny rozpoznané měsíce už v aplikaci existují. Zapněte „Nahradit starší mzdový příjem“, pokud je chcete načíst znovu.','warn'); return; }
       const storePdf=!!$('#payStorePdf')?.checked;
       const storeText=!!$('#payStoreText')?.checked;
-      const summary=rows.map(row=>{ const clean=number(row.fields.cleanPay||row.fields.netPay||row.fields.grossPay); const account=number(row.fields.netPay||clean); return `- ${monthLabel(row.month)}: čistá mzda ${fmt(clean)}${account!==clean?` • na účet ${fmt(account)}`:''} • ${row.found} rozpoznaných hodnot${existingMonths.has(row.month)?' • nahradí stávající záznam':''}`; }).join('\n');
+      const summary=rows.map(row=>{
+        const credited=payrollIncomeAmount({fields:row.fields});
+        const gross=number(row.fields.grossPay);
+        const amountText=credited>0 ? `částka k připsání ${fmt(credited)}` : `částka k připsání nenalezena${gross>0?` • hrubá ${fmt(gross)}`:''}`;
+        return `- ${monthLabel(row.month)}: ${amountText} • ${row.found} rozpoznaných hodnot${existingMonths.has(row.month)?' • nahradí stávající záznam':''}`;
+      }).join('\n');
+      const rowsMissingCredited=rows.filter(row=>payrollIncomeAmount({fields:row.fields})<=0).length;
       const extras=[
         storePdf?'PDF budou uložena šifrovaně pouze v tomto zařízení.':'PDF se neuloží; zůstanou jen vyčtené částky.',
+        rowsMissingCredited?`U ${rowsMissingCredited} ${rowsMissingCredited===1?'pásky chybí':'pásek chybí'} čistá mzda nebo částka na účet. Uloží se bez příjmové transakce; hrubá mzda se jako připsaná částka nepoužije.`:'',
         skipped?`${skipped} existujících měsíců bude přeskočeno.`:'',
         failures.length?`${failures.length} souborů se nepodařilo připravit a nebude importováno.`:''
       ].filter(Boolean).join('\n');
@@ -1717,7 +1771,10 @@ export function bootLifeHub(){
           state.transactions=state.transactions.filter(t=>!(t.source==='payroll'&&t.payrollMonth===row.month));
         }
         state.payrolls.unshift(record);
-        state.transactions.unshift({id:uid('trans'),date:paymentDate,kind:'income',category:'mzda',amount:record.fields.netPay||record.fields.cleanPay||record.fields.grossPay||0,description:`Výplatní páska${record.employer?' • '+record.employer:''}${record.fileName?' • '+record.fileName:''}`,source:'payroll',payrollId:id,payrollMonth:row.month,shared:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
+        const creditedAmount=payrollIncomeAmount(record);
+        if(creditedAmount>0){
+          state.transactions.unshift({id:uid('trans'),date:paymentDate,kind:'income',category:'mzda',amount:creditedAmount,description:`Výplatní páska${record.employer?' • '+record.employer:''}${record.fileName?' • '+record.fileName:''}`,source:'payroll',payrollId:id,payrollMonth:row.month,shared:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
+        }
       }
       state.payrolls.sort((a,b)=>String(b.month).localeCompare(String(a.month)));
       save();
@@ -1725,7 +1782,9 @@ export function bootLifeHub(){
       const warning=fileFailures?` U ${fileFailures} pásek se nepodařilo uložit samotné PDF, částky však zůstaly zachovány.`:'';
       const failedText=failures.length?` ${failures.length} neplatných souborů bylo přeskočeno.`:'';
       setPdfStatus(`Uloženo ${rows.length} pásek`,'good');
-      toast(`Hromadně uloženo ${rows.length} výplatních pásek${storePdf?` (${storedCount} PDF šifrovaně)`:''}.${warning}${failedText}`,fileFailures||failures.length?'warn':'good');
+      const creditedRows=rows.length-rowsMissingCredited;
+      const salaryWarning=rowsMissingCredited?` Příjmová transakce vznikla u ${creditedRows} z nich; ${rowsMissingCredited} zůstalo bez příjmu kvůli chybějící čisté mzdě nebo částce na účet.`:'';
+      toast(`Hromadně uloženo ${rows.length} výplatních pásek${storePdf?` (${storedCount} PDF šifrovaně)`:''}.${salaryWarning}${warning}${failedText}`,fileFailures||failures.length||rowsMissingCredited?'warn':'good');
     }
     async function parsePayrollPdf(){
       const files=Array.from($('#payrollPdf').files||[]);
@@ -1896,8 +1955,14 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         state.transactions = state.transactions.filter(t=>!(t.source==='payroll' && t.payrollMonth===month));
       }
       state.payrolls.unshift(record);
-      state.transactions.unshift({id:uid('trans'), date:paymentDate, kind:'income', category:'mzda', amount:fields.netPay || fields.cleanPay || fields.grossPay || 0, description:`Výplatní páska${record.employer?' • '+record.employer:''}${record.fileName?' • '+record.fileName:''}`, source:'payroll', payrollId:id, payrollMonth:month, shared:false, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString()});
-      save(); clearPayrollImport(); toast('Výplatní páska uložena. Bilance ji počítá k mzdovému období, hotovostní tok k datu připsání.');
+      const creditedAmount=payrollIncomeAmount(record);
+      if(creditedAmount>0){
+        state.transactions.unshift({id:uid('trans'), date:paymentDate, kind:'income', category:'mzda', amount:creditedAmount, description:`Výplatní páska${record.employer?' • '+record.employer:''}${record.fileName?' • '+record.fileName:''}`, source:'payroll', payrollId:id, payrollMonth:month, shared:false, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString()});
+      }
+      save(); clearPayrollImport();
+      toast(creditedAmount>0
+        ? 'Výplatní páska uložena. Bilance ji počítá k mzdovému období, hotovostní tok k datu připsání.'
+        : 'Výplatní páska byla uložena bez příjmové transakce, protože chybí čistá mzda nebo částka na účet. Hrubá mzda se jako připsaná částka nepoužije.', creditedAmount>0?'good':'warn');
     }
     // Additivní import výplatních pásek z JSON souboru. Na rozdíl od záloh nic
     // nenahrazuje: pásky přidá k současným datům a měsíce, které už existují, přeskočí.
@@ -1918,18 +1983,28 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         const toAdd=incoming.filter(p=>!existing.has(p.month)).sort((a,b)=>a.month.localeCompare(b.month));
         const skipped=incoming.length-toAdd.length;
         if(!toAdd.length){ toast(`Všech ${incoming.length} měsíců už v aplikaci existuje. Nic nebylo přidáno.`,'warn'); return; }
-        const summary=toAdd.map(p=>{ const clean=number(p.fields.cleanPay||p.fields.netPay||p.fields.grossPay); const account=number(p.fields.netPay||clean); return `- ${monthLabel(p.month)}: čistá mzda ${fmt(clean)}${account!==clean?` • na účet ${fmt(account)}`:''}`; }).join('\n');
-        const ok=await confirmDialog(`Přidat ${toAdd.length} výplatních pásek a zapsat je do příjmů?\n\n${summary}${skipped?`\n\n${skipped} měsíců bylo přeskočeno, protože už existují.`:''}\n\nSoučasná data zůstanou beze změny.`, {title:'Import výplatních pásek', confirmText:'Přidat pásky'});
+        const summary=toAdd.map(p=>{
+          const credited=payrollIncomeAmount(p);
+          const gross=number(p.fields.grossPay);
+          return `- ${monthLabel(p.month)}: ${credited>0?`částka k připsání ${fmt(credited)}`:`částka k připsání nenalezena${gross>0?` • hrubá ${fmt(gross)}`:''}`}`;
+        }).join('\n');
+        const creditedCount=toAdd.filter(p=>payrollIncomeAmount(p)>0).length;
+        const missingCreditedCount=toAdd.length-creditedCount;
+        const ok=await confirmDialog(`Přidat ${toAdd.length} výplatních pásek?\n\n${summary}${skipped?`\n\n${skipped} měsíců bylo přeskočeno, protože už existují.`:''}${missingCreditedCount?`\n\nU ${missingCreditedCount} ${missingCreditedCount===1?'pásky chybí':'pásek chybí'} čistá mzda nebo částka na účet. Uloží se bez příjmové transakce; hrubá mzda se jako připsaná částka nepoužije.`:''}\n\nSoučasná data zůstanou beze změny.`, {title:'Import výplatních pásek', confirmText:'Přidat pásky'});
         if(!ok) return;
         toAdd.forEach(p=>{
           const id=uid('payroll');
           const paymentDate=/^\d{4}-\d{2}-\d{2}$/.test(p.paymentDate)?p.paymentDate:defaultPayrollPaymentDate(p.month);
-          state.payrolls.unshift({id, month:p.month, paymentDate, paymentDateEstimated:!p.paymentDate, employer:p.employer, note:p.note, fileName:'', fileSize:0, fields:p.fields, evidence:{}, rawText:'', storedPdf:false, createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
-          state.transactions.unshift({id:uid('trans'), date:paymentDate, kind:'income', category:'mzda', amount:p.fields.netPay||p.fields.cleanPay||p.fields.grossPay||0, description:`Výplatní páska${p.employer?' • '+p.employer:''}`, source:'payroll', payrollId:id, payrollMonth:p.month,shared:false, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString()});
+          const record={id, month:p.month, paymentDate, paymentDateEstimated:!p.paymentDate, employer:p.employer, note:p.note, fileName:'', fileSize:0, fields:p.fields, evidence:{}, rawText:'', storedPdf:false, createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+          state.payrolls.unshift(record);
+          const creditedAmount=payrollIncomeAmount(record);
+          if(creditedAmount>0){
+            state.transactions.unshift({id:uid('trans'), date:paymentDate, kind:'income', category:'mzda', amount:creditedAmount, description:`Výplatní páska${p.employer?' • '+p.employer:''}`, source:'payroll', payrollId:id, payrollMonth:p.month,shared:false, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString()});
+          }
         });
         state.payrolls.sort((a,b)=>String(b.month).localeCompare(String(a.month)));
         save();
-        toast(`Přidáno ${toAdd.length} výplatních pásek včetně příjmů.${skipped?` ${skipped} existujících měsíců přeskočeno.`:''}`,'good');
+        toast(`Přidáno ${toAdd.length} výplatních pásek. Příjmová transakce vznikla u ${creditedCount} z nich.${missingCreditedCount?` ${missingCreditedCount} pásek zůstalo bez příjmu kvůli chybějící čisté mzdě nebo částce na účet.`:''}${skipped?` ${skipped} existujících měsíců přeskočeno.`:''}`,missingCreditedCount?'warn':'good');
       }catch(err){ console.error(err); toast('Import pásek se nepodařil: '+(err.message||err),'bad'); }
     }
     function transactionAccountingMonth(transaction){
@@ -2018,11 +2093,11 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
     function barRow(label,value,pct){const val=clampPercent(pct); return `<div class="bar-row"><div class="bar-row-head"><span>${esc(label)}</span><span>${esc(value)}</span></div><progress class="bar-progress" max="100" value="${val}" aria-label="${attr(label)}: ${val} %">${val}%</progress></div>`;}
     function payrollCleanAmount(payroll){
       const fields=payroll?.fields||{};
-      return number(fields.cleanPay||fields.netPay||fields.grossPay);
+      return number(fields.cleanPay||fields.netPay);
     }
     function payrollAccountAmount(payroll){
       const fields=payroll?.fields||{};
-      return number(fields.netPay||fields.cleanPay||fields.grossPay);
+      return number(fields.netPay||fields.cleanPay);
     }
     function payrollVisibleNote(payroll){
       return String(payroll?.note||'').split(';').map(part=>part.trim()).filter(part=>part && !/^čistá mzda\s/i.test(part)).join('; ');
@@ -2132,11 +2207,6 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       const value = await idbRawGet(id,store);
       if(value && value.kind === 'LifeHub encrypted blob') return decryptBlobFromIdb(value);
       return value;
-    }
-    async function idbHasRecord(id, store=PDF_STORE){
-      if(!id) return false;
-      try{ return !!(await idbRawGet(id, store)); }
-      catch(error){ console.warn(error); return false; }
     }
     async function reconcileStoredFileFlags(){
       let changed = 0;
@@ -2502,11 +2572,16 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       });
       return out;
     }
-    function sanitizeImportedState(input, { preserveStoredFiles = false } = {}){
+    function sanitizeImportedState(input, { preserveStoredFiles = false, trusted = false } = {}){
+      if(!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Záloha nemá očekávaný formát.');
+      if(!trusted){
+        const approxSize = new Blob([JSON.stringify(input)]).size;
+        if(approxSize > MAX_IMPORT_STATE_BYTES){
+          throw new Error(`Záloha je příliš velká pro bezpečný import (${formatBytes(approxSize)}). Limit je ${formatBytes(MAX_IMPORT_STATE_BYTES)}.`);
+        }
+      }
       const data = migrateStateSchema(input);
       if(!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Záloha nemá očekávaný formát.');
-      const approxSize = new Blob([JSON.stringify(data)]).size;
-      if(approxSize > 8 * 1024 * 1024) throw new Error('Záloha je příliš velká pro bezpečný import.');
       if(hasForbiddenKeys(data)) throw new Error('Záloha obsahuje zakázané klíče a nebude importována.');
       const clean = defaultState();
       const st = data.settings || {};
@@ -2640,11 +2715,6 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       return lines.join('\n');
     }
 
-    function sumByMonth(){
-      const map={};
-      state.transactions.forEach(t=>{const m=transactionAccountingMonth(t)||'bez-mesice'; map[m]??={month:m,income:0,expense:0,balance:0,count:0}; const a=number(t.amount); if(t.kind==='income') map[m].income+=a; else map[m].expense+=a; map[m].balance=map[m].income-map[m].expense; map[m].count++;});
-      return Object.values(map).sort((a,b)=>String(a.month).localeCompare(String(b.month)));
-    }
     function quarterOf(month){
       if(!/^\d{4}-\d{2}/.test(String(month||''))) return 'bez-obdobi';
       const [year,m] = String(month).split('-');
@@ -2979,6 +3049,7 @@ Poslední pojistka: pro potvrzení importu napiš ${word}.`,
     function saveSettings(e){e.preventDefault(); state.settings.greetName=$('#greetName').value.trim(); state.settings.familyDisplayName=$('#familyDisplayName')?.value.trim()||''; state.settings.deviceName=$('#deviceName').value.trim(); state.settings.ownerName=$('#ownerName').value.trim(); state.settings.ownerFooter=$('#ownerFooter').value.trim(); state.settings.currency=sanitizeCurrency($('#currency').value); state.settings.savingGoal=number($('#savingGoal').value); state.settings.privateNotifications=$('#privateNotifications')?.checked!==false; state.settings.familySettingsUpdatedAt=new Date().toISOString(); save(); toast('Nastavení uloženo.');}
     // Krátký changelog (nejnovější nahoře, drž ~5 položek). Zobrazí se klepnutím na verzi v patičce.
     const CHANGELOG = [
+      'v4.8.6 · Opravena kritická migrace starších nešifrovaných dat: při chybě se migrace bezpečně zastaví a původní data zůstanou beze změny. Vlastní trezor už neblokuje limit určený pro cizí importy. Měsíční výkaz funguje pod přísnou CSP, mzda se započítává jen z čisté částky nebo částky na účet a offline režim lépe zvládá chybějící soubory i pomalou síť.',
       'v4.8.5 · Přehled načte výplatu i ze starších pásek bez propojené transakce a chybějící mzdový příjem opraví. Tlačítko celé obrazovky používá skutečný Fullscreen API se záložním režimem. Aktivní otisk nebo zámek telefonu se při otevření spustí automaticky.',
       'v4.8.4 · Přehled nově porovnává připsanou výplatu se všemi skutečnými i plánovanými výdaji. Běžné i mimořádné splátky se automaticky zapisují do financí a starší záznamy se bezpečně doplní.',
       'v4.8.3 · Interaktivní manuál je kompletně sjednocený s biometrií, rodinným sdílením, propojenými financemi, prémiovým AI výkazem a archivy dokončených položek.',
@@ -4085,10 +4156,6 @@ Pokračovat ve vytvoření šifrovaného souboru?`,{title:'Obsah rodinného soub
       const d=family?.data||{};
       return Object.fromEntries(FAMILY_COLLECTIONS.map(collection=>[collection,Array.isArray(d[collection])?d[collection].length:0]));
     }
-    function familyCountText(family){
-      const c=familyCounts(family);
-      return `finance ${c.transactions}, jídlo/benzín ${c.budgetEntries}, nákupní seznam ${c.groceries}, úkoly ${c.tasks}, velké nákupy ${c.shopping}, splátky ${c.installments}, platby ${c.householdPayments}, zahrada ${c.gardenItems+c.gardenLogs}`;
-    }
     async function decodeFamilyFile(file){
       if(file.size>8*1024*1024) throw new Error('Rodinný soubor je příliš velký.');
       const envelope=JSON.parse(await file.text());
@@ -4210,6 +4277,20 @@ Pokračovat ve vytvoření šifrovaného souboru?`,{title:'Obsah rodinného soub
     const AI_REPORT_COLORS=['#1f5fbf','#7a3fc2','#1d9b58','#ef8b17','#0b9fb3','#d4477b','#64748b','#d22f3c'];
     const SCHOOL_OFFICIAL_NAME='Gymnázium, Ostrava-Hrabůvka';
     const SCHOOL_LEGAL_FORM='příspěvková organizace';
+    // Aplikace používá style-src 'self', takže inline style atributy se v jejím
+    // okně neuplatní. Stažený HTML dokument je ale potřebuje. Vydáme proto
+    // inline hodnotu pro stažený soubor a datové atributy pro bezpečné doplnění
+    // přes jednotlivé CSSOM vlastnosti při tisku uvnitř aplikace.
+    function cssVar(name, value){
+      return `style="${attr(name)}:${attr(value)}" data-css-var="${attr(name)}" data-css-value="${attr(value)}"`;
+    }
+    function applyCssVars(root){
+      root?.querySelectorAll('[data-css-var]').forEach(el=>{
+        const name=el.dataset.cssVar;
+        const value=el.dataset.cssValue;
+        if(name && value) el.style.setProperty(name, value);
+      });
+    }
     function aiReportGroups(entries){
       const grouped=new Map();
       entries.forEach(entry=>{
@@ -4244,11 +4325,11 @@ Pokračovat ve vytvoření šifrovaného souboru?`,{title:'Obsah rodinného soub
       const donut=aiReportDonut(groups,total);
       const rows=entries.map((entry,index)=>{
         const color=AI_REPORT_COLORS[index%AI_REPORT_COLORS.length];
-        return `<tr><td class="report-index"><span style="--row-color:${color}">${index+1}</span></td><td class="report-date">${esc(fmtDate(`${entry.date}T00:00:00`))}</td><td><strong>${esc(entry.activity)}</strong>${entry.note?`<div class="report-note">${esc(entry.note)}</div>`:''}</td><td class="report-time">${esc(minutesLabel(entry.minutes))}</td></tr>`;
+        return `<tr><td class="report-index"><span ${cssVar("--row-color",color)}>${index+1}</span></td><td class="report-date">${esc(fmtDate(`${entry.date}T00:00:00`))}</td><td><strong>${esc(entry.activity)}</strong>${entry.note?`<div class="report-note">${esc(entry.note)}</div>`:''}</td><td class="report-time">${esc(minutesLabel(entry.minutes))}</td></tr>`;
       }).join('')||'<tr><td colspan="4" class="report-empty">V tomto měsíci nejsou žádné záznamy.</td></tr>';
       const legend=groups.map(group=>{
         const percent=total>0?group.minutes/total*100:0;
-        return `<li><span class="report-legend-dot" style="--legend-color:${group.color}"></span><span class="report-legend-label">${esc(group.label)}</span><strong>${esc(minutesLabel(group.minutes))}</strong><em>${percent.toLocaleString('cs-CZ',{maximumFractionDigits:1})} %</em></li>`;
+        return `<li><span class="report-legend-dot" ${cssVar("--legend-color",group.color)}></span><span class="report-legend-label">${esc(group.label)}</span><strong>${esc(minutesLabel(group.minutes))}</strong><em>${percent.toLocaleString('cs-CZ',{maximumFractionDigits:1})} %</em></li>`;
       }).join('')||'<li class="report-empty">Bez záznamů</li>';
       const status=closed?'Připraveno k předání':'Pracovní verze';
       const statusClass=closed?'ready':'draft';
@@ -4268,7 +4349,7 @@ Pokračovat ve vytvoření šifrovaného souboru?`,{title:'Obsah rodinného soub
           <div class="report-table-wrap"><table class="report-table"><thead><tr><th>#</th><th>Datum</th><th>Činnost a popis</th><th>Čas</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="3">Celkem vykázáno za měsíc</td><td class="report-time">${esc(minutesLabel(total))}</td></tr></tfoot></table></div>
         </section>
         <section class="report-summary-grid">
-          <article class="report-distribution"><div class="report-section-title compact"><div><span>Rozložení času</span><h2>Podíl jednotlivých činností</h2></div></div><div class="report-chart-layout"><div class="report-donut" style="--report-donut:${donut}"><div><strong>${esc(minutesLabel(total))}</strong><span>celkem</span></div></div><ul class="report-legend">${legend}</ul></div></article>
+          <article class="report-distribution"><div class="report-section-title compact"><div><span>Rozložení času</span><h2>Podíl jednotlivých činností</h2></div></div><div class="report-chart-layout"><div class="report-donut" ${cssVar("--report-donut",donut)}><div><strong>${esc(minutesLabel(total))}</strong><span>celkem</span></div></div><ul class="report-legend">${legend}</ul></div></article>
           <article class="report-total-card"><span>Celkem za měsíc</span><strong>${esc(minutesLabel(total))}</strong><p>${entries.length?`Výkaz obsahuje ${entries.length} ${entries.length===1?'položku':entries.length<5?'položky':'položek'} s uvedeným dílčím časem.`:'Výkaz zatím neobsahuje žádnou položku.'}</p></article>
         </section>
         <section class="report-signatures"><div><span>Zpracoval</span><strong>${esc(owner.name)}</strong><i>datum a podpis</i></div><div><span>Převzala</span><strong>Vedení školy</strong><i>datum a podpis</i></div></section>
@@ -4285,6 +4366,7 @@ Pokračovat ve vytvoření šifrovaného souboru?`,{title:'Obsah rodinného soub
     function printReport(html){
       const box=$('#printReport'); if(!box) return;
       box.innerHTML=html;
+      applyCssVars(box);
       box.hidden=false;
       box.setAttribute('aria-hidden','false');
       document.body.classList.add('print-mode');
@@ -4300,7 +4382,7 @@ Pokračovat ve vytvoření šifrovaného souboru?`,{title:'Obsah rodinného soub
     function reportDocumentHtml(title, bodyHtml){
       return `<!doctype html><html lang="cs"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>${esc(title)}</title><style>
       :root{--report-navy:#082e67;--report-blue:#1f5fbf;--report-red:#cf2e3a;--report-ink:#10213d;--report-muted:#65738a;--report-line:#d7e0ec;--report-soft:#f2f6fb;--report-green:#238a45}
-      *{box-sizing:border-box}body{margin:0;padding:28px;background:linear-gradient(145deg,#e8eef7,#f7f9fc);color:var(--report-ink);font-family:Inter,"Segoe UI",Arial,sans-serif;line-height:1.45}.lh-report{width:min(1180px,100%);margin:0 auto;background:#fff;border:1px solid #d9e1ec;border-radius:24px;box-shadow:0 24px 70px rgba(20,43,79,.16);overflow:hidden}.report-header{display:grid;grid-template-columns:minmax(300px,.9fr) minmax(360px,1.1fr);align-items:center;gap:28px;padding:30px 38px;background:linear-gradient(112deg,#fff 0 48%,#eef4ff 48% 67%,#0a3778 67% 100%);border-bottom:4px solid var(--report-red)}.report-school{display:flex;align-items:center;gap:18px;min-width:0}.report-school img{width:82px;height:68px;object-fit:contain;flex:0 0 auto}.report-school div{display:grid;gap:2px}.report-school strong{font-size:1.12rem;line-height:1.2}.report-school span{font-size:.9rem;color:var(--report-muted)}.report-heading{text-align:right;color:#fff}.report-heading p{margin:0 0 4px;font-size:.82rem;font-weight:800;text-transform:uppercase;letter-spacing:.11em;color:#d7e6ff}.report-heading h1{margin:0;font-size:clamp(1.75rem,3vw,2.65rem);line-height:1.08;letter-spacing:-.035em}.report-meta-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;padding:22px 38px}.report-meta-grid article{display:grid;gap:3px;padding:15px 17px;border:1px solid var(--report-line);border-radius:16px;background:linear-gradient(145deg,#fff,#f6f9fd)}.report-meta-grid span{font-size:.76rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--report-muted)}.report-meta-grid strong{font-size:1.05rem}.report-status.ready{border-color:#b9dfc3;background:#f0fbf3}.report-status.ready strong{color:var(--report-green)}.report-status.draft{border-color:#f0d49d;background:#fff9eb}.report-status.draft strong{color:#9a6712}.report-section{padding:6px 38px 22px}.report-section-title{display:flex;align-items:end;justify-content:space-between;gap:20px;margin:0 0 12px}.report-section-title.compact{margin-bottom:14px}.report-section-title span{display:block;margin-bottom:2px;font-size:.76rem;font-weight:900;text-transform:uppercase;letter-spacing:.1em;color:var(--report-blue)}.report-section-title h2{margin:0;font-size:1.25rem;letter-spacing:-.02em}.report-section-title>strong{font-size:1.35rem;color:var(--report-navy)}.report-table-wrap{overflow:auto;border:1px solid var(--report-line);border-radius:16px}.report-table{width:100%;border-collapse:separate;border-spacing:0;min-width:720px}.report-table th{padding:11px 12px;background:var(--report-navy);color:#fff;text-align:left;font-size:.78rem;text-transform:uppercase;letter-spacing:.055em}.report-table th:first-child{width:54px;text-align:center}.report-table th:nth-child(2){width:142px}.report-table th:last-child{text-align:right;width:112px}.report-table td{padding:12px;border-bottom:1px solid var(--report-line);vertical-align:top;font-size:.9rem}.report-table tbody tr:last-child td{border-bottom:0}.report-table tbody tr:nth-child(even){background:#f8fafd}.report-index{text-align:center}.report-index span{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--row-color);color:#fff;font-weight:900}.report-date{white-space:nowrap;color:var(--report-muted)}.report-time{text-align:right;white-space:nowrap;font-weight:900;color:var(--report-navy)}.report-note{margin-top:4px;color:var(--report-muted);font-size:.82rem;white-space:pre-wrap}.report-table tfoot td{padding:13px 12px;background:#eaf2ff;border-top:2px solid #b8ccec;border-bottom:0;font-weight:900}.report-empty{text-align:center;color:var(--report-muted);padding:26px!important}.report-summary-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,.7fr);gap:18px;padding:0 38px 26px}.report-distribution,.report-total-card{border:1px solid var(--report-line);border-radius:18px;padding:20px;background:#fff}.report-chart-layout{display:grid;grid-template-columns:190px minmax(0,1fr);gap:22px;align-items:center}.report-donut{width:178px;aspect-ratio:1;border-radius:50%;background:var(--report-donut);display:grid;place-items:center;position:relative}.report-donut::after{content:"";position:absolute;inset:25%;border-radius:50%;background:#fff;box-shadow:0 0 0 1px #e2e8f0}.report-donut div{position:relative;z-index:1;display:grid;text-align:center}.report-donut strong{font-size:1.18rem;color:var(--report-navy)}.report-donut span{font-size:.72rem;color:var(--report-muted);text-transform:uppercase;letter-spacing:.08em}.report-legend{list-style:none;margin:0;padding:0;display:grid;gap:7px}.report-legend li{display:grid;grid-template-columns:12px minmax(0,1fr) auto 54px;align-items:center;gap:8px;font-size:.78rem}.report-legend-dot{width:10px;height:10px;border-radius:50%;background:var(--legend-color)}.report-legend-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.report-legend strong{white-space:nowrap}.report-legend em{text-align:right;font-style:normal;color:var(--report-muted)}.report-total-card{display:flex;flex-direction:column;justify-content:center;background:linear-gradient(145deg,#eef9f1,#fff);border-color:#b9dfc3}.report-total-card>span{font-size:.82rem;font-weight:900;text-transform:uppercase;letter-spacing:.09em;color:#467454}.report-total-card>strong{margin:5px 0;font-size:2.45rem;line-height:1;color:var(--report-green)}.report-total-card p{margin:7px 0 0;color:#5b6a60;font-size:.86rem}.report-signatures{display:grid;grid-template-columns:1fr 1fr;gap:46px;padding:18px 38px 30px}.report-signatures div{display:grid;grid-template-columns:1fr auto;gap:5px 14px;border-top:1px solid #8fa0b6;padding-top:8px}.report-signatures span{font-size:.76rem;text-transform:uppercase;letter-spacing:.08em;color:var(--report-muted)}.report-signatures strong{grid-row:2;grid-column:1}.report-signatures i{grid-row:2;grid-column:2;font-size:.72rem;font-style:normal;color:var(--report-muted)}.report-footer{display:flex;justify-content:space-between;gap:24px;padding:16px 38px;background:var(--report-navy);color:#dbe8fb;font-size:.74rem}.report-footer span:last-child{text-align:right}body>h1{font-size:24px;margin:0 0 4px}body>.report-sub{color:#444;margin:0 0 14px;font-size:17px}body>.report-meta{margin:0 0 16px;font-size:15px;color:#333}body>table{width:100%;border-collapse:collapse;margin:0 0 16px;background:#fff}body>table th,body>table td{border:1px solid #999;padding:7px 9px;text-align:left;font-size:14px;vertical-align:top}body>table th{background:#f0f0f0}body>table td.num,body>table th.num{text-align:right;white-space:nowrap}body>table tfoot td{font-weight:700;background:#f7f7f7}.report-sign{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:44px;font-size:15px}.report-sign div{border-top:1px solid #111;padding-top:6px}.report-foot{margin-top:22px;font-size:12px;color:#555}small{color:#555}
+      *{box-sizing:border-box}body{margin:0;padding:28px;background:linear-gradient(145deg,#e8eef7,#f7f9fc);color:var(--report-ink);font-family:Inter,"Segoe UI",Arial,sans-serif;line-height:1.45}.lh-report{width:min(1180px,100%);margin:0 auto;background:#fff;border:1px solid #d9e1ec;border-radius:24px;box-shadow:0 24px 70px rgba(20,43,79,.16);overflow:hidden}.report-header{display:grid;grid-template-columns:minmax(300px,.9fr) minmax(360px,1.1fr);align-items:center;gap:28px;padding:30px 38px;background:linear-gradient(112deg,#fff 0 48%,#eef4ff 48% 67%,#0a3778 67% 100%);border-bottom:4px solid var(--report-red)}.report-school{display:flex;align-items:center;gap:18px;min-width:0}.report-school img{width:82px;height:68px;object-fit:contain;flex:0 0 auto}.report-school div{display:grid;gap:2px}.report-school strong{font-size:1.12rem;line-height:1.2}.report-school span{font-size:.9rem;color:var(--report-muted)}.report-heading{text-align:right;color:#fff}.report-heading p{margin:0 0 4px;font-size:.82rem;font-weight:800;text-transform:uppercase;letter-spacing:.11em;color:#d7e6ff}.report-heading h1{margin:0;font-size:clamp(1.75rem,3vw,2.65rem);line-height:1.08;letter-spacing:-.035em}.report-meta-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;padding:22px 38px}.report-meta-grid article{display:grid;gap:3px;padding:15px 17px;border:1px solid var(--report-line);border-radius:16px;background:linear-gradient(145deg,#fff,#f6f9fd)}.report-meta-grid span{font-size:.76rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--report-muted)}.report-meta-grid strong{font-size:1.05rem}.report-status.ready{border-color:#b9dfc3;background:#f0fbf3}.report-status.ready strong{color:var(--report-green)}.report-status.draft{border-color:#f0d49d;background:#fff9eb}.report-status.draft strong{color:#9a6712}.report-section{padding:6px 38px 22px}.report-section-title{display:flex;align-items:end;justify-content:space-between;gap:20px;margin:0 0 12px}.report-section-title.compact{margin-bottom:14px}.report-section-title span{display:block;margin-bottom:2px;font-size:.76rem;font-weight:900;text-transform:uppercase;letter-spacing:.1em;color:var(--report-blue)}.report-section-title h2{margin:0;font-size:1.25rem;letter-spacing:-.02em}.report-section-title>strong{font-size:1.35rem;color:var(--report-navy)}.report-table-wrap{overflow:auto;border:1px solid var(--report-line);border-radius:16px}.report-table{width:100%;border-collapse:separate;border-spacing:0;min-width:720px}.report-table th{padding:11px 12px;background:var(--report-navy);color:#fff;text-align:left;font-size:.78rem;text-transform:uppercase;letter-spacing:.055em}.report-table th:first-child{width:54px;text-align:center}.report-table th:nth-child(2){width:142px}.report-table th:last-child{text-align:right;width:112px}.report-table td{padding:12px;border-bottom:1px solid var(--report-line);vertical-align:top;font-size:.9rem}.report-table tbody tr:last-child td{border-bottom:0}.report-table tbody tr:nth-child(even){background:#f8fafd}.report-index{text-align:center}.report-index span{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--row-color,#082e67);color:#fff;font-weight:900}.report-date{white-space:nowrap;color:var(--report-muted)}.report-time{text-align:right;white-space:nowrap;font-weight:900;color:var(--report-navy)}.report-note{margin-top:4px;color:var(--report-muted);font-size:.82rem;white-space:pre-wrap}.report-table tfoot td{padding:13px 12px;background:#eaf2ff;border-top:2px solid #b8ccec;border-bottom:0;font-weight:900}.report-empty{text-align:center;color:var(--report-muted);padding:26px!important}.report-summary-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,.7fr);gap:18px;padding:0 38px 26px}.report-distribution,.report-total-card{border:1px solid var(--report-line);border-radius:18px;padding:20px;background:#fff}.report-chart-layout{display:grid;grid-template-columns:190px minmax(0,1fr);gap:22px;align-items:center}.report-donut{width:178px;aspect-ratio:1;border-radius:50%;background:var(--report-donut,conic-gradient(#dce5f2 0 100%));display:grid;place-items:center;position:relative}.report-donut::after{content:"";position:absolute;inset:25%;border-radius:50%;background:#fff;box-shadow:0 0 0 1px #e2e8f0}.report-donut div{position:relative;z-index:1;display:grid;text-align:center}.report-donut strong{font-size:1.18rem;color:var(--report-navy)}.report-donut span{font-size:.72rem;color:var(--report-muted);text-transform:uppercase;letter-spacing:.08em}.report-legend{list-style:none;margin:0;padding:0;display:grid;gap:7px}.report-legend li{display:grid;grid-template-columns:12px minmax(0,1fr) auto 54px;align-items:center;gap:8px;font-size:.78rem}.report-legend-dot{width:10px;height:10px;border-radius:50%;background:var(--legend-color,#64748b)}.report-legend-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.report-legend strong{white-space:nowrap}.report-legend em{text-align:right;font-style:normal;color:var(--report-muted)}.report-total-card{display:flex;flex-direction:column;justify-content:center;background:linear-gradient(145deg,#eef9f1,#fff);border-color:#b9dfc3}.report-total-card>span{font-size:.82rem;font-weight:900;text-transform:uppercase;letter-spacing:.09em;color:#467454}.report-total-card>strong{margin:5px 0;font-size:2.45rem;line-height:1;color:var(--report-green)}.report-total-card p{margin:7px 0 0;color:#5b6a60;font-size:.86rem}.report-signatures{display:grid;grid-template-columns:1fr 1fr;gap:46px;padding:18px 38px 30px}.report-signatures div{display:grid;grid-template-columns:1fr auto;gap:5px 14px;border-top:1px solid #8fa0b6;padding-top:8px}.report-signatures span{font-size:.76rem;text-transform:uppercase;letter-spacing:.08em;color:var(--report-muted)}.report-signatures strong{grid-row:2;grid-column:1}.report-signatures i{grid-row:2;grid-column:2;font-size:.72rem;font-style:normal;color:var(--report-muted)}.report-footer{display:flex;justify-content:space-between;gap:24px;padding:16px 38px;background:var(--report-navy);color:#dbe8fb;font-size:.74rem}.report-footer span:last-child{text-align:right}body>h1{font-size:24px;margin:0 0 4px}body>.report-sub{color:#444;margin:0 0 14px;font-size:17px}body>.report-meta{margin:0 0 16px;font-size:15px;color:#333}body>table{width:100%;border-collapse:collapse;margin:0 0 16px;background:#fff}body>table th,body>table td{border:1px solid #999;padding:7px 9px;text-align:left;font-size:14px;vertical-align:top}body>table th{background:#f0f0f0}body>table td.num,body>table th.num{text-align:right;white-space:nowrap}body>table tfoot td{font-weight:700;background:#f7f7f7}.report-sign{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:44px;font-size:15px}.report-sign div{border-top:1px solid #111;padding-top:6px}.report-foot{margin-top:22px;font-size:12px;color:#555}small{color:#555}
       @media(max-width:760px){body{padding:0;background:#fff}.lh-report{border:0;border-radius:0;box-shadow:none}.report-header{grid-template-columns:1fr;gap:18px;padding:24px 18px;background:linear-gradient(150deg,#fff 0 58%,#eef4ff 58% 72%,#0a3778 72% 100%)}.report-heading{text-align:left;color:var(--report-ink);padding-top:12px}.report-heading p{color:var(--report-blue)}.report-heading h1{font-size:1.9rem}.report-school img{width:66px;height:56px}.report-meta-grid{grid-template-columns:1fr 1fr;padding:18px;gap:10px}.report-section{padding:4px 18px 18px}.report-section-title{align-items:flex-start}.report-section-title>strong{font-size:1.1rem}.report-table-wrap{border:0;overflow:visible}.report-table{min-width:0}.report-table thead{display:none}.report-table,.report-table tbody,.report-table tr,.report-table td{display:block;width:100%}.report-table tbody{display:grid;gap:10px}.report-table tbody tr{position:relative;padding:13px 14px 13px 58px;border:1px solid var(--report-line);border-radius:14px;background:#fff!important}.report-table td{padding:2px 0;border:0}.report-table .report-index{position:absolute;left:14px;top:14px;width:32px}.report-table .report-date{font-size:.76rem}.report-table .report-time{text-align:left;margin-top:7px;font-size:1rem}.report-table tfoot{display:block;margin-top:12px}.report-table tfoot tr{display:flex;align-items:center;justify-content:space-between;padding:14px;background:#eaf2ff;border-radius:14px}.report-table tfoot td{display:block;width:auto;padding:0;background:transparent;border:0}.report-summary-grid{grid-template-columns:1fr;padding:0 18px 20px}.report-chart-layout{grid-template-columns:130px minmax(0,1fr);gap:14px}.report-donut{width:126px}.report-legend li{grid-template-columns:10px minmax(0,1fr) auto}.report-legend em{display:none}.report-signatures{grid-template-columns:1fr;gap:32px;padding:12px 18px 26px}.report-footer{display:grid;padding:15px 18px}.report-footer span:last-child{text-align:left}}
       @page{size:A4 portrait;margin:8mm}@media print{body{padding:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}.lh-report{width:100%;border:0;border-radius:0;box-shadow:none}.report-header{grid-template-columns:42% 58%;padding:9mm 8mm 7mm;gap:8mm}.report-school img{width:18mm;height:15mm}.report-school strong{font-size:10.5pt}.report-school span{font-size:8pt}.report-heading p{font-size:7pt}.report-heading h1{font-size:18pt}.report-meta-grid{padding:5mm 8mm;gap:3mm}.report-meta-grid article{padding:3mm 3.5mm;border-radius:3mm}.report-meta-grid span{font-size:6.5pt}.report-meta-grid strong{font-size:8.5pt}.report-section{padding:1mm 8mm 4mm}.report-section-title{margin-bottom:3mm}.report-section-title span{font-size:6.5pt}.report-section-title h2{font-size:10.5pt}.report-section-title>strong{font-size:11pt}.report-table-wrap{border-radius:3mm;overflow:hidden}.report-table{min-width:0}.report-table th{padding:2.2mm 2.4mm;font-size:6.5pt}.report-table td{padding:2.2mm 2.4mm;font-size:7.4pt}.report-index span{width:6mm;height:6mm;font-size:6.5pt}.report-note{font-size:6.5pt}.report-summary-grid{grid-template-columns:1.55fr .75fr;gap:4mm;padding:0 8mm 4mm;break-inside:avoid}.report-distribution,.report-total-card{padding:4mm;border-radius:3.5mm}.report-chart-layout{grid-template-columns:34mm minmax(0,1fr);gap:4mm}.report-donut{width:32mm}.report-donut strong{font-size:8pt}.report-legend{gap:1.2mm}.report-legend li{font-size:6.2pt;grid-template-columns:2.5mm minmax(0,1fr) auto 10mm;gap:1.5mm}.report-total-card>strong{font-size:20pt}.report-total-card p{font-size:6.5pt}.report-signatures{padding:4mm 8mm 6mm;gap:12mm}.report-signatures span,.report-signatures i{font-size:6pt}.report-signatures strong{font-size:7.5pt}.report-footer{padding:3mm 8mm;font-size:5.8pt}.report-table tr,.report-distribution,.report-total-card{break-inside:avoid}body>h1{font-size:18pt}body>table th,body>table td{font-size:9pt}}
       </style></head><body>${bodyHtml}</body></html>`;

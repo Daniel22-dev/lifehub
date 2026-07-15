@@ -4,9 +4,9 @@ import fs from 'node:fs';
 
 const manual = fs.readFileSync(new URL('../public/manual.html', import.meta.url), 'utf8');
 
-test('interaktivní manuál odpovídá funkcím LifeHubu 4.8.5', () => {
+test('interaktivní manuál odpovídá funkcím LifeHubu 4.8.6', () => {
   for (const text of [
-    'LifeHub 4.8.5',
+    'LifeHub 4.8.6',
     'Aktivuj rychlé odemčení telefonu',
     'Jméno v rodinném sdílení',
     'klikatelné odkazy',

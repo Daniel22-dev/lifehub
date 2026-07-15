@@ -1,65 +1,33 @@
-# LifeHub 4.8.5
+# LifeHub 4.8.6
 
-LifeHub je osobní offline PWA pro poznámky, finance, výplatní pásky, splátky, účty a závazky, dokumenty, úkoly, nákupní seznam, zahradu a pracovní výkazy. Stav aplikace i lokální soubory jsou po odemčení uložené šifrovaně v zařízení.
+Lokální šifrované osobní centrum pro poznámky, finance, dokumenty, úkoly, domácnost, zahradu a pracovní výkazy.
 
-## Novinky 4.8.5
+## Novinky 4.8.6
 
-- výplata na Přehledu se načte i přímo z výplatní pásky podle data připsání, takže starší páska bez propojené mzdové transakce už nezobrazuje 0 Kč,
-- při odemčení se chybějící mzdová transakce bezpečně doplní a současně se zabrání dvojímu započtení téže výplaty,
-- tlačítko celé obrazovky nyní používá skutečné Fullscreen API; pokud jej telefon nepovolí, zapne se záložní rozšířený režim,
-- aktivovaný otisk prstu, obličej nebo zámek telefonu se při otevření LifeHubu vyvolá automaticky; ruční tlačítko zůstává jako záloha,
-- interaktivní manuál byl aktualizován pro všechny uvedené změny.
+- kritická oprava migrace starších nešifrovaných dat: nečitelný nebo neplatný stav už nikdy nepokračuje k zápisu prázdného trezoru,
+- vlastní dešifrovaný trezor už není omezen osm megabajty určenými pro cizí importy,
+- měsíční výkaz vykresluje graf a barevné prvky i při přísné Content Security Policy,
+- výplatní páska bez čisté mzdy nebo částky na účet už nevytvoří příjem z hrubé mzdy,
+- service worker přežije výpadek nepovinného souboru a při pomalé síti použije po třech sekundách uloženou aplikaci,
+- kontrolní řetězec začíná ESLintem a odhalí nedefinované funkce ještě před testy,
+- odstraněn nepoužívaný modul rodinné synchronizace a nereferencované kopie souborů.
 
-### Změny 4.8.4
-
-- v úvodním **Přehledu** je nový měsíční finanční blok, který porovnává výplatu skutečně připsanou v daném kalendářním měsíci se všemi již provedenými i ještě plánovanými výdaji,
-- do souhrnu se započítávají finanční transakce, jídlo a benzín, neuhrazené účty a faktury, trvalé příkazy, běžné splátky a zbývající část měsíčních limitů,
-- běžná i mimořádná splátka se po zaznamenání automaticky propíše do **Příjmů a výdajů**,
-- starší zaznamenané splátky se při prvním otevření doplní do finanční evidence a existující shodný ruční výdaj se přednostně propojí,
-- opraven interaktivní manuál, který měl ve verzi 4.8.3 syntaktickou chybu.
-
-### Dřívější změny 4.8.x
-
-- úvodní stránka už neopakuje stejné rychlé akce v bezpečnostním panelu,
-- **Odměny** používají dvě skutečná období školního roku: září–prosinec a leden–červen; položky lze průběžně doplňovat a upravovat,
-- sekce **AI výkaz** vytváří barevný PDF/tisk a responzivní HTML výstup s logem školy; živý náhled byl kvůli výkonu telefonu odstraněn,
-- pořízené zahradní položky se přesunou do rozbalovacího archivu a neruší aktivní seznam,
-- ve verzi 4.8.5 byl původní rozšířený režim doplněn skutečným fullscreenem se záložním chováním pro telefony, které jej odmítnou,
-- uhrazené účty a závazky se standardně zapisují jako propojené finanční výdaje,
-- výplatní páska rozlišuje mzdové období a datum připsání; bilance období a skutečný hotovostní tok se zobrazují samostatně,
-- pokud výplata za aktuální období ještě nepřišla, LifeHub zobrazí orientační odhad z posledních pásek,
-- rychlé odemčení přes zabezpečení telefonu, rodinné jméno a klikatelné odkazy jsou popsané přímo v aktualizovaném interaktivním manuálu,
-- dokončené úkoly, koupené/odložené nákupy, pořízené zahradní věci a doplacené splátky jsou v rozbalovacích archivech.
-
-## Finance a mzda
-
-Záložka **Příjmy a výdaje** pracuje se dvěma pohledy:
-
-1. **Bilance období** přiřadí mzdu měsíci, za který náleží.
-2. **Hotovostní tok** respektuje skutečné datum připsání na účet.
-
-U nové výplatní pásky proto vyplňte mzdové období i datum připsání. Uhrazené položky ze záložky **Účty a závazky** mají ve výchozím nastavení zapnuté automatické vytvoření propojeného výdaje.
-
-## Soukromí
-
-Zdrojový balík pro GitHub neobsahuje osobní data. Výplatní pásky, dokumenty, fotografie nákupních seznamů, zálohy a rodinné soubory se do repozitáře nikdy nevkládají. Přidávají se až po odemčení aplikace a zůstávají v lokálním šifrovaném úložišti konkrétního zařízení.
-
-## Vývoj a kontrola
+## Kontrola před vydáním
 
 ```bash
 npm ci
 npm run check
 ```
 
-Kontrolní řetězec zahrnuje syntaxi, skener citlivých dat, automatické testy, smoke test a produkční Vite build.
+Řetězec provede ESLint, syntaktickou kontrolu, kontrolu citlivých dat, automatické testy, smoke test a produkční build.
 
-## Nasazení
+## Důležité bezpečnostní vlastnosti
 
-GitHub Pages je připraven přes workflow v `.github/workflows/deploy.yml`. Nahrajte obsah ZIPu do kořene stejného repozitáře. Po aktualizaci použijte původní hlavní heslo a následně vytvořte kompletní šifrovanou zálohu.
+- lokální trezor AES-GCM 256,
+- odvození klíče PBKDF2-SHA256,
+- přísná CSP bez síťových spojení aplikace,
+- whitelistová sanitizace importovaného stavu,
+- nouzová šifrovaná záloha při selhání ukládání,
+- automatický zámek a podpora WebAuthn PRF na kompatibilních zařízeních.
 
-
-## Verze 4.8.5
-
-- interaktivní manuál je sjednocený s funkcemi verzí 4.7–4.8.5, včetně automatické biometrie, skutečného fullscreen režimu, opravy starších mzdových záznamů, rodinných URL, propojených financí a splátek, měsíčního souhrnu na Přehledu, prémiového AI výkazu a archivů dokončených položek.
-
-Aktivní úkoly, velké nákupy a splátky jsou oddělené od dokončených položek v rozbalovacích archivech optimalizovaných pro telefon.
+Podrobný přehled změn je v `CHANGELOG.md`. Interaktivní uživatelský návod je v `public/manual.html`.

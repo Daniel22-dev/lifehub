@@ -1,5 +1,16 @@
 # Changelog
 
+## v4.8.6 – bezpečná migrace, správná mzda, výkaz a odolnější offline režim
+
+- Opravena kritická chyba migrace starších nešifrovaných dat způsobená chybějící funkcí `merge()`. Nečitelný nebo neplatný stav nyní migraci zastaví před zápisem a původní data ponechá beze změny.
+- Přidána statická kontrola ESLint; `npm run check` nyní začíná lintem.
+- Osmimegabajtový limit zůstal pouze pro cizí importy. Vlastní autentizovaný dešifrovaný trezor už jím není blokován.
+- Měsíční výkaz nastavuje dynamické CSS proměnné přes CSSOM a má bezpečné fallbacky, takže funguje pod stávající přísnou CSP.
+- Hrubá mzda se už nikde nevydává za částku připsanou na účet. Oprava pokrývá Přehled, importy, nové mzdové transakce, odhady i opravu starších záznamů.
+- Instalace service workeru toleruje selhání nepovinných souborů; navigace má třísekundový fallback na cache.
+- Odstraněn mrtvý modul `family-sync.js`, nepoužité funkce a nereferencované duplicitní soubory.
+- Verze, manuál, testy a cache service workeru byly sjednoceny na 4.8.6.
+
 ## v4.8.5 – výplata ze starších dat, skutečný fullscreen a automatická biometrika
 
 - Měsíční plán na Přehledu načte výplatu přímo z výplatní pásky podle data připsání, i když ve starších datech chybí propojená mzdová transakce.

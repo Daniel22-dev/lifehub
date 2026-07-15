@@ -1,8 +1,9 @@
-const CACHE_NAME = 'lifehub-vite-shell-v4-8-5-unlock-1';
+const CACHE_NAME = 'lifehub-vite-shell-v4-8-6-merge-1';
 const STATIC_SHELL = [
   './', './index.html', './manifest.json', './lifehub-icon-v2.svg', './lifehub-icon-192-v2.png', './lifehub-icon-512-v2.png',
   './vendor/pdf.min.mjs', './vendor/pdf.worker.min.mjs', './manual.html', './school-logo.png'
 ];
+const NAVIGATE_TIMEOUT_MS = 3000;
 
 async function discoverBuildAssets(){
   try{
@@ -21,7 +22,14 @@ self.addEventListener('install', event => {
   event.waitUntil((async()=>{
     const cache = await caches.open(CACHE_NAME);
     const assets = await discoverBuildAssets();
-    await cache.addAll([...STATIC_SHELL, ...assets]);
+    const critical = ['./', './index.html'];
+    await cache.addAll(critical);
+    const optional = [...STATIC_SHELL.filter(url => !critical.includes(url)), ...assets];
+    const results = await Promise.allSettled(optional.map(url => cache.add(url)));
+    const failed = results
+      .map((result,index)=>result.status === 'rejected' ? optional[index] : null)
+      .filter(Boolean);
+    if(failed.length) console.warn('LifeHub SW: část shellu se nepodařilo uložit do cache.', failed);
   })());
 });
 
@@ -37,6 +45,27 @@ self.addEventListener('activate', event => {
   );
 });
 
+async function navigateWithTimeout(request){
+  const cached = await caches.match('./index.html');
+  const network = fetch(request, {cache:'no-store'}).then(response => {
+    if(response?.ok){
+      caches.open(CACHE_NAME).then(cache => cache.put('./index.html', response.clone())).catch(()=>{});
+      return response;
+    }
+    return cached || response;
+  });
+  if(!cached) return network;
+  let timer;
+  const fallback = new Promise(resolve => {
+    timer = setTimeout(() => resolve(cached), NAVIGATE_TIMEOUT_MS);
+  });
+  try{
+    return await Promise.race([network.catch(() => cached), fallback]);
+  }finally{
+    clearTimeout(timer);
+  }
+}
+
 self.addEventListener('fetch', event => {
   const request = event.request;
   if(request.method !== 'GET') return;
@@ -44,14 +73,7 @@ self.addEventListener('fetch', event => {
   if(url.origin !== location.origin) return;
 
   if(request.mode === 'navigate'){
-    event.respondWith(
-      fetch(request, {cache:'no-store'})
-        .then(response => {
-          if(response?.ok) caches.open(CACHE_NAME).then(cache => cache.put('./index.html', response.clone())).catch(()=>{});
-          return response;
-        })
-        .catch(() => caches.match('./index.html'))
-    );
+    event.respondWith(navigateWithTimeout(request));
     return;
   }
 

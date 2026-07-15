@@ -55,6 +55,7 @@ export function summarizeMonthlyFinancialPlan({
       month:selectedMonth,
       salaryCredited:0,
       salaryPeriods:[],
+      payrollsMissingNetPay:0,
       transactionExpenses:0,
       budgetSpent:0,
       actualSpent:0,
@@ -84,21 +85,28 @@ export function summarizeMonthlyFinancialPlan({
     canonicalPayrolls.push(row);
   }
 
-  const linkedPayrollIds = new Set(canonicalPayrolls.map(row=>String(row?.id || '')).filter(Boolean));
-  const linkedPayrollPeriods = new Set(canonicalPayrolls.map(row=>String(row?.month || '')).filter(value=>/^\d{4}-\d{2}$/.test(value)));
-  const salaryTransactions = transactions.filter(row =>
-    row?.kind === 'income' &&
-    row?.source === 'payroll' &&
-    String(row?.date || '').startsWith(selectedMonth) &&
-    !linkedPayrollIds.has(String(row?.payrollId || '')) &&
-    !linkedPayrollPeriods.has(String(row?.payrollMonth || ''))
-  );
-  const salaryCredited = canonicalPayrolls.reduce((sum,row)=>{
-    const fields = row?.fields || {};
-    return sum + amount(fields.netPay || fields.cleanPay || fields.grossPay);
-  },0) + salaryTransactions.reduce((sum,row)=>sum+amount(row?.amount),0);
+  const payrollCreditedAmount = row => amount(row?.fields?.netPay || row?.fields?.cleanPay);
+  const creditedPayrolls = canonicalPayrolls.filter(row => payrollCreditedAmount(row) > 0);
+  const payrollsMissingNetPay = canonicalPayrolls.length - creditedPayrolls.length;
+  const linkedPayrollIds = new Set(creditedPayrolls.map(row=>String(row?.id || '')).filter(Boolean));
+  const linkedPayrollPeriods = new Set(creditedPayrolls.map(row=>String(row?.month || '')).filter(value=>/^\d{4}-\d{2}$/.test(value)));
+  const grossOnlyById = new Map(canonicalPayrolls
+    .filter(row=>payrollCreditedAmount(row)===0 && amount(row?.fields?.grossPay)>0)
+    .map(row=>[String(row?.id||''),amount(row?.fields?.grossPay)]));
+  const grossOnlyByPeriod = new Map(canonicalPayrolls
+    .filter(row=>payrollCreditedAmount(row)===0 && amount(row?.fields?.grossPay)>0 && /^\d{4}-\d{2}$/.test(String(row?.month||'')))
+    .map(row=>[String(row.month),amount(row?.fields?.grossPay)]));
+  const salaryTransactions = transactions.filter(row => {
+    if(row?.kind !== 'income' || row?.source !== 'payroll' || !String(row?.date || '').startsWith(selectedMonth)) return false;
+    if(linkedPayrollIds.has(String(row?.payrollId || '')) || linkedPayrollPeriods.has(String(row?.payrollMonth || ''))) return false;
+    const suspectGross = grossOnlyById.get(String(row?.payrollId || '')) || grossOnlyByPeriod.get(String(row?.payrollMonth || ''));
+    if(suspectGross > 0 && Math.abs(amount(row?.amount)-suspectGross) < 0.01) return false;
+    return true;
+  });
+  const salaryCredited = creditedPayrolls.reduce((sum,row)=>sum+payrollCreditedAmount(row),0)
+    + salaryTransactions.reduce((sum,row)=>sum+amount(row?.amount),0);
   const salaryPeriods = [...new Set([
-    ...canonicalPayrolls.map(row=>String(row?.month || '')),
+    ...creditedPayrolls.map(row=>String(row?.month || '')),
     ...salaryTransactions.map(row=>String(row?.payrollMonth || ''))
   ].filter(value=>/^\d{4}-\d{2}$/.test(value)))].sort();
 
@@ -137,6 +145,7 @@ export function summarizeMonthlyFinancialPlan({
     month:selectedMonth,
     salaryCredited,
     salaryPeriods,
+    payrollsMissingNetPay,
     transactionExpenses,
     budgetSpent,
     actualSpent,
