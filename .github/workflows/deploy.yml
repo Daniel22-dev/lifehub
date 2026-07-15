@@ -17,6 +17,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 12
 
     steps:
       - name: Checkout
@@ -25,10 +26,20 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: lts/*
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Configure npm
+        run: |
+          npm config set registry https://registry.npmjs.org/
+          npm config set fetch-retries 2
+          npm config set fetch-retry-mintimeout 1000
+          npm config set fetch-retry-maxtimeout 10000
 
       - name: Install dependencies
-        run: npm ci
+        timeout-minutes: 5
+        run: npm ci --no-audit --no-fund --prefer-offline --loglevel=verbose
 
       - name: Validate and build
         run: npm run check
