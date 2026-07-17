@@ -5,7 +5,7 @@ import { ensureUniqueIds, migrateStateSchema } from '../src/core/state-integrity
 test('migrace doplní aktuální schemaVersion bez změny vstupu', () => {
   const original={schemaVersion:2,notes:[{id:'a'}]};
   const migrated=migrateStateSchema(original);
-  assert.equal(migrated.schemaVersion,8);
+  assert.equal(migrated.schemaVersion,9);
   assert.equal(original.schemaVersion,2);
 });
 
@@ -38,5 +38,15 @@ test('migrace převádí stará odměnová období a zapíná propojení plateb'
   assert.equal(out.rewards[0].period,'2026-2027-A');
   assert.equal(out.rewards[1].period,'2025-2026-B');
   assert.equal(out.householdPayments[0].trackFinance,true);
-  assert.equal(out.schemaVersion,8);
+  assert.equal(out.schemaVersion,9);
+});
+
+
+test('migrace doplní nové servisní a elektro kolekce a cenu zahradní údržby', () => {
+  const input={schemaVersion:8,gardenLogs:[{id:'g1',date:'2026-07-17',type:'servis'}]};
+  const out=migrateStateSchema(input);
+  assert.deepEqual(out.electricalNotes,[]);
+  assert.deepEqual(out.maintenanceLogs,[]);
+  assert.equal(out.gardenLogs[0].price,0);
+  assert.equal(out.schemaVersion,9);
 });

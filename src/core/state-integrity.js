@@ -2,10 +2,10 @@ import { uid } from './utils.js';
 
 export const STATE_COLLECTIONS_WITH_IDS = Object.freeze([
   'notes','transactions','payrolls','documents','tasks','shopping','apps','installments',
-  'householdPayments','budgetEntries','groceries','aiEntries','rewards','gardenItems','gardenLogs'
+  'householdPayments','budgetEntries','groceries','aiEntries','rewards','gardenItems','gardenLogs','electricalNotes','maintenanceLogs'
 ]);
 
-export function migrateStateSchema(input, targetSchema = 8){
+export function migrateStateSchema(input, targetSchema = 9){
   const migrated = JSON.parse(JSON.stringify(input || {}));
   const current = Math.max(1, Math.round(Number(migrated.schemaVersion) || 1));
   if(current < 6 && Array.isArray(migrated.payrolls)){
@@ -52,6 +52,13 @@ export function migrateStateSchema(input, targetSchema = 8){
         payroll.paymentDate=String(linked?.date||'').slice(0,10);
         payroll.paymentDateEstimated=true;
       }
+    }
+  }
+  if(current < 9){
+    if(!Array.isArray(migrated.electricalNotes)) migrated.electricalNotes=[];
+    if(!Array.isArray(migrated.maintenanceLogs)) migrated.maintenanceLogs=[];
+    if(Array.isArray(migrated.gardenLogs)){
+      for(const log of migrated.gardenLogs){ if(log && log.price===undefined) log.price=0; }
     }
   }
   if(current < targetSchema) migrated.schemaVersion = targetSchema;

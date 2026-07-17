@@ -1,4 +1,4 @@
-export const APP_VERSION = '4.8.6';
+export const APP_VERSION = '4.9.0';
 const runtimeBase = import.meta.env?.BASE_URL || './';
 const documentBase = globalThis.document?.baseURI || 'http://localhost/';
 export const PUBLIC_BASE_URL = new URL(runtimeBase, documentBase);

@@ -98,7 +98,7 @@ export function bootLifeHub(){
     const VERSION = APP_VERSION;
     const SHORT_VERSION = String(VERSION).split('-')[0]; // např. "3.1.8" – nadpis, titulek, zámek
     const FORBIDDEN_IMPORT_KEYS = new Set(['__proto__','constructor','prototype']);
-    const STATE_SCHEMA_VERSION = 8;
+    const STATE_SCHEMA_VERSION = 9;
     const BIOMETRIC_META_KEY = 'biometricUnlock';
     const VENDOR_BASE_URL = new URL('vendor/', PUBLIC_BASE_URL);
     const PDF_JS_LOCAL = new URL('pdf.min.mjs', VENDOR_BASE_URL).href;
@@ -113,7 +113,7 @@ export function bootLifeHub(){
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       settings:{theme:'dark', greetName:'Dane', familyDisplayName:'', deviceName:'', ownerName:'Vlastník aplikace: Daniel Baláž · Gymnázium, Ostrava-Hrabůvka', ownerFooter:'© 2026 Daniel Baláž. Všechna práva vyhrazena.', currency:'Kč', savingGoal:0, foodBudget:DEFAULT_FOOD_BUDGET, fuelBudget:DEFAULT_FUEL_BUDGET, familyMemberId:'', familyPassword:'', familySettingsUpdatedAt:'', privateNotifications:true, lastDataBackupAt:'', lastCompleteBackupAt:'', lastVerifiedBackupAt:'', lastRestoreAt:''},
-      notes:[], transactions:[], payrolls:[], documents:[], tasks:[], shopping:[], apps:[], installments:[], householdPayments:[], budgetEntries:[], groceries:[], aiEntries:[], aiClosedMonths:[], rewards:[], gardenItems:[], gardenLogs:[], partner:null
+      notes:[], transactions:[], payrolls:[], documents:[], tasks:[], shopping:[], apps:[], installments:[], householdPayments:[], budgetEntries:[], groceries:[], aiEntries:[], aiClosedMonths:[], rewards:[], gardenItems:[], gardenLogs:[], electricalNotes:[], maintenanceLogs:[], partner:null
     });
     let state = defaultState();
     let vaultKey = null;
@@ -447,6 +447,8 @@ export function bootLifeHub(){
       if($('#aiMonth')) $('#aiMonth').value = monthNow();
       if($('#aiDate')) $('#aiDate').value = today();
       if($('#gardenLogDate')) $('#gardenLogDate').value = today();
+      if($('#maintenanceDate')) $('#maintenanceDate').value = today();
+      if($('#electricityDate')) $('#electricityDate').value = today();
       populateRewardPeriodSelects();
       renderPayrollFieldInputs();
       bind();
@@ -554,6 +556,13 @@ export function bootLifeHub(){
       $('#gardenLogForm')?.addEventListener('submit',saveGardenLog);
       $('#resetGardenLog')?.addEventListener('click',resetGardenLogForm);
       $('#gardenLogFilter')?.addEventListener('input',renderGarden);
+      $('#maintenanceForm')?.addEventListener('submit',saveMaintenanceLog);
+      $('#resetMaintenance')?.addEventListener('click',resetMaintenanceForm);
+      $('#maintenanceFilter')?.addEventListener('input',renderMaintenance);
+      $('#electricityForm')?.addEventListener('submit',saveElectricalNote);
+      $('#resetElectricity')?.addEventListener('click',resetElectricalForm);
+      $('#electricityFilter')?.addEventListener('input',renderElectricity);
+      $('#electricityPdfBtn')?.addEventListener('click',()=>printReport(buildElectricityReportHtml()));
       $('#partnerImportBtn')?.addEventListener('click',()=>$('#partnerImportFile')?.click());
       $('#partnerImportFile')?.addEventListener('change',importPartnerShare);
       $('#partnerDeleteBtn')?.addEventListener('click',deletePartnerData);
@@ -622,6 +631,7 @@ export function bootLifeHub(){
           'export-budget-csv':()=>exportCsv('budget'), 'export-groceries-csv':()=>exportCsv('groceries'),
           'export-ailog-csv':()=>exportCsv('ailog'), 'export-rewards-csv':()=>exportCsv('rewards'),
           'export-garden-csv':()=>exportCsv('garden'), 'export-gardenlog-csv':()=>exportCsv('gardenlog'),
+          'export-maintenance-csv':()=>exportCsv('maintenance'), 'export-electricity-csv':()=>exportCsv('electricity'),
           'export-payments-csv':()=>exportCsv('payments'),
           'export-partner-share':exportPartnerShare
         };
@@ -668,6 +678,10 @@ export function bootLifeHub(){
       const toggleGItem = e.target.closest('[data-toggle-gitem]')?.dataset.toggleGitem;
       const editGLog = e.target.closest('[data-edit-glog]')?.dataset.editGlog;
       const delGLog = e.target.closest('[data-delete-glog]')?.dataset.deleteGlog;
+      const editMaintenance = e.target.closest('[data-edit-maintenance]')?.dataset.editMaintenance;
+      const delMaintenance = e.target.closest('[data-delete-maintenance]')?.dataset.deleteMaintenance;
+      const editElectrical = e.target.closest('[data-edit-electrical]')?.dataset.editElectrical;
+      const delElectrical = e.target.closest('[data-delete-electrical]')?.dataset.deleteElectrical;
       const editReward = e.target.closest('[data-edit-reward]')?.dataset.editReward;
       const delReward = e.target.closest('[data-delete-reward]')?.dataset.deleteReward;
       const showChlog = e.target.closest('[data-show-changelog]');
@@ -686,6 +700,8 @@ export function bootLifeHub(){
       if(editAi) editAiForm(editAi); if(delAi) deleteItem('aiEntries',delAi);
       if(editGItem) editGardenItemForm(editGItem); if(delGItem) deleteItem('gardenItems',delGItem); if(toggleGItem) toggleGardenItemDone(toggleGItem);
       if(editGLog) editGardenLogForm(editGLog); if(delGLog) deleteItem('gardenLogs',delGLog);
+      if(editMaintenance) editMaintenanceForm(editMaintenance); if(delMaintenance) deleteItem('maintenanceLogs',delMaintenance);
+      if(editElectrical) editElectricalForm(editElectrical); if(delElectrical) deleteItem('electricalNotes',delElectrical);
       if(editReward) editRewardForm(editReward); if(delReward) deleteItem('rewards',delReward);
       if(showChlog) showChangelog();
     }
@@ -749,8 +765,8 @@ export function bootLifeHub(){
         setTimeout(()=>field?.focus(), 220);
       }
     }
-    const FAB_TARGET = {notes:'noteAddCard', tasks:'taskAddCard', shopping:'shopAddCard', vault:'vaultAddCard', installments:'instAddCard', payments:'paymentAddCard', budget:'budgetAddCard', ailog:'aiAddCard', rewards:'rewardAddCard'};
-    const FAB_LABEL = {notes:'Nová poznámka', finance:'Přidat', tasks:'Nový úkol', shopping:'Nový velký nákup', vault:'Nový dokument', installments:'Nová splátka', payments:'Nová platba', apps:'Přidat', budget:'Zapsat útratu', groceries:'Přidat', ailog:'Zapsat činnost', rewards:'Přidat položku', garden:'Přidat'};
+    const FAB_TARGET = {notes:'noteAddCard', tasks:'taskAddCard', shopping:'shopAddCard', vault:'vaultAddCard', installments:'instAddCard', payments:'paymentAddCard', budget:'budgetAddCard', ailog:'aiAddCard', rewards:'rewardAddCard', maintenance:'maintenanceAddCard', electricity:'electricityAddCard'};
+    const FAB_LABEL = {notes:'Nová poznámka', finance:'Přidat', tasks:'Nový úkol', shopping:'Nový velký nákup', vault:'Nový dokument', installments:'Nová splátka', payments:'Nová platba', apps:'Přidat', budget:'Zapsat útratu', groceries:'Přidat', ailog:'Zapsat činnost', rewards:'Přidat položku', garden:'Přidat', maintenance:'Nový servis', electricity:'Nový podklad'};
     const FAB_MENU = {
       finance:[
         {label:'Příjem nebo výdaj', target:'transAddCard'},
@@ -835,7 +851,7 @@ export function bootLifeHub(){
       if(target) setTimeout(()=>toggleAddCard(target, true), 60);
     }
 
-    function renderAll(){renderDashboard();renderNotes();renderFinance();renderVault();renderTasks();renderShopping();renderApps();renderInstallments();renderHouseholdPayments();renderBudget();renderGroceries();renderAiLog();renderRewards();renderGarden();renderPartner();renderBackupStatus();renderFooter();renderBiometricStatus();addAccessibilityLabels();}
+    function renderAll(){renderDashboard();renderNotes();renderFinance();renderVault();renderTasks();renderShopping();renderApps();renderInstallments();renderHouseholdPayments();renderBudget();renderGroceries();renderAiLog();renderRewards();renderGarden();renderMaintenance();renderElectricity();renderPartner();renderBackupStatus();renderFooter();renderBiometricStatus();addAccessibilityLabels();}
 
     async function loadBiometricUnlockRecord(){
       try{
@@ -1111,8 +1127,8 @@ export function bootLifeHub(){
       const pdfInput = $('#payrollPdf'); if(pdfInput) pdfInput.value = '';
       const rawText = $('#payrollRawText'); if(rawText) rawText.textContent = 'Zamčeno.';
       try{ fillPayrollFields({}); }catch(e){}
-      ['noteForm','transactionForm','vaultForm','taskForm','shoppingForm','appForm','appNoteForm','instForm','paymentForm','budgetForm','budgetLimitsForm','groceryQuickForm','groceryBulkForm','aiForm','rewardForm','gardenItemForm','gardenLogForm'].forEach(id=>{ const form=document.getElementById(id); if(form) form.reset(); });
-      ['noteId','transId','vaultId','taskId','shopId','appId','instId','budgetId','aiId','rewardId','gardenItemId','gardenLogId'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+      ['noteForm','transactionForm','vaultForm','taskForm','shoppingForm','appForm','appNoteForm','instForm','paymentForm','budgetForm','budgetLimitsForm','groceryQuickForm','groceryBulkForm','aiForm','rewardForm','gardenItemForm','gardenLogForm','maintenanceForm','electricityForm'].forEach(id=>{ const form=document.getElementById(id); if(form) form.reset(); });
+      ['noteId','transId','vaultId','taskId','shopId','appId','instId','budgetId','aiId','rewardId','gardenItemId','gardenLogId','maintenanceId','electricityId'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
       releaseGroceryPhotoUrls();
       const photoGrid = $('#groceryPhotoGrid'); if(photoGrid) photoGrid.innerHTML='';
       const photoInput = $('#groceryPhotoInput'); if(photoInput) photoInput.value='';
@@ -1527,7 +1543,9 @@ export function bootLifeHub(){
       state.aiEntries.forEach(a=>{const text=strip([a.activity,a.note,a.date].join(' ')); if(text.includes(q)) res.push(['AI výkaz',a.activity,`${a.date} • ${minutesLabel(a.minutes)}`,'ailog']);});
       state.rewards.forEach(r=>{const text=strip([r.title,r.note].join(' ')); if(text.includes(q)) res.push(['Odměny',r.title,`${rewardPeriodLabel(r.period)} • ${fmtHours(r.hours)}`,'rewards']);});
       state.gardenItems.forEach(g=>{const text=strip([g.name,g.note].join(' ')); if(text.includes(q)) res.push(['Zahrada',g.name,`${gardenHorizonLabel(g.horizon)} • ${fmt(g.price)}${g.done?' • pořízeno':''}`,'garden']);});
-      state.gardenLogs.forEach(g=>{const text=strip([g.area,g.note,gardenTypeLabel(g.type)].join(' ')); if(text.includes(q)) res.push(['Zahrada – údržba',gardenTypeLabel(g.type),`${g.date}${g.area?' • '+g.area:''}`,'garden']);});
+      state.gardenLogs.forEach(g=>{const text=strip([g.area,g.note,gardenTypeLabel(g.type),g.price].join(' ')); if(text.includes(q)) res.push(['Zahrada – údržba',gardenTypeLabel(g.type),`${g.date}${g.area?' • '+g.area:''}${g.price?' • '+fmt(g.price):''}`,'garden']);});
+      state.maintenanceLogs.forEach(m=>{const text=strip([m.title,m.provider,m.note,maintenanceCategoryLabel(m.category),m.price].join(' ')); if(text.includes(q)) res.push(['Servis domácnosti',m.title,`${m.date} • ${maintenanceCategoryLabel(m.category)}${m.price?' • '+fmt(m.price):''}`,'maintenance']);});
+      state.electricalNotes.forEach(n=>{const text=strip([n.title,n.description,electricalTypeLabel(n.type),n.price].join(' ')); if(text.includes(q)) res.push(['Elektřina – Marek',n.title,`${n.date} • ${electricalTypeLabel(n.type)}${n.price?' • '+fmt(n.price):''}`,'electricity']);});
       box.innerHTML = res.slice(0,30).map(r=>`<button class="result" type="button" data-jump="${r[3]}"><strong>${esc(r[0])}: ${esc(r[1])}</strong><span class="small">${esc(r[2])}</span></button>`).join('') || empty('Nic jsem nenašel. Zkuste jiné slovo nebo tag.');
     }
 
@@ -2657,8 +2675,14 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         id:safeId(g?.id,'gitem'), name:textLimit(g?.name,160), price:Math.max(0,number(g?.price)), horizon:['now','season','year','someday'].includes(g?.horizon)?g.horizon:'season', url:safeUrl(g?.url), note:textLimit(g?.note,500), done:!!g?.done, shared:g?.shared!==false, createdAt:textLimit(g?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(g?.updatedAt,40)||new Date().toISOString()
       })).filter(g=>g.name);
       clean.gardenLogs = asArray(data.gardenLogs,10000).map(g=>({
-        id:safeId(g?.id,'glog'), date:textLimit(g?.date,10), type:['hnojeni','vertikutace','aerifikace','dosev','postrik','sekani','zavlaha','servis','jine'].includes(g?.type)?g.type:'jine', area:textLimit(g?.area,120), note:textLimit(g?.note,500), shared:g?.shared!==false, createdAt:textLimit(g?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(g?.updatedAt,40)||new Date().toISOString()
+        id:safeId(g?.id,'glog'), date:textLimit(g?.date,10), type:['hnojeni','vertikutace','aerifikace','dosev','postrik','sekani','zavlaha','servis','jine'].includes(g?.type)?g.type:'jine', area:textLimit(g?.area,120), price:Math.max(0,number(g?.price)), note:textLimit(g?.note,500), shared:g?.shared!==false, createdAt:textLimit(g?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(g?.updatedAt,40)||new Date().toISOString()
       })).filter(g=>/^\d{4}-\d{2}-\d{2}$/.test(g.date));
+      clean.electricalNotes = asArray(data.electricalNotes,10000).map(n=>({
+        id:safeId(n?.id,'elect'), date:textLimit(n?.date,10), type:['note','idea','material'].includes(n?.type)?n.type:'note', title:textLimit(n?.title,180), description:textLimit(n?.description,10000), price:Math.max(0,number(n?.price)), url:safeUrl(n?.url), createdAt:textLimit(n?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(n?.updatedAt,40)||new Date().toISOString()
+      })).filter(n=>/^\d{4}-\d{2}-\d{2}$/.test(n.date)&&n.title);
+      clean.maintenanceLogs = asArray(data.maintenanceLogs,10000).map(m=>({
+        id:safeId(m?.id,'maint'), date:textLimit(m?.date,10), category:['boiler','appliance','water','septic','inspection','chimney','climate','other'].includes(m?.category)?m.category:'other', title:textLimit(m?.title,180), provider:textLimit(m?.provider,160), price:Math.max(0,number(m?.price)), nextDate:/^\d{4}-\d{2}-\d{2}$/.test(String(m?.nextDate||''))?textLimit(m?.nextDate,10):'', note:textLimit(m?.note,3000), shared:m?.shared!==false, createdAt:textLimit(m?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(m?.updatedAt,40)||new Date().toISOString()
+      })).filter(m=>/^\d{4}-\d{2}-\d{2}$/.test(m.date)&&m.title);
       clean.partner = sanitizePartnerBlock(data.partner);
       clean.createdAt = textLimit(data.createdAt,40) || clean.createdAt;
       clean.updatedAt = new Date().toISOString();
@@ -2689,7 +2713,9 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         ailog:[['id','date','minutes','activity','note','createdAt'], ...state.aiEntries.map(a=>[a.id,a.date,a.minutes,a.activity,a.note,a.createdAt])],
         rewards:[['id','period','periodLabel','hours','title','note','createdAt'], ...state.rewards.map(r=>[r.id,r.period,rewardPeriodLabel(r.period),r.hours,r.title,r.note,r.createdAt])],
         garden:[['id','name','price','horizon','url','note','done','createdAt'], ...state.gardenItems.map(g=>[g.id,g.name,g.price,g.horizon,g.url,g.note,g.done,g.createdAt])],
-        gardenlog:[['id','date','type','typeLabel','area','note','createdAt'], ...state.gardenLogs.map(g=>[g.id,g.date,g.type,gardenTypeLabel(g.type),g.area,g.note,g.createdAt])]
+        gardenlog:[['id','date','type','typeLabel','area','price','note','createdAt'], ...state.gardenLogs.map(g=>[g.id,g.date,g.type,gardenTypeLabel(g.type),g.area,g.price,g.note,g.createdAt])],
+        maintenance:[['id','date','category','categoryLabel','title','provider','price','nextDate','note','shared','createdAt','updatedAt'], ...state.maintenanceLogs.map(m=>[m.id,m.date,m.category,maintenanceCategoryLabel(m.category),m.title,m.provider,m.price,m.nextDate,m.note,m.shared,m.createdAt,m.updatedAt])],
+        electricity:[['id','date','type','typeLabel','title','description','price','url','createdAt','updatedAt'], ...state.electricalNotes.map(n=>[n.id,n.date,n.type,electricalTypeLabel(n.type),n.title,n.description,n.price,n.url,n.createdAt,n.updatedAt])]
       };
       download(`lifehub-${kind}-${today()}.csv`, csv(maps[kind]), 'text/csv;charset=utf-8');
     }
@@ -2702,7 +2728,9 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
     function groceriesMarkdown(){return ['# Nákupní seznam',...state.groceries.map(g=>`- [${g.done?'x':' '}] **${g.name}**${g.store?' — '+g.store:''}${g.note?' ('+g.note+')':''}`)].join('\n');}
     function budgetMarkdown(){return ['# Jídlo & benzín',...state.budgetEntries.map(b=>`- ${b.date} | ${b.kind==='fuel'?'Benzín':'Jídlo'} | ${fmt(b.amount)}${b.note?' | '+b.note:''}`)].join('\n');}
     function aiMarkdown(){return ['# AI výkaz',...state.aiEntries.map(a=>`- ${a.date} | ${minutesLabel(a.minutes)} | ${a.activity}${a.note?' | '+a.note:''}`)].join('\n');}
-    function gardenMarkdown(){return ['# Zahrada','','## K pořízení',...state.gardenItems.map(g=>`- [${g.done?'x':' '}] **${g.name}** — ${fmt(g.price)}, ${gardenHorizonLabel(g.horizon)}${g.note?' ('+g.note+')':''}${g.url?'\n  '+g.url:''}`),'','## Deník údržby',...state.gardenLogs.map(g=>`- ${g.date} | ${gardenTypeLabel(g.type)}${g.area?' | '+g.area:''}${g.note?' | '+g.note:''}`)].join('\n');}
+    function gardenMarkdown(){return ['# Zahrada','','## K pořízení',...state.gardenItems.map(g=>`- [${g.done?'x':' '}] **${g.name}** — ${fmt(g.price)}, ${gardenHorizonLabel(g.horizon)}${g.note?' ('+g.note+')':''}${g.url?'\n  '+g.url:''}`),'','## Deník údržby',...state.gardenLogs.map(g=>`- ${g.date} | ${gardenTypeLabel(g.type)}${g.area?' | '+g.area:''}${g.price?' | '+fmt(g.price):''}${g.note?' | '+g.note:''}`)].join('\n');}
+    function maintenanceMarkdown(){return ['# Servis domácnosti',...state.maintenanceLogs.map(m=>`- ${m.date} | ${maintenanceCategoryLabel(m.category)} | **${m.title}**${m.provider?' | '+m.provider:''}${m.price?' | '+fmt(m.price):''}${m.nextDate?' | další termín '+m.nextDate:''}${m.note?' | '+m.note:''}`)].join('\n');}
+    function electricityMarkdown(){return ['# Elektřina – Marek',...state.electricalNotes.map(n=>`- ${n.date} | ${electricalTypeLabel(n.type)} | **${n.title}**${n.price?' | '+fmt(n.price):''}${n.description?' | '+n.description:''}${n.url?'\n  '+n.url:''}`)].join('\n');}
     function rewardsMarkdown(){return ['# Odměny',...state.rewards.map(r=>`- ${rewardPeriodLabel(r.period)} | ${fmtHours(r.hours)} | ${r.title}${r.note?' | '+r.note:''}`)].join('\n');}
     function buildMarkdown(notion=false){
       const lines=[]; lines.push(`# LifeHub export ${today()}`,'',`Vlastník: ${state.settings.ownerName || ''}`,'');
@@ -2710,7 +2738,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       state.transactions.forEach(t=>lines.push(`- ${t.date} | období ${transactionAccountingMonth(t)} | ${t.kind==='income'?'Příjem':'Výdaj'} | ${t.category} | ${fmt(t.amount)} | ${t.description||''}`));
       lines.push('', '# Výplatní pásky'); state.payrolls.forEach(p=>lines.push(`- období ${p.month} | připsáno ${p.paymentDate||'neuvedeno'} | ${p.employer||''} | čistá ${fmt(p.fields?.netPay||0)} | hrubá ${fmt(p.fields?.grossPay||0)} | daň ${fmt(p.fields?.incomeTax||0)} | ${p.note||''}`));
       lines.push('', '# Šifrovaný trezor dokumentů'); state.documents.forEach(d=>lines.push(`- ${d.date||''} | ${d.title||''} | ${docCategoryLabel(d.category)} | ${d.fileName||''} | ${formatBytes(d.size)}`));
-      lines.push('', tasksMarkdown(), '', shoppingMarkdown(), '', groceriesMarkdown(), '', gardenMarkdown(), '', budgetMarkdown(), '', paymentsMarkdown(), '', aiMarkdown(), '', rewardsMarkdown(), '', installmentsMarkdown(), '', appsMarkdown());
+      lines.push('', tasksMarkdown(), '', shoppingMarkdown(), '', groceriesMarkdown(), '', gardenMarkdown(), '', maintenanceMarkdown(), '', electricityMarkdown(), '', budgetMarkdown(), '', paymentsMarkdown(), '', aiMarkdown(), '', rewardsMarkdown(), '', installmentsMarkdown(), '', appsMarkdown());
       if(notion) lines.push('', '---', 'Import do Notion: dlouhé texty vložte jako Markdown stránku; tabulky použijte přes CSV exporty.');
       return lines.join('\n');
     }
@@ -3932,6 +3960,65 @@ Co chceš udělat teď?`,
       $('#rewardList').innerHTML=items.map(r=>`<article class="item"><div class="item-top"><div><h4>${esc(r.title)}</h4><p><strong>${fmtHours(r.hours)}</strong> • ${esc(rewardPeriodLabel(r.period))}</p>${r.note?`<p>${esc(r.note)}</p>`:''}<p class="small">Aktualizováno ${esc(fmtDate(r.updatedAt||r.createdAt))}</p></div><div class="actions"><button class="mini-btn" data-edit-reward="${attr(r.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-reward="${attr(r.id)}" type="button">Smazat</button></div></div></article>`).join('')||empty('V tomto období zatím nejsou položky. Přidávejte je průběžně během celého období.');
     }
 
+    // ===== Servis domácnosti =====
+    const MAINTENANCE_CATEGORIES={boiler:'🔥 Kotle a topení',appliance:'🔌 Spotřebiče',water:'💧 Voda a filtry',septic:'🚛 Žumpa a odpady',inspection:'📋 Revize',chimney:'🧱 Komín',climate:'🌬️ Klimatizace / rekuperace',other:'📌 Jiné'};
+    function maintenanceCategoryLabel(value){ return MAINTENANCE_CATEGORIES[value]||MAINTENANCE_CATEGORIES.other; }
+    function saveMaintenanceLog(e){
+      e.preventDefault();
+      const id=$('#maintenanceId').value||uid('maint');
+      const existing=state.maintenanceLogs.find(x=>x.id===id);
+      const item={id,date:$('#maintenanceDate').value,category:Object.prototype.hasOwnProperty.call(MAINTENANCE_CATEGORIES,$('#maintenanceCategory').value)?$('#maintenanceCategory').value:'other',title:$('#maintenanceTitle').value.trim(),provider:$('#maintenanceProvider').value.trim(),price:Math.max(0,number($('#maintenancePrice').value)),nextDate:$('#maintenanceNextDate').value,note:$('#maintenanceNote').value.trim(),shared:!!$('#maintenanceShared')?.checked,createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(item.date)||!item.title){ toast('Vyplňte datum a název servisního zásahu.','warn'); return; }
+      if(item.nextDate&&!/^\d{4}-\d{2}-\d{2}$/.test(item.nextDate)) item.nextDate='';
+      if(existing) Object.assign(existing,item); else state.maintenanceLogs.unshift(item);
+      save(); resetMaintenanceForm(); toast('Servisní záznam uložen.');
+    }
+    function resetMaintenanceForm(){ $('#maintenanceForm')?.reset(); if($('#maintenanceId')) $('#maintenanceId').value=''; if($('#maintenanceDate')) $('#maintenanceDate').value=today(); if($('#maintenanceShared')) $('#maintenanceShared').checked=true; }
+    function editMaintenanceForm(id){ const item=state.maintenanceLogs.find(x=>x.id===id); if(!item) return; showTab('maintenance'); toggleAddCard('maintenanceAddCard',true); $('#maintenanceId').value=item.id; $('#maintenanceDate').value=item.date; $('#maintenanceCategory').value=item.category||'other'; $('#maintenanceTitle').value=item.title; $('#maintenanceProvider').value=item.provider||''; $('#maintenancePrice').value=item.price||''; $('#maintenanceNextDate').value=item.nextDate||''; $('#maintenanceNote').value=item.note||''; if($('#maintenanceShared')) $('#maintenanceShared').checked=item.shared!==false; }
+    function renderMaintenance(){
+      if(!$('#maintenanceKpis')) return;
+      const items=[...state.maintenanceLogs].sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+      const total=items.reduce((sum,item)=>sum+number(item.price),0);
+      const upcoming=items.filter(item=>item.nextDate&&item.nextDate>=today()).sort((a,b)=>String(a.nextDate).localeCompare(String(b.nextDate)))[0];
+      const last=items[0];
+      $('#maintenanceKpis').innerHTML=[kpi('Záznamů',items.length,'Kompletní servisní historie'),kpi('Náklady celkem',fmt(total),'Součet zapsaných cen'),kpi('Poslední servis',last?fmtDate(`${last.date}T00:00:00`):'—',last?.title||'Bez záznamu'),kpi('Další termín',upcoming?fmtDate(`${upcoming.nextDate}T00:00:00`):'—',upcoming?.title||'Není naplánován')].join('');
+      const filter=$('#maintenanceFilter')?.value||'all';
+      const visible=items.filter(item=>filter==='all'||item.category===filter);
+      $('#maintenanceList').innerHTML=visible.map(item=>`<article class="item"><div class="item-top"><div><h4>${maintenanceCategoryLabel(item.category)} • ${esc(item.title)}</h4><p>${esc(fmtDate(`${item.date}T00:00:00`))}${item.provider?' • '+esc(item.provider):''}${item.price?` • <strong>${fmt(item.price)}</strong>`:''}</p>${item.note?`<p>${esc(item.note)}</p>`:''}<div class="meta">${item.nextDate?`<span class="tag">další termín ${esc(fmtDate(`${item.nextDate}T00:00:00`))}</span>`:''}${item.shared!==false?'<span class="tag">👥 sdílené</span>':'<span class="tag">🔒 soukromé</span>'}</div></div><div class="actions"><button class="mini-btn" data-edit-maintenance="${attr(item.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-maintenance="${attr(item.id)}" type="button">Smazat</button></div></div></article>`).join('')||empty('Zatím nejsou zapsané žádné servisní zásahy.');
+    }
+
+    // ===== Elektřina – Marek =====
+    const ELECTRICAL_TYPES={note:'📝 Poznámka',idea:'💡 Nápad',material:'📦 Materiál'};
+    function electricalTypeLabel(value){ return ELECTRICAL_TYPES[value]||ELECTRICAL_TYPES.note; }
+    function saveElectricalNote(e){
+      e.preventDefault();
+      const id=$('#electricityId').value||uid('elect');
+      const existing=state.electricalNotes.find(x=>x.id===id);
+      const item={id,date:$('#electricityDate').value,type:Object.prototype.hasOwnProperty.call(ELECTRICAL_TYPES,$('#electricityType').value)?$('#electricityType').value:'note',title:$('#electricityTitle').value.trim(),description:$('#electricityDescription').value.trim(),price:Math.max(0,number($('#electricityPrice').value)),url:safeUrl($('#electricityUrl').value),createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(item.date)||!item.title){ toast('Vyplňte datum a název podkladu.','warn'); return; }
+      if(existing) Object.assign(existing,item); else state.electricalNotes.unshift(item);
+      save(); resetElectricalForm(); toast('Podklad pro elektrikáře uložen.');
+    }
+    function resetElectricalForm(){ $('#electricityForm')?.reset(); if($('#electricityId')) $('#electricityId').value=''; if($('#electricityDate')) $('#electricityDate').value=today(); }
+    function editElectricalForm(id){ const item=state.electricalNotes.find(x=>x.id===id); if(!item) return; showTab('electricity'); toggleAddCard('electricityAddCard',true); $('#electricityId').value=item.id; $('#electricityDate').value=item.date; $('#electricityType').value=item.type||'note'; $('#electricityTitle').value=item.title; $('#electricityDescription').value=item.description||''; $('#electricityPrice').value=item.price||''; $('#electricityUrl').value=item.url||''; }
+    function renderElectricity(){
+      if(!$('#electricityKpis')) return;
+      const items=[...state.electricalNotes].sort((a,b)=>String(b.date).localeCompare(String(a.date))||String(b.updatedAt).localeCompare(String(a.updatedAt)));
+      const material=items.filter(item=>item.type==='material');
+      const total=material.reduce((sum,item)=>sum+number(item.price),0);
+      $('#electricityKpis').innerHTML=[kpi('Podkladů',items.length,'Poznámky, nápady a materiál'),kpi('Materiálových položek',material.length,`Součet ${fmt(total)}`),kpi('Poznámek',items.filter(item=>item.type==='note').length,'Připraveno pro konzultaci'),kpi('Nápadů',items.filter(item=>item.type==='idea').length,'Možnosti k rozhodnutí')].join('');
+      const filter=$('#electricityFilter')?.value||'all';
+      const visible=items.filter(item=>filter==='all'||item.type===filter);
+      $('#electricityList').innerHTML=visible.map(item=>`<article class="item"><div class="item-top"><div><h4>${electricalTypeLabel(item.type)} • ${esc(item.title)}</h4><p>${esc(fmtDate(`${item.date}T00:00:00`))}${item.price?` • <strong>${fmt(item.price)}</strong>`:''}</p>${item.description?`<p>${esc(item.description)}</p>`:''}<div class="meta">${item.url?`<a class="tag" href="${attr(safeUrl(item.url))}" target="_blank" rel="noopener">odkaz ↗</a>`:''}</div></div><div class="actions"><button class="mini-btn" data-edit-electrical="${attr(item.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-electrical="${attr(item.id)}" type="button">Smazat</button></div></div></article>`).join('')||empty('Zatím nejsou zapsané žádné podklady pro elektrikáře.');
+    }
+    function buildElectricityReportHtml(){
+      const items=[...state.electricalNotes].sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+      const total=items.filter(item=>item.type==='material').reduce((sum,item)=>sum+number(item.price),0);
+      const rows=items.map((item,index)=>`<tr><td>${index+1}</td><td>${esc(fmtDate(`${item.date}T00:00:00`))}</td><td><strong>${esc(item.title)}</strong><div class="report-note">${esc(item.description||'')}</div>${item.url?`<div class="report-note">${esc(item.url)}</div>`:''}</td><td>${esc(electricalTypeLabel(item.type))}</td><td class="report-time">${item.price?esc(fmt(item.price)):'—'}</td></tr>`).join('')||'<tr><td colspan="5" class="report-empty">Zatím nejsou vložené žádné podklady.</td></tr>';
+      return `<main class="lh-report"><header class="report-header"><div class="report-school"><img src="${SCHOOL_LOGO_DATA_URI}" alt="Logo"><div><strong>Podklady pro elektroinstalaci</strong><span>Daniel Baláž · pro elektrikáře Marka</span></div></div><div class="report-heading"><p>LifeHub · pracovní podklad</p><h1>Elektřina – Marek</h1></div></header><section class="report-meta-grid"><article><span>Vygenerováno</span><strong>${esc(fmtDate(new Date().toISOString()))}</strong></article><article><span>Počet položek</span><strong>${items.length}</strong></article><article><span>Materiál</span><strong>${materialCount(items)}</strong></article><article class="report-status ready"><span>Odhad materiálu</span><strong>${esc(fmt(total))}</strong></article></section><section class="report-section"><div class="report-section-title"><div><span>Poznámky, nápady a materiál</span><h2>Podklady k projednání a realizaci</h2></div></div><div class="report-table-wrap"><table class="report-table"><thead><tr><th>#</th><th>Datum</th><th>Položka a popis</th><th>Typ</th><th>Cena</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="4">Celkem uvedený materiál / odhad</td><td class="report-time">${esc(fmt(total))}</td></tr></tfoot></table></div></section><section class="report-signatures"><div><span>Připravil</span><strong>${esc(reportOwner().name)}</strong><i>datum a podpis</i></div><div><span>Projednáno s</span><strong>Marek – elektrikář</strong><i>datum a podpis</i></div></section><footer class="report-footer"><span>Pracovní podklad z aplikace LifeHub</span><span>Verze ${esc(VERSION)}</span></footer></main>`;
+    }
+    function materialCount(items){ return items.filter(item=>item.type==='material').length; }
+
     // ===== Zahrada (pořízení + deník údržby) =====
     const GARDEN_TYPES = {hnojeni:'🌿 Hnojení', vertikutace:'🪒 Vertikutace', aerifikace:'🕳️ Aerifikace', dosev:'🌾 Dosev', postrik:'💧 Postřik', sekani:'✂️ Sekání', zavlaha:'🚿 Závlaha', servis:'🔧 Servis techniky', jine:'📌 Jiné'};
     function gardenTypeLabel(t){ return GARDEN_TYPES[t] || GARDEN_TYPES.jine; }
@@ -3952,24 +4039,26 @@ Co chceš udělat teď?`,
       e.preventDefault();
       const id=$('#gardenLogId').value||uid('glog');
       const existing=state.gardenLogs.find(x=>x.id===id);
-      const g={id, date:$('#gardenLogDate').value, type:Object.prototype.hasOwnProperty.call(GARDEN_TYPES,$('#gardenLogType').value)?$('#gardenLogType').value:'jine', area:$('#gardenLogArea').value.trim(), note:$('#gardenLogNote').value.trim(), shared:!!$('#gardenLogShared')?.checked, createdAt:existing?.createdAt||new Date().toISOString(), updatedAt:new Date().toISOString()};
+      const g={id, date:$('#gardenLogDate').value, type:Object.prototype.hasOwnProperty.call(GARDEN_TYPES,$('#gardenLogType').value)?$('#gardenLogType').value:'jine', area:$('#gardenLogArea').value.trim(), price:Math.max(0,number($('#gardenLogPrice').value)), note:$('#gardenLogNote').value.trim(), shared:!!$('#gardenLogShared')?.checked, createdAt:existing?.createdAt||new Date().toISOString(), updatedAt:new Date().toISOString()};
       if(!/^\d{4}-\d{2}-\d{2}$/.test(g.date)){ toast('Zadejte platné datum údržby.','warn'); return; }
       if(existing)Object.assign(existing,g); else state.gardenLogs.unshift(g);
       save(); resetGardenLogForm(); toast('Záznam údržby uložen.');
     }
     function resetGardenLogForm(){ $('#gardenLogForm').reset(); $('#gardenLogId').value=''; $('#gardenLogDate').value=today(); if($('#gardenLogShared')) $('#gardenLogShared').checked=true; }
-    function editGardenLogForm(id){const g=state.gardenLogs.find(x=>x.id===id); if(!g)return; showTab('garden'); toggleAddCard('gardenLogAddCard',true); $('#gardenLogId').value=g.id; $('#gardenLogDate').value=g.date; $('#gardenLogType').value=g.type||'jine'; $('#gardenLogArea').value=g.area||''; $('#gardenLogNote').value=g.note||''; if($('#gardenLogShared')) $('#gardenLogShared').checked=g.shared!==false;}
+    function editGardenLogForm(id){const g=state.gardenLogs.find(x=>x.id===id); if(!g)return; showTab('garden'); toggleAddCard('gardenLogAddCard',true); $('#gardenLogId').value=g.id; $('#gardenLogDate').value=g.date; $('#gardenLogType').value=g.type||'jine'; $('#gardenLogArea').value=g.area||''; $('#gardenLogPrice').value=g.price||''; $('#gardenLogNote').value=g.note||''; if($('#gardenLogShared')) $('#gardenLogShared').checked=g.shared!==false;}
     function lastGardenLogOfType(type){ return state.gardenLogs.filter(g=>g.type===type).sort((a,b)=>String(b.date).localeCompare(String(a.date)))[0]||null; }
     function renderGarden(){
       if(!$('#gardenKpis')) return;
       const open=state.gardenItems.filter(g=>!g.done);
       const openSum=open.reduce((a,g)=>a+number(g.price),0);
       const doneCount=state.gardenItems.filter(g=>g.done).length;
+      const serviceSpend=state.gardenLogs.reduce((sum,g)=>sum+number(g.price),0);
       const lastFert=lastGardenLogOfType('hnojeni');
       const lastServis=lastGardenLogOfType('servis');
       $('#gardenKpis').innerHTML=[
         kpi('K pořízení',open.length,`Odhad ${fmt(openSum)}`),
         kpi('Pořízeno',doneCount,'Odškrtnuté položky'),
+        kpi('Údržba celkem',fmt(serviceSpend),'Zapsané náklady na servis a zásahy'),
         kpi('Poslední hnojení',lastFert?fmtDate(`${lastFert.date}T00:00:00`):'—',lastFert?.area||'Zatím bez záznamu'),
         kpi('Poslední servis',lastServis?fmtDate(`${lastServis.date}T00:00:00`):'—',lastServis?.area||'Zatím bez záznamu')
       ].join('');
@@ -3994,7 +4083,7 @@ Co chceš udělat teď?`,
       // Deník údržby
       const filter=$('#gardenLogFilter')?.value||'all';
       const logs=[...state.gardenLogs].filter(g=>filter==='all'||g.type===filter).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
-      $('#gardenLogList').innerHTML=logs.map(g=>`<article class="item"><div class="item-top"><div><h4>${gardenTypeLabel(g.type)}${g.area?` • ${esc(g.area)}`:''}</h4><p>${esc(fmtDate(`${g.date}T00:00:00`))}</p>${g.note?`<p>${esc(g.note)}</p>`:''}</div><div class="actions"><button class="mini-btn" data-edit-glog="${attr(g.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-glog="${attr(g.id)}" type="button">Smazat</button></div></div></article>`).join('')||empty(filter==='all'?'Deník je prázdný. Zapište první hnojení, vertikutaci nebo servis.':'Pro tento typ zatím nejsou záznamy.');
+      $('#gardenLogList').innerHTML=logs.map(g=>`<article class="item"><div class="item-top"><div><h4>${gardenTypeLabel(g.type)}${g.area?` • ${esc(g.area)}`:''}</h4><p>${esc(fmtDate(`${g.date}T00:00:00`))}${g.price?` • <strong>${fmt(g.price)}</strong>`:''}</p>${g.note?`<p>${esc(g.note)}</p>`:''}</div><div class="actions"><button class="mini-btn" data-edit-glog="${attr(g.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-glog="${attr(g.id)}" type="button">Smazat</button></div></div></article>`).join('')||empty(filter==='all'?'Deník je prázdný. Zapište první hnojení, vertikutaci nebo servis.':'Pro tento typ zatím nejsou záznamy.');
     }
 
     // ===== Rodina (šifrovaný náhled partnerových sdílených dat) =====
@@ -4078,7 +4167,7 @@ Co chceš udělat teď?`,
         }
         const payload=buildPartnerSharePayload();
         const summary=summarizeFamilySnapshot(payload);
-        const labels={transactions:'sdílené transakce',budgetEntries:'útraty za jídlo a benzín',groceries:'nákupní seznam',tasks:'úkoly',shopping:'velké nákupy',installments:'splátky',householdPayments:'platby domácnosti',gardenItems:'zahradní nákupy',gardenLogs:'zahradní deník'};
+        const labels={transactions:'sdílené transakce',budgetEntries:'útraty za jídlo a benzín',groceries:'nákupní seznam',tasks:'úkoly',shopping:'velké nákupy',installments:'splátky',householdPayments:'platby domácnosti',gardenItems:'zahradní nákupy',gardenLogs:'zahradní deník',maintenanceLogs:'servis domácnosti'};
         const included=FAMILY_COLLECTIONS.filter(key=>summary.counts[key]>0).map(key=>`- ${labels[key]}: ${summary.counts[key]}`).join('\n') || '- žádné sdílené položky';
         const confirmed=await confirmDialog(`Rodinný soubor bude pouze pro čtení a zahrne celkem ${summary.total} sdílených položek:
 ${included}
@@ -4105,7 +4194,7 @@ Pokračovat ve vytvoření šifrovaného souboru?`,{title:'Obsah rodinného soub
         kind:'LifeHub family snapshot',schema:1,version:textLimit(raw?.version,30),exportedAt,
         owner:{id:legacyFamilyId('member',{ownerName}),name:ownerName},householdSettings:null,
         data:{
-          transactions:[],budgetEntries:[],householdPayments:[],gardenLogs:[],
+          transactions:[],budgetEntries:[],householdPayments:[],gardenLogs:[],maintenanceLogs:[],
           groceries:(Array.isArray(d.groceries)?d.groceries:[]).map(x=>stamp('groc',x)),
           tasks:(Array.isArray(d.tasks)?d.tasks:[]).map(x=>stamp('task',x)),
           shopping:(Array.isArray(d.shopping)?d.shopping:[]).map(x=>stamp('shop',x)),
@@ -4123,7 +4212,7 @@ Pokračovat ve vytvoření šifrovaného souboru?`,{title:'Obsah rodinného soub
       const sanitized=sanitizeImportedState({
         settings:{foodBudget:hs.foodBudget,fuelBudget:hs.fuelBudget,savingGoal:hs.savingGoal,familySettingsUpdatedAt:hs.updatedAt},
         transactions:d.transactions,budgetEntries:d.budgetEntries,groceries:d.groceries,tasks:d.tasks,shopping:d.shopping,
-        installments:d.installments,householdPayments:d.householdPayments,gardenItems:d.gardenItems,gardenLogs:d.gardenLogs
+        installments:d.installments,householdPayments:d.householdPayments,gardenItems:d.gardenItems,gardenLogs:d.gardenLogs,maintenanceLogs:d.maintenanceLogs
       });
       const data={};
       FAMILY_COLLECTIONS.forEach(collection=>{ data[collection]=(sanitized[collection]||[]).filter(item=>item.shared!==false); });
@@ -4223,7 +4312,7 @@ Pokračovat ve vytvoření šifrovaného souboru?`,{title:'Obsah rodinného soub
       const partner=state.partner;
       if(!partner?.snapshot){
         info.textContent='Zatím není načten žádný rodinný soubor. Partner vytvoří šifrovaný soubor a vy ho zde načtete jako náhled pouze pro čtení.';
-        content.innerHTML=`<article class="panel"><h3>Co se přenáší</h3><p class="small">Sdílené finance, limity jídla a benzínu, nákupní seznam, rodinné úkoly, velké nákupy, splátky včetně historie, platby domácnosti a zahradní plán i deník. Výplatní pásky, dokumenty, osobní poznámky, AI výkaz, odměny a aplikace zůstávají soukromé.</p></article>`;
+        content.innerHTML=`<article class="panel"><h3>Co se přenáší</h3><p class="small">Sdílené finance, limity jídla a benzínu, nákupní seznam, rodinné úkoly, velké nákupy, splátky včetně historie, platby domácnosti, zahradní plán i deník a sdílené servisní záznamy domácnosti. Výplatní pásky, dokumenty, osobní poznámky, AI výkaz, odměny, aplikace a podklady Elektřina – Marek zůstávají soukromé.</p></article>`;
         return;
       }
       const family=partner.snapshot,d=family.data||{},c=familyCounts(family);
@@ -4262,8 +4351,13 @@ Pokračovat ve vytvoření šifrovaného souboru?`,{title:'Obsah rodinného soub
       }
       if((d.gardenItems||[]).length||(d.gardenLogs||[]).length){
         const itemRows=(d.gardenItems||[]).map(g=>`<article class="item"><h4>${g.done?'✅ ':''}${esc(g.name)}</h4><p>${fmt(g.price)} • ${esc(gardenHorizonLabel(g.horizon))}</p>${g.note?`<p>${esc(g.note)}</p>`:''}${partnerExternalLink(g.url,'Otevřít odkaz')}</article>`).join('');
-        const logRows=[...(d.gardenLogs||[])].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,30).map(g=>`<article class="item"><h4>${esc(gardenTypeLabel(g.type))}${g.area?' • '+esc(g.area):''}</h4><p>${esc(g.date)}${g.note?' • '+esc(g.note):''}</p></article>`).join('');
+        const logRows=[...(d.gardenLogs||[])].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,30).map(g=>`<article class="item"><h4>${esc(gardenTypeLabel(g.type))}${g.area?' • '+esc(g.area):''}</h4><p>${esc(g.date)}${number(g.price)>0?' • '+fmt(g.price):''}${g.note?' • '+esc(g.note):''}</p></article>`).join('');
         parts.push(partnerPanel(`Zahrada (${c.gardenItems} položek, ${c.gardenLogs} záznamů)`,`<div class="grid two"><div><h4>K pořízení</h4><div class="list">${itemRows||empty('Bez položek')}</div></div><div><h4>Deník údržby</h4><div class="list">${logRows||empty('Bez záznamů')}</div></div></div>`));
+      }
+      if((d.maintenanceLogs||[]).length){
+        const rows=[...(d.maintenanceLogs||[])].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,40).map(item=>`<article class="item"><h4>${esc(item.title)}</h4><p>${esc(item.date)} • ${esc(maintenanceCategoryLabel(item.category))}${number(item.price)>0?' • '+fmt(item.price):''}${item.provider?' • '+esc(item.provider):''}</p>${item.nextDate?`<p>Další termín: ${esc(item.nextDate)}</p>`:''}${item.note?`<p>${esc(item.note)}</p>`:''}</article>`).join('');
+        const total=(d.maintenanceLogs||[]).reduce((sum,item)=>sum+number(item.price),0);
+        parts.push(partnerPanel(`Servis domácnosti (${c.maintenanceLogs})`,`<p><strong>Celkové evidované náklady:</strong> ${fmt(total)}</p><div class="list">${rows}</div>`));
       }
       content.innerHTML=parts.join('');
     }

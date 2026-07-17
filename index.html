@@ -54,6 +54,9 @@
           <button data-tab="groceries" type="button"><span class="emoji">🛒</span><span class="label">Nákupní seznam</span></button>
           <button data-tab="shopping" type="button"><span class="emoji">🏠</span><span class="label">Velké nákupy</span></button>
           <button data-tab="garden" type="button"><span class="emoji">🌱</span><span class="label">Zahrada</span></button>
+          <div class="nav-group-label">Dům a technika</div>
+          <button data-tab="maintenance" type="button"><span class="emoji">🛠️</span><span class="label">Servis domácnosti</span></button>
+          <button data-tab="electricity" type="button"><span class="emoji">⚡</span><span class="label">Elektřina – Marek</span></button>
           <div class="nav-group-label">Práce a AI</div>
           <button data-tab="ailog" type="button"><span class="emoji">🤖</span><span class="label">AI výkaz</span></button>
           <button data-tab="rewards" type="button"><span class="emoji">🏅</span><span class="label">Odměny</span></button>
@@ -737,6 +740,7 @@
                 <label>Datum<input id="gardenLogDate" type="date" required></label>
                 <label>Typ<select id="gardenLogType"><option value="hnojeni">🌿 Hnojení</option><option value="vertikutace">🪒 Vertikutace</option><option value="aerifikace">🕳️ Aerifikace</option><option value="dosev">🌾 Dosev trávníku</option><option value="postrik">💧 Postřik / ochrana</option><option value="sekani">✂️ Sekání</option><option value="zavlaha">🚿 Zásah na závlaze</option><option value="servis">🔧 Servis techniky</option><option value="jine">📌 Jiné</option></select></label>
                 <label>Část zahrady / stroj<input id="gardenLogArea" placeholder="Např. přední trávník, sad, sekačka…"></label>
+                <label>Cena zásahu<input id="gardenLogPrice" type="number" min="0" step="0.01" placeholder="0"></label>
                 <label class="wide">Poznámka<input id="gardenLogNote" placeholder="Jaký přípravek, dávkování, co se měnilo…"></label>
                 <label class="check-label wide"><input id="gardenLogShared" type="checkbox" checked> Sdílet záznam s rodinou</label>
                 <div class="actions wide"><button class="btn primary" type="submit">Uložit záznam</button><button class="btn" id="resetGardenLog" type="button">Vyčistit</button></div>
@@ -752,6 +756,72 @@
           <div class="section-head-actions">
             <button class="btn" data-action="export-garden-csv" type="button">Export položek CSV</button>
             <button class="btn secondary" data-action="export-gardenlog-csv" type="button">Export údržby CSV</button>
+          </div>
+        </section>
+
+        <section class="view" id="maintenance">
+          <div class="section-head">
+            <div class="head-main">
+              <div><h2 class="tab-title">Servis domácnosti</h2><p class="tab-sub">Kotle, spotřebiče, filtry, revize, komín, žumpa a další pravidelná údržba</p></div>
+              <button class="info-dot" type="button" data-tip="Zapište každý provedený servis, cenu a případný další termín. LifeHub tak uchová historii nákladů i připomínku, co bude potřeba řešit příště.">i</button>
+            </div>
+          </div>
+          <div class="kpis" id="maintenanceKpis"></div>
+          <article class="panel">
+            <div class="panel-head"><div><p class="eyebrow">Historie a plán</p><h3>Servisní zásahy v domácnosti</h3></div><select id="maintenanceFilter" class="control-w-170" title="Filtr kategorie"><option value="all">Všechny kategorie</option><option value="boiler">Kotle a topení</option><option value="appliance">Spotřebiče</option><option value="water">Voda a filtry</option><option value="septic">Žumpa a odpady</option><option value="inspection">Revize</option><option value="chimney">Komín</option><option value="climate">Klimatizace / rekuperace</option><option value="other">Jiné</option></select></div>
+            <div class="list" id="maintenanceList"></div>
+          </article>
+          <article class="panel add-card" id="maintenanceAddCard" data-collapsed="true">
+            <button class="add-card-head" type="button" data-toggle-add="maintenanceAddCard"><span>➕ Zapsat servis nebo údržbu</span><span class="chev">▾</span></button>
+            <div class="add-card-body">
+              <form class="form form-two" id="maintenanceForm">
+                <input type="hidden" id="maintenanceId">
+                <label>Datum<input id="maintenanceDate" type="date" required></label>
+                <label>Kategorie<select id="maintenanceCategory"><option value="boiler">🔥 Kotle a topení</option><option value="appliance">🔌 Spotřebiče</option><option value="water">💧 Voda a filtry</option><option value="septic">🚛 Žumpa a odpady</option><option value="inspection">📋 Revize</option><option value="chimney">🧱 Komín</option><option value="climate">🌬️ Klimatizace / rekuperace</option><option value="other">📌 Jiné</option></select></label>
+                <label class="wide">Zařízení / provedená práce<input id="maintenanceTitle" required maxlength="180" placeholder="Např. servis kotle Atmos, výměna vodního filtru…"></label>
+                <label>Firma / technik<input id="maintenanceProvider" maxlength="160" placeholder="Kdo zásah provedl"></label>
+                <label>Cena<input id="maintenancePrice" type="number" min="0" step="0.01" placeholder="0"></label>
+                <label>Další termín<input id="maintenanceNextDate" type="date"></label>
+                <label class="wide">Poznámka<textarea id="maintenanceNote" rows="3" placeholder="Co se měnilo, typ dílu, doporučení technika, číslo zakázky…"></textarea></label>
+                <label class="check-label wide"><input id="maintenanceShared" type="checkbox" checked> Sdílet záznam s rodinou</label>
+                <div class="actions wide"><button class="btn primary" type="submit">Uložit servis</button><button class="btn" id="resetMaintenance" type="button">Vyčistit</button></div>
+              </form>
+            </div>
+          </article>
+          <div class="section-head-actions"><button class="btn" data-action="export-maintenance-csv" type="button">Export CSV</button></div>
+        </section>
+
+        <section class="view" id="electricity">
+          <div class="section-head">
+            <div class="head-main">
+              <div><h2 class="tab-title">Elektřina – Marek</h2><p class="tab-sub">Poznámky, nápady a materiál připravený pro elektrikáře</p></div>
+              <button class="info-dot" type="button" data-tip="Každou položku označte jako poznámku, nápad nebo materiál. U materiálu můžete uvést cenu. Tlačítko PDF vytvoří čistý podklad vhodný k odeslání elektrikáři.">i</button>
+            </div>
+          </div>
+          <div class="kpis" id="electricityKpis"></div>
+          <article class="panel">
+            <div class="panel-head"><div><p class="eyebrow">Podklady pro Marka</p><h3>Poznámky a materiál</h3></div><select id="electricityFilter" class="control-w-170" title="Filtr typu"><option value="all">Všechny typy</option><option value="note">Poznámky</option><option value="idea">Nápady</option><option value="material">Materiál</option></select></div>
+            <div class="list" id="electricityList"></div>
+          </article>
+          <article class="panel add-card" id="electricityAddCard" data-collapsed="true">
+            <button class="add-card-head" type="button" data-toggle-add="electricityAddCard"><span>➕ Přidat podklad pro elektrikáře</span><span class="chev">▾</span></button>
+            <div class="add-card-body">
+              <form class="form form-two" id="electricityForm">
+                <input type="hidden" id="electricityId">
+                <label>Datum<input id="electricityDate" type="date" required></label>
+                <label>Typ<select id="electricityType"><option value="note">📝 Poznámka</option><option value="idea">💡 Nápad</option><option value="material">📦 Materiál</option></select></label>
+                <label class="wide">Název<input id="electricityTitle" required maxlength="180" placeholder="Např. zásuvky v panic roomu, kabel k pergole…"></label>
+                <label class="wide">Popis / materiál<textarea id="electricityDescription" rows="4" placeholder="Rozměry, umístění, počet kusů, typ kabelu, otázky pro elektrikáře…"></textarea></label>
+                <label>Cena materiálu / odhad<input id="electricityPrice" type="number" min="0" step="0.01" placeholder="0"></label>
+                <label>Odkaz<input id="electricityUrl" type="url" placeholder="https://…"></label>
+                <div class="actions wide"><button class="btn primary" type="submit">Uložit podklad</button><button class="btn" id="resetElectricity" type="button">Vyčistit</button></div>
+              </form>
+            </div>
+          </article>
+          <div class="section-head-actions">
+            <button class="btn primary" id="electricityPdfBtn" type="button">PDF pro elektrikáře</button>
+            <button class="btn" data-action="export-electricity-csv" type="button">Export CSV</button>
+            <span class="small">V tiskovém dialogu zvolte „Uložit jako PDF“.</span>
           </div>
         </section>
 

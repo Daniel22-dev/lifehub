@@ -1,3 +1,10 @@
+## 4.9.0
+
+- nová záložka **Elektřina – Marek** s poznámkami, nápady, materiálem, cenami a PDF podkladem pro elektrikáře,
+- nová záložka **Servis domácnosti** pro kotle, spotřebiče, filtry, revize, komín, klimatizaci a žumpu,
+- cena u servisních a údržbových záznamů na zahradě,
+- rozšířené exporty CSV, globální vyhledávání, šifrované zálohy a rodinný náhled.
+
 # Changelog
 
 ## v4.8.6 – bezpečná migrace, správná mzda, výkaz a odolnější offline režim

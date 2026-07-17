@@ -4,9 +4,12 @@ import fs from 'node:fs';
 
 const manual = fs.readFileSync(new URL('../public/manual.html', import.meta.url), 'utf8');
 
-test('interaktivní manuál odpovídá funkcím LifeHubu 4.8.6', () => {
+test('interaktivní manuál odpovídá funkcím LifeHubu 4.9.0', () => {
   for (const text of [
-    'LifeHub 4.8.6',
+    'LifeHub 4.9.0',
+    'Elektřina – Marek',
+    'Servis domácnosti',
+    'Uložit jako PDF',
     'Aktivuj rychlé odemčení telefonu',
     'Jméno v rodinném sdílení',
     'klikatelné odkazy',
