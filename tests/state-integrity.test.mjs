@@ -5,7 +5,7 @@ import { ensureUniqueIds, migrateStateSchema } from '../src/core/state-integrity
 test('migrace doplní aktuální schemaVersion bez změny vstupu', () => {
   const original={schemaVersion:2,notes:[{id:'a'}]};
   const migrated=migrateStateSchema(original);
-  assert.equal(migrated.schemaVersion,9);
+  assert.equal(migrated.schemaVersion,10);
   assert.equal(original.schemaVersion,2);
 });
 
@@ -38,7 +38,7 @@ test('migrace převádí stará odměnová období a zapíná propojení plateb'
   assert.equal(out.rewards[0].period,'2026-2027-A');
   assert.equal(out.rewards[1].period,'2025-2026-B');
   assert.equal(out.householdPayments[0].trackFinance,true);
-  assert.equal(out.schemaVersion,9);
+  assert.equal(out.schemaVersion,10);
 });
 
 
@@ -48,5 +48,24 @@ test('migrace doplní nové servisní a elektro kolekce a cenu zahradní údržb
   assert.deepEqual(out.electricalNotes,[]);
   assert.deepEqual(out.maintenanceLogs,[]);
   assert.equal(out.gardenLogs[0].price,0);
-  assert.equal(out.schemaVersion,9);
+  assert.equal(out.schemaVersion,10);
+});
+
+
+test('migrace doplní projekty domu a vnořené kolekce', () => {
+  const input={schemaVersion:9,projects:[{id:'p1',title:'Bazén'}]};
+  const out=migrateStateSchema(input);
+  assert.equal(out.schemaVersion,10);
+  assert.deepEqual(out.projects[0].notes,[]);
+  assert.deepEqual(out.projects[0].links,[]);
+  assert.deepEqual(out.projects[0].costs,[]);
+  assert.deepEqual(out.projects[0].attachments,[]);
+});
+
+test('duplicitní ID uvnitř projektu se nahradí', () => {
+  let seq=0;
+  const state={projects:[{id:'p1',notes:[{id:'x'},{id:'x'}],links:[],costs:[],attachments:[{id:'f'},{id:'f'}]}]};
+  ensureUniqueIds(state,prefix=>`${prefix}_${++seq}`);
+  assert.equal(new Set(state.projects[0].notes.map(item=>item.id)).size,2);
+  assert.equal(new Set(state.projects[0].attachments.map(item=>item.id)).size,2);
 });

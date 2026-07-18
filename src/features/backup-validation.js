@@ -47,6 +47,8 @@ export function validateBackupFileSet(files, importedState){
   if(list.length > MAX_COMPLETE_BACKUP_FILES) throw new Error(`Kompletní záloha obsahuje příliš mnoho souborů (${list.length}).`);
   const expectedPayrolls = new Set((importedState?.payrolls || []).filter(item => item.storedPdf).map(item => item.id));
   const expectedDocs = new Set((importedState?.documents || []).filter(item => item.storedFile !== false).map(item => item.id));
+  const expectedProjectFiles = new Set((importedState?.projects || []).flatMap(project => (project?.attachments || []).filter(item => item?.storedFile !== false).map(item => item.id)));
+  const expectedVaultFiles = new Set([...expectedDocs, ...expectedProjectFiles]);
   const seen = new Set();
   const validated = [];
   let totalBytes = 0;
@@ -57,7 +59,7 @@ export function validateBackupFileSet(files, importedState){
     if(seen.has(composite)) throw new Error(`Záloha obsahuje duplicitní soubor ${record.name || record.id}.`);
     seen.add(composite);
     if(record.store === PDF_STORE && !expectedPayrolls.has(record.id)) throw new Error(`PDF ${record.name || record.id} nemá odpovídající záznam výplatní pásky.`);
-    if(record.store === VAULT_STORE && !expectedDocs.has(record.id)) throw new Error(`Dokument ${record.name || record.id} nemá odpovídající metadata v archivu.`);
+    if(record.store === VAULT_STORE && !expectedVaultFiles.has(record.id)) throw new Error(`Dokument nebo projektová příloha ${record.name || record.id} nemá odpovídající metadata.`);
     totalBytes += record.size;
     if(totalBytes > MAX_COMPLETE_BACKUP_TOTAL_BYTES){
       throw new Error(`Kompletní záloha překračuje limit ${formatBytes(MAX_COMPLETE_BACKUP_TOTAL_BYTES)}.`);
@@ -67,8 +69,9 @@ export function validateBackupFileSet(files, importedState){
 
   const missingPayrolls = [...expectedPayrolls].filter(id => !seen.has(`${PDF_STORE}:${id}`));
   const missingDocs = [...expectedDocs].filter(id => !seen.has(`${VAULT_STORE}:${id}`));
-  if(missingPayrolls.length || missingDocs.length){
-    throw new Error(`Kompletní záloha je neúplná: chybí ${missingPayrolls.length + missingDocs.length} očekávaných souborů.`);
+  const missingProjectFiles = [...expectedProjectFiles].filter(id => !seen.has(`${VAULT_STORE}:${id}`));
+  if(missingPayrolls.length || missingDocs.length || missingProjectFiles.length){
+    throw new Error(`Kompletní záloha je neúplná: chybí ${missingPayrolls.length + missingDocs.length + missingProjectFiles.length} očekávaných souborů.`);
   }
   return {records:validated, totalBytes};
 }

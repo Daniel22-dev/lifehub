@@ -34,3 +34,11 @@ test('kompletní záloha odmítne chybějící očekávaný soubor', () => {
   const pdf={id:'payroll_1',store:PDF_STORE,size:1,data:base64('a')};
   assert.throws(()=>validateBackupFileSet([pdf],state),/neúplná/);
 });
+
+test('kompletní záloha přijímá očekávanou projektovou přílohu', () => {
+  const state={payrolls:[],documents:[],projects:[{id:'p1',attachments:[{id:'project_file_1',storedFile:true}]}]};
+  const file={id:'project_file_1',store:VAULT_STORE,size:3,data:base64('abc')};
+  const result=validateBackupFileSet([file],state);
+  assert.equal(result.records.length,1);
+  assert.throws(()=>validateBackupFileSet([],state),/neúplná/);
+});

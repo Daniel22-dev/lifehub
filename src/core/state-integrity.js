@@ -2,10 +2,10 @@ import { uid } from './utils.js';
 
 export const STATE_COLLECTIONS_WITH_IDS = Object.freeze([
   'notes','transactions','payrolls','documents','tasks','shopping','apps','installments',
-  'householdPayments','budgetEntries','groceries','aiEntries','rewards','gardenItems','gardenLogs','electricalNotes','maintenanceLogs'
+  'projects','householdPayments','budgetEntries','groceries','aiEntries','rewards','gardenItems','gardenLogs','electricalNotes','maintenanceLogs'
 ]);
 
-export function migrateStateSchema(input, targetSchema = 9){
+export function migrateStateSchema(input, targetSchema = 10){
   const migrated = JSON.parse(JSON.stringify(input || {}));
   const current = Math.max(1, Math.round(Number(migrated.schemaVersion) || 1));
   if(current < 6 && Array.isArray(migrated.payrolls)){
@@ -61,6 +61,16 @@ export function migrateStateSchema(input, targetSchema = 9){
       for(const log of migrated.gardenLogs){ if(log && log.price===undefined) log.price=0; }
     }
   }
+  if(current < 10){
+    if(!Array.isArray(migrated.projects)) migrated.projects=[];
+    for(const project of migrated.projects){
+      if(!project || typeof project!=='object') continue;
+      if(!Array.isArray(project.notes)) project.notes=[];
+      if(!Array.isArray(project.links)) project.links=[];
+      if(!Array.isArray(project.costs)) project.costs=[];
+      if(!Array.isArray(project.attachments)) project.attachments=[];
+    }
+  }
   if(current < targetSchema) migrated.schemaVersion = targetSchema;
   return migrated;
 }
@@ -76,6 +86,15 @@ export function ensureUniqueIds(clean, idFactory = uid){
         for(const row of item.paymentHistory){
           if(!row.id || historySeen.has(row.id)) row.id = idFactory('history');
           historySeen.add(row.id);
+        }
+      }
+      if(collection==='projects'){
+        for(const [nested,keyPrefix] of [['notes','pnote'],['links','plink'],['costs','pcost'],['attachments','pfile']]){
+          const nestedSeen=new Set();
+          for(const row of Array.isArray(item[nested])?item[nested]:[]){
+            if(!row.id || nestedSeen.has(row.id)) row.id=idFactory(keyPrefix);
+            nestedSeen.add(row.id);
+          }
         }
       }
     }

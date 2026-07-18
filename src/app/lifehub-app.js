@@ -79,6 +79,16 @@ import { calculateDueInstallmentPayments, calculateRegularInstallmentPayment } f
 import { buildFamilySnapshot, FAMILY_COLLECTIONS, FAMILY_EXCLUDED_DESCRIPTION, summarizeFamilySnapshot } from '../features/family-snapshot.js';
 import { advanceAutomaticPayment, nextPaymentDueDate } from '../features/recurring-payments.js';
 import {
+  PROJECT_AREA_LABELS,
+  PROJECT_COST_CATEGORY_LABELS,
+  PROJECT_STATUS_LABELS,
+  projectAttachmentMetadata,
+  projectBudgetByCategory,
+  projectCostPlanned,
+  projectStatusProgress,
+  summarizeProjectBudget
+} from '../features/projects.js';
+import {
   idbClear,
   idbDelete,
   idbDeleteMeta,
@@ -98,7 +108,7 @@ export function bootLifeHub(){
     const VERSION = APP_VERSION;
     const SHORT_VERSION = String(VERSION).split('-')[0]; // např. "3.1.8" – nadpis, titulek, zámek
     const FORBIDDEN_IMPORT_KEYS = new Set(['__proto__','constructor','prototype']);
-    const STATE_SCHEMA_VERSION = 9;
+    const STATE_SCHEMA_VERSION = 10;
     const BIOMETRIC_META_KEY = 'biometricUnlock';
     const VENDOR_BASE_URL = new URL('vendor/', PUBLIC_BASE_URL);
     const PDF_JS_LOCAL = new URL('pdf.min.mjs', VENDOR_BASE_URL).href;
@@ -113,7 +123,7 @@ export function bootLifeHub(){
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       settings:{theme:'dark', greetName:'Dane', familyDisplayName:'', deviceName:'', ownerName:'Vlastník aplikace: Daniel Baláž · Gymnázium, Ostrava-Hrabůvka', ownerFooter:'© 2026 Daniel Baláž. Všechna práva vyhrazena.', currency:'Kč', savingGoal:0, foodBudget:DEFAULT_FOOD_BUDGET, fuelBudget:DEFAULT_FUEL_BUDGET, familyMemberId:'', familyPassword:'', familySettingsUpdatedAt:'', privateNotifications:true, lastDataBackupAt:'', lastCompleteBackupAt:'', lastVerifiedBackupAt:'', lastRestoreAt:''},
-      notes:[], transactions:[], payrolls:[], documents:[], tasks:[], shopping:[], apps:[], installments:[], householdPayments:[], budgetEntries:[], groceries:[], aiEntries:[], aiClosedMonths:[], rewards:[], gardenItems:[], gardenLogs:[], electricalNotes:[], maintenanceLogs:[], partner:null
+      notes:[], transactions:[], payrolls:[], documents:[], tasks:[], shopping:[], apps:[], projects:[], installments:[], householdPayments:[], budgetEntries:[], groceries:[], aiEntries:[], aiClosedMonths:[], rewards:[], gardenItems:[], gardenLogs:[], electricalNotes:[], maintenanceLogs:[], partner:null
     });
     let state = defaultState();
     let vaultKey = null;
@@ -139,6 +149,11 @@ export function bootLifeHub(){
     let autoLockTimer = null;
     let lastActivityAt = Date.now();
     let selectedAppId = null;
+    let selectedProjectId = null;
+    const projectAttachmentUrlCache = new Map();
+    let projectSketchDrawing = false;
+    let projectSketchLastPoint = null;
+    let projectSketchHistory = [];
     let currentPayroll = {file:null, text:'', parsed:{}, evidence:{}};
     const payFieldDefs = [
       ['cleanPay','Čistá mzda',['cista mzda','cisty prijem']],
@@ -449,6 +464,7 @@ export function bootLifeHub(){
       if($('#gardenLogDate')) $('#gardenLogDate').value = today();
       if($('#maintenanceDate')) $('#maintenanceDate').value = today();
       if($('#electricityDate')) $('#electricityDate').value = today();
+      if($('#projectStart')) $('#projectStart').value = monthNow();
       populateRewardPeriodSelects();
       renderPayrollFieldInputs();
       bind();
@@ -527,6 +543,25 @@ export function bootLifeHub(){
       ['appSearch','appSort'].forEach(id=>$('#'+id)?.addEventListener('input',renderApps));
       $('#appBackBtn')?.addEventListener('click',()=>{ selectedAppId=null; renderApps(); });
       $('#appNoteForm')?.addEventListener('submit',saveAppNote);
+      $('#projectForm')?.addEventListener('submit',saveProject);
+      $('#resetProject')?.addEventListener('click',resetProjectForm);
+      ['projectSearch','projectStatusFilter','projectAreaFilter','projectSort'].forEach(id=>$('#'+id)?.addEventListener('input',renderProjects));
+      $('#projectBackBtn')?.addEventListener('click',()=>{ selectedProjectId=null; releaseProjectAttachmentUrls(); renderProjects(); });
+      $('#projectEditBtn')?.addEventListener('click',()=>selectedProjectId&&editProjectForm(selectedProjectId));
+      $('#projectDeleteBtn')?.addEventListener('click',()=>selectedProjectId&&deleteProject(selectedProjectId));
+      $('#projectNoteForm')?.addEventListener('submit',saveProjectNote);
+      $('#resetProjectNote')?.addEventListener('click',resetProjectNoteForm);
+      $('#projectLinkForm')?.addEventListener('submit',saveProjectLink);
+      $('#resetProjectLink')?.addEventListener('click',resetProjectLinkForm);
+      $('#projectCostForm')?.addEventListener('submit',saveProjectCost);
+      $('#resetProjectCost')?.addEventListener('click',resetProjectCostForm);
+      $('#projectAttachmentInput')?.addEventListener('change',addProjectAttachments);
+      $('#projectSketchBtn')?.addEventListener('click',openProjectSketchStudio);
+      $('#projectSketchClose')?.addEventListener('click',closeProjectSketchStudio);
+      $('#projectSketchUndo')?.addEventListener('click',undoProjectSketch);
+      $('#projectSketchClear')?.addEventListener('click',clearProjectSketch);
+      $('#projectSketchSave')?.addEventListener('click',saveProjectSketch);
+      bindProjectSketchCanvas();
       $('#instForm')?.addEventListener('submit',saveInstallment);
       $('#resetInst')?.addEventListener('click',resetInstallmentForm);
       $('#paymentForm')?.addEventListener('submit',saveHouseholdPayment);
@@ -607,6 +642,7 @@ export function bootLifeHub(){
       closeMobileNav();
       window.scrollTo({top:0,behavior:'smooth'});
       if(id==='exports') $('#markdownPreview').textContent = buildMarkdown();
+      if(id!=='projects') releaseProjectAttachmentUrls();
       updateFab(id);
       renderAll();
     }
@@ -633,6 +669,7 @@ export function bootLifeHub(){
           'export-garden-csv':()=>exportCsv('garden'), 'export-gardenlog-csv':()=>exportCsv('gardenlog'),
           'export-maintenance-csv':()=>exportCsv('maintenance'), 'export-electricity-csv':()=>exportCsv('electricity'),
           'export-payments-csv':()=>exportCsv('payments'),
+          'export-project-md':exportSelectedProjectMarkdown, 'export-project-csv':exportSelectedProjectCsv,
           'export-partner-share':exportPartnerShare
         };
         await map[action]?.();
@@ -657,6 +694,18 @@ export function bootLifeHub(){
       const editApp = e.target.closest('[data-edit-app]')?.dataset.editApp;
       const delApp = e.target.closest('[data-delete-app]')?.dataset.deleteApp;
       const delAppNote = e.target.closest('[data-del-app-note]')?.dataset.delAppNote;
+      const openProject = e.target.closest('[data-open-project]')?.dataset.openProject;
+      const editProject = e.target.closest('[data-edit-project]')?.dataset.editProject;
+      const delProject = e.target.closest('[data-delete-project]')?.dataset.deleteProject;
+      const editProjectNote = e.target.closest('[data-edit-project-note]')?.dataset.editProjectNote;
+      const delProjectNote = e.target.closest('[data-delete-project-note]')?.dataset.deleteProjectNote;
+      const editProjectLink = e.target.closest('[data-edit-project-link]')?.dataset.editProjectLink;
+      const delProjectLink = e.target.closest('[data-delete-project-link]')?.dataset.deleteProjectLink;
+      const editProjectCost = e.target.closest('[data-edit-project-cost]')?.dataset.editProjectCost;
+      const delProjectCost = e.target.closest('[data-delete-project-cost]')?.dataset.deleteProjectCost;
+      const viewProjectAttachment = e.target.closest('[data-view-project-attachment]')?.dataset.viewProjectAttachment;
+      const downloadProjectAttachment = e.target.closest('[data-download-project-attachment]')?.dataset.downloadProjectAttachment;
+      const delProjectAttachment = e.target.closest('[data-delete-project-attachment]')?.dataset.deleteProjectAttachment;
       const editInst = e.target.closest('[data-edit-inst]')?.dataset.editInst;
       const delInst = e.target.closest('[data-delete-inst]')?.dataset.deleteInst;
       const payInst = e.target.closest('[data-pay-inst]')?.dataset.payInst;
@@ -692,6 +741,11 @@ export function bootLifeHub(){
       if(editTask) editTaskForm(editTask); if(delTask) deleteItem('tasks',delTask); if(toggleTask) toggleTaskDone(toggleTask);
       if(editShop) editShoppingForm(editShop); if(delShop) deleteItem('shopping',delShop); if(shopStatusButton) setShoppingStatus(shopStatusButton.dataset.shopId,shopStatusButton.dataset.shopStatus);
       if(openApp) openApp1(openApp); if(editApp) editApp1(editApp); if(delApp) deleteApp(delApp); if(delAppNote) deleteAppNote(delAppNote);
+      if(openProject) openProjectDetail(openProject); if(editProject) editProjectForm(editProject); if(delProject) deleteProject(delProject);
+      if(editProjectNote) editProjectNoteForm(editProjectNote); if(delProjectNote) deleteProjectNestedItem('notes',delProjectNote);
+      if(editProjectLink) editProjectLinkForm(editProjectLink); if(delProjectLink) deleteProjectNestedItem('links',delProjectLink);
+      if(editProjectCost) editProjectCostForm(editProjectCost); if(delProjectCost) deleteProjectNestedItem('costs',delProjectCost);
+      if(viewProjectAttachment) viewProjectAttachmentFile(viewProjectAttachment); if(downloadProjectAttachment) downloadProjectAttachmentFile(downloadProjectAttachment); if(delProjectAttachment) deleteProjectAttachmentFile(delProjectAttachment);
       if(editInst) editInstallment(editInst); if(delInst) deleteInstallment(delInst); if(payInst) recordInstallmentPayment(payInst); if(extraInst) recordExtraPayment(extraInst); if(reopenInst) reopenInstallment(reopenInst);
       if(editPayment) editHouseholdPayment(editPayment); if(delPayment) deleteHouseholdPayment(delPayment); if(payPayment) recordHouseholdPayment(payPayment);
       if(editBudget) editBudgetForm(editBudget); if(delBudget) deleteItem('budgetEntries',delBudget);
@@ -765,8 +819,8 @@ export function bootLifeHub(){
         setTimeout(()=>field?.focus(), 220);
       }
     }
-    const FAB_TARGET = {notes:'noteAddCard', tasks:'taskAddCard', shopping:'shopAddCard', vault:'vaultAddCard', installments:'instAddCard', payments:'paymentAddCard', budget:'budgetAddCard', ailog:'aiAddCard', rewards:'rewardAddCard', maintenance:'maintenanceAddCard', electricity:'electricityAddCard'};
-    const FAB_LABEL = {notes:'Nová poznámka', finance:'Přidat', tasks:'Nový úkol', shopping:'Nový velký nákup', vault:'Nový dokument', installments:'Nová splátka', payments:'Nová platba', apps:'Přidat', budget:'Zapsat útratu', groceries:'Přidat', ailog:'Zapsat činnost', rewards:'Přidat položku', garden:'Přidat', maintenance:'Nový servis', electricity:'Nový podklad'};
+    const FAB_TARGET = {notes:'noteAddCard', tasks:'taskAddCard', shopping:'shopAddCard', vault:'vaultAddCard', installments:'instAddCard', payments:'paymentAddCard', budget:'budgetAddCard', ailog:'aiAddCard', rewards:'rewardAddCard', projects:'projectAddCard', maintenance:'maintenanceAddCard', electricity:'electricityAddCard'};
+    const FAB_LABEL = {notes:'Nová poznámka', finance:'Přidat', tasks:'Nový úkol', shopping:'Nový velký nákup', vault:'Nový dokument', installments:'Nová splátka', payments:'Nová platba', apps:'Přidat', projects:'Nový projekt', budget:'Zapsat útratu', groceries:'Přidat', ailog:'Zapsat činnost', rewards:'Přidat položku', garden:'Přidat', maintenance:'Nový servis', electricity:'Nový podklad'};
     const FAB_MENU = {
       finance:[
         {label:'Příjem nebo výdaj', target:'transAddCard'},
@@ -851,7 +905,7 @@ export function bootLifeHub(){
       if(target) setTimeout(()=>toggleAddCard(target, true), 60);
     }
 
-    function renderAll(){renderDashboard();renderNotes();renderFinance();renderVault();renderTasks();renderShopping();renderApps();renderInstallments();renderHouseholdPayments();renderBudget();renderGroceries();renderAiLog();renderRewards();renderGarden();renderMaintenance();renderElectricity();renderPartner();renderBackupStatus();renderFooter();renderBiometricStatus();addAccessibilityLabels();}
+    function renderAll(){renderDashboard();renderNotes();renderFinance();renderVault();renderTasks();renderShopping();renderApps();renderProjects();renderInstallments();renderHouseholdPayments();renderBudget();renderGroceries();renderAiLog();renderRewards();renderGarden();renderMaintenance();renderElectricity();renderPartner();renderBackupStatus();renderFooter();renderBiometricStatus();addAccessibilityLabels();}
 
     async function loadBiometricUnlockRecord(){
       try{
@@ -1495,7 +1549,8 @@ export function bootLifeHub(){
       const panel = $('#securityPanel'); if(!panel) return;
       const rawTexts = state.payrolls.filter(p=>String(p.rawText||'').trim()).length;
       const storedPdfs = state.payrolls.filter(p=>p.storedPdf).length;
-      const localDocs = state.documents.length;
+      const projectFiles = projectAttachmentMetadata(state.projects).length;
+      const localDocs = state.documents.length + projectFiles;
       const isSecureContext = window.isSecureContext || location.protocol === 'file:';
       const csp = !!document.querySelector('meta[http-equiv="Content-Security-Policy"]');
       const externalPdf = pdfJsSource === 'cdn';
@@ -1503,7 +1558,7 @@ export function bootLifeHub(){
       const locked = !!vaultKey && appReady;
       const items = [
         [`${locked?'✅':'⚠️'} Šifrovaný stav`, locked ? 'Aplikace je odemčená heslem a stav se ukládá jako AES-GCM šifrovaný blok.' : 'Aplikace není odemčená; data se nenačítají.'],
-        [`${storedPdfs||localDocs?'✅':'✅'} Lokální soubory`, `${storedPdfs} PDF výplatních pásek a ${localDocs} dokumentů je ukládáno šifrovaně po odemčení trezoru.`],
+        [`${storedPdfs||localDocs?'✅':'✅'} Lokální soubory`, `${storedPdfs} PDF výplatních pásek a ${localDocs} dokumentů či projektových příloh je ukládáno šifrovaně po odemčení trezoru.`],
         [`${rawTexts?'⚠️':'✅'} Raw texty`, rawTexts ? `${rawTexts} výplatních pásek má uložený extrahovaný text. Je šifrovaný ve stavu aplikace, ale citlivý.` : 'Extrahovaný text z výplatních pásek není uložen.'],
         [`${isSecureContext?'✅':'⚠️'} Kontext`, isSecureContext ? 'HTTPS/file kontext dovoluje Web Crypto API.' : 'Aplikace neběží v bezpečném kontextu; šifrování může být omezené.'],
         [`${csp?'✅':'⚠️'} CSP`, csp ? 'Je nastavena základní Content Security Policy.' : 'Chybí Content Security Policy.'],
@@ -1538,6 +1593,7 @@ export function bootLifeHub(){
       state.tasks.forEach(t=>{const text=strip([t.title,t.note,t.area,t.priority].join(' ')); if(text.includes(q)) res.push(['Úkol',t.title,`${taskPriorityLabel(t.priority)} • ${t.area||''}`,'tasks']);});
       state.shopping.forEach(s=>{const text=strip([s.name,s.note,s.category,s.store,s.priority].join(' ')); if(text.includes(q)) res.push(['Velký nákup',s.name,`${shopPriorityLabel(s.priority)} • ${fmt(s.price)}`,'shopping']);});
       state.apps.forEach(a=>{const text=strip([a.name,a.note,a.tag,(a.notes||[]).map(x=>x.text).join(' ')].join(' ')); if(text.includes(q)) res.push(['Aplikace',a.name,`${a.tag||'aplikace'} • ${(a.notes||[]).length} poznámek`,'apps']);});
+      state.projects.forEach(project=>{const text=projectSearchText(project); if(text.includes(q)){const budget=summarizeProjectBudget(project); res.push(['Projekt domu',project.title,`${projectStatusLabel(project.status)} • ${projectAreaLabel(project.area)} • rozpočet ${fmt(budget.target||budget.planned)}`,'projects']);}});
       state.installments.forEach(i=>{const text=strip([i.creditor,i.note].join(' ')); if(text.includes(q)){const c=computeInstallment(i); res.push(['Splátka',i.creditor,`zbývá ${fmt(c.remaining)} • měsíčně ${fmt(i.monthly)}`,'installments']);}});
       state.householdPayments.forEach(p=>{const text=strip([p.title,p.category,p.note,p.amount,p.dueDate,assignedToLabel(p.assignedTo)].join(' ')); if(text.includes(q)) res.push(['Platba domácnosti',p.title,`${fmt(p.amount)} • ${paymentFrequencyLabel(p.frequency)} • ${p.dueDate||'bez data'}`,'payments']);});
       state.groceries.forEach(g=>{const text=strip([g.name,g.store,g.note].join(' ')); if(text.includes(q)) res.push(['Nákupní seznam',g.name,`${g.store||'bez obchodu'}${g.done?' • koupeno':''}`,'groceries']);});
@@ -2241,6 +2297,12 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         const exists = vaultSet.has(String(d.id));
         if((d.storedFile !== false) !== exists){ d.storedFile = exists; changed++; }
       }
+      for(const project of state.projects){
+        for(const file of project.attachments||[]){
+          const exists=vaultSet.has(String(file.id));
+          if((file.storedFile!==false)!==exists){ file.storedFile=exists; changed++; }
+        }
+      }
       if(changed){
         state.updatedAt = new Date().toISOString();
         await persistEncryptedState();
@@ -2466,8 +2528,9 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
     function estimateStoredFileBackup(){
       const payrolls = state.payrolls.filter(p=>p.storedPdf);
       const docs = state.documents.filter(d=>d.storedFile !== false);
-      const bytes = payrolls.reduce((sum,p)=>sum+number(p.fileSize),0) + docs.reduce((sum,d)=>sum+number(d.size),0);
-      return {payrollCount:payrolls.length, docCount:docs.length, fileCount:payrolls.length+docs.length, bytes};
+      const projectFiles = projectAttachmentMetadata(state.projects);
+      const bytes = payrolls.reduce((sum,p)=>sum+number(p.fileSize),0) + docs.reduce((sum,d)=>sum+number(d.size),0) + projectFiles.reduce((sum,file)=>sum+number(file.size),0);
+      return {payrollCount:payrolls.length, docCount:docs.length, projectFileCount:projectFiles.length, fileCount:payrolls.length+docs.length+projectFiles.length, bytes};
     }
     function formatBackupTime(iso){
       if(!iso) return 'zatím nikdy';
@@ -2490,7 +2553,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
     function renderBackupStatus(){
       const box = $('#backupStatus'); if(!box) return;
       const est = estimateStoredFileBackup();
-      box.innerHTML = `<div class="security-list"><div class="security-item"><strong>Šifrovaná datová záloha</strong><span class="small">Poslední: ${esc(formatBackupTime(state.settings.lastDataBackupAt))}<br>Obsahuje poznámky, finance, úkoly, nákupy a metadata dokumentů. Nepřenáší PDF ani soubory.</span></div><div class="security-item"><strong>Kompletní šifrovaná záloha</strong><span class="small">Poslední: ${esc(formatBackupTime(state.settings.lastCompleteBackupAt))}<br>${esc(backupFreshnessText())}<br>Přenese i ${est.fileCount} lokálních souborů (${esc(formatBytes(est.bytes))}) z výplatních pásek a trezoru.</span></div><div class="security-item"><strong>Ověření zálohy</strong><span class="small">Poslední ověření: ${esc(formatBackupTime(state.settings.lastVerifiedBackupAt))}<br>Ověření soubor načte a případně dešifruje, ale nic nepřepíše.</span></div><div class="security-item"><strong>Poslední obnova</strong><span class="small">${esc(formatBackupTime(state.settings.lastRestoreAt))}</span></div><div class="security-item"><strong>Zařízení</strong><span class="small">Název v zálohách: ${esc(currentDeviceName())}</span></div><div class="security-item"><strong>Doporučení pro mobil ↔ PC</strong><span class="small">Pro přenos z hlavního telefonu do PC použij kompletní zálohu. Datová záloha je lehčí, ale bez souborů.</span></div></div>`;
+      box.innerHTML = `<div class="security-list"><div class="security-item"><strong>Šifrovaná datová záloha</strong><span class="small">Poslední: ${esc(formatBackupTime(state.settings.lastDataBackupAt))}<br>Obsahuje poznámky, finance, úkoly, nákupy a metadata dokumentů. Nepřenáší PDF ani soubory.</span></div><div class="security-item"><strong>Kompletní šifrovaná záloha</strong><span class="small">Poslední: ${esc(formatBackupTime(state.settings.lastCompleteBackupAt))}<br>${esc(backupFreshnessText())}<br>Přenese i ${est.fileCount} lokálních souborů (${esc(formatBytes(est.bytes))}) z výplatních pásek, trezoru dokumentů a projektů domu.</span></div><div class="security-item"><strong>Ověření zálohy</strong><span class="small">Poslední ověření: ${esc(formatBackupTime(state.settings.lastVerifiedBackupAt))}<br>Ověření soubor načte a případně dešifruje, ale nic nepřepíše.</span></div><div class="security-item"><strong>Poslední obnova</strong><span class="small">${esc(formatBackupTime(state.settings.lastRestoreAt))}</span></div><div class="security-item"><strong>Zařízení</strong><span class="small">Název v zálohách: ${esc(currentDeviceName())}</span></div><div class="security-item"><strong>Doporučení pro mobil ↔ PC</strong><span class="small">Pro přenos z hlavního telefonu do PC použij kompletní zálohu. Datová záloha je lehčí, ale bez souborů.</span></div></div>`;
     }
     async function exportEncryptedJson(){
       try{
@@ -2527,6 +2590,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       };
       for(const p of state.payrolls.filter(p=>p.storedPdf)) await addFile(p, PDF_STORE, 'payrollPdf', p.fileName || `Výplatní páska ${p.month}`);
       for(const d of state.documents.filter(d=>d.storedFile !== false)) await addFile(d, VAULT_STORE, 'vaultFile', d.fileName || d.title);
+      for(const file of projectAttachmentMetadata(state.projects)) await addFile(file, VAULT_STORE, 'projectAttachment', file.fileName || file.projectTitle || file.id);
       return {files, missing, totalBytes};
     }
     async function exportCompleteEncryptedBackup(){
@@ -2537,7 +2601,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         if(estimate.fileCount > MAX_COMPLETE_BACKUP_FILES){ toast(`V trezoru je příliš mnoho souborů pro jeden balíček (${estimate.fileCount}).`, 'bad'); return false; }
         const ok = await confirmDialog(`Kompletní šifrovaná záloha je určena hlavně pro přenos telefon ↔ PC. Přenese stav aplikace i skutečné soubory z IndexedDB.\n\nOdhad: ${estimate.fileCount} souborů, přibližně ${formatBytes(estimate.bytes)} před šifrováním. Soubor může být větší a na mobilu může export/import chvíli trvat.\n\nPokračovat?`, {title:'Kompletní šifrovaná záloha', confirmText:'Pokračovat'});
         if(!ok) return false;
-        const pass = await passwordDialog({title:'Heslo pro kompletní zálohu', message:'Zadejte silné heslo pro kompletní zálohu včetně PDF a dokumentů. Bez něj nepůjde balíček obnovit.', repeat:true, minLength:MIN_PASSWORD_LENGTH, confirmText:'Vytvořit kompletní zálohu'});
+        const pass = await passwordDialog({title:'Heslo pro kompletní zálohu', message:'Zadejte silné heslo pro kompletní zálohu včetně PDF, dokumentů a projektových příloh. Bez něj nepůjde balíček obnovit.', repeat:true, minLength:MIN_PASSWORD_LENGTH, confirmText:'Vytvořit kompletní zálohu'});
         if(!pass) return false;
         $('#saveStatus').textContent = 'Připravuji kompletní zálohu…';
         const packed = await collectBackupFiles();
@@ -2652,6 +2716,14 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         notes: asArray(a?.notes,2000).map(nt=>({id:safeId(nt?.id,'anote'), text:textLimit(nt?.text,5000), createdAt:textLimit(nt?.createdAt,40)||new Date().toISOString()})).filter(nt=>nt.text),
         createdAt:textLimit(a?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(a?.updatedAt,40)||new Date().toISOString()
       })).filter(a=>a.name);
+      clean.projects = asArray(data.projects,1000).map(project=>({
+        id:safeId(project?.id,'project'), title:textLimit(project?.title,180), area:Object.prototype.hasOwnProperty.call(PROJECT_AREA_LABELS,project?.area)?project.area:'other', status:Object.prototype.hasOwnProperty.call(PROJECT_STATUS_LABELS,project?.status)?project.status:'idea', priority:['high','normal','low'].includes(project?.priority)?project.priority:'normal', budgetTarget:Math.max(0,number(project?.budgetTarget)), startMonth:/^\d{4}-\d{2}$/.test(String(project?.startMonth||''))?textLimit(project.startMonth,7):'', endMonth:/^\d{4}-\d{2}$/.test(String(project?.endMonth||''))?textLimit(project.endMonth,7):'', summary:textLimit(project?.summary,3000), goal:textLimit(project?.goal,5000), tags:sanitizeTags(project?.tags),
+        notes:asArray(project?.notes,5000).map(note=>({id:safeId(note?.id,'pnote'),title:textLimit(note?.title,180)||'Poznámka',text:textLimit(note?.text,12000),createdAt:textLimit(note?.createdAt,40)||new Date().toISOString(),updatedAt:textLimit(note?.updatedAt,40)||new Date().toISOString()})).filter(note=>note.text),
+        links:asArray(project?.links,5000).map(link=>({id:safeId(link?.id,'plink'),title:textLimit(link?.title,180),provider:textLimit(link?.provider,60)||'Jiné',url:safeUrl(link?.url),summary:textLimit(link?.summary,3000),createdAt:textLimit(link?.createdAt,40)||new Date().toISOString(),updatedAt:textLimit(link?.updatedAt,40)||new Date().toISOString()})).filter(link=>link.title&&link.url),
+        costs:asArray(project?.costs,10000).map(cost=>({id:safeId(cost?.id,'pcost'),name:textLimit(cost?.name,180),category:Object.prototype.hasOwnProperty.call(PROJECT_COST_CATEGORY_LABELS,cost?.category)?cost.category:'other',status:Object.prototype.hasOwnProperty.call(PROJECT_COST_STATUS_LABELS,cost?.status)?cost.status:'estimate',quantity:Math.max(0,number(cost?.quantity)),unit:textLimit(cost?.unit,30),unitPrice:Math.max(0,number(cost?.unitPrice)),actual:Math.max(0,number(cost?.actual)),supplier:textLimit(cost?.supplier,160),url:safeUrl(cost?.url),note:textLimit(cost?.note,2000),createdAt:textLimit(cost?.createdAt,40)||new Date().toISOString(),updatedAt:textLimit(cost?.updatedAt,40)||new Date().toISOString()})).filter(cost=>cost.name),
+        attachments:asArray(project?.attachments,3000).map(file=>({id:safeId(file?.id,'pfile'),fileName:textLimit(file?.fileName,220)||'příloha',mime:textLimit(file?.mime,120)||'application/octet-stream',size:Math.max(0,number(file?.size)),kind:['image','sketch','pdf','table','document','file'].includes(file?.kind)?file.kind:'file',caption:textLimit(file?.caption,500),storedFile:preserveStoredFiles?file?.storedFile!==false:false,createdAt:textLimit(file?.createdAt,40)||new Date().toISOString(),updatedAt:textLimit(file?.updatedAt,40)||new Date().toISOString()})),
+        createdAt:textLimit(project?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(project?.updatedAt,40)||new Date().toISOString()
+      })).filter(project=>project.title);
       clean.installments = asArray(data.installments,1000).map(i=>({
         id:safeId(i?.id,'inst'), creditor:textLimit(i?.creditor,160), total:Math.max(0,number(i?.total)), monthly:Math.max(0,number(i?.monthly)), startMonth:textLimit(i?.startMonth,7), paid:Math.max(0,number(i?.paid)), dueDay:Math.min(31,Math.max(0,Math.round(number(i?.dueDay)))), autoPaidBaseline:i?.autoPaidBaseline===null||i?.autoPaidBaseline===undefined||i?.autoPaidBaseline===''?null:Math.max(0,number(i?.autoPaidBaseline)), autoExtraBaseline:Math.max(0,number(i?.autoExtraBaseline)), note:textLimit(i?.note,1000), assignedTo:['me','partner','both'].includes(i?.assignedTo)?i.assignedTo:'both', shared:i?.shared!==false, paymentHistory:asArray(i?.paymentHistory,5000).map(h=>({id:safeId(h?.id,'ipay'),date:textLimit(h?.date,10),amount:Math.max(0,number(h?.amount)),type:['regular','extra','correction'].includes(h?.type)?h.type:'regular',automatic:h?.automatic===true,transactionId:textLimit(h?.transactionId,100),financeDetached:h?.financeDetached===true,createdAt:textLimit(h?.createdAt,40)||new Date().toISOString()})).filter(h=>/^\d{4}-\d{2}-\d{2}$/.test(h.date)), createdAt:textLimit(i?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(i?.updatedAt,40)||new Date().toISOString()
       })).filter(i=>i.creditor);
@@ -2725,6 +2797,44 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
     function tasksMarkdown(){return ['# Úkoly LifeHub',...state.tasks.map(t=>`\n- [${t.done?'x':' '}] **${t.title}** (${taskPriorityLabel(t.priority)}, ${taskHorizonLabel(t.horizon)}${t.due?', '+t.due:''}) — ${t.area||''}\n  ${t.note||''}`)].join('\n');}
     function shoppingMarkdown(){return ['# Velké nákupy LifeHub',...state.shopping.map(s=>`\n- **${s.name}**${s.store?' ('+s.store+')':''} — ${shopPriorityLabel(s.priority)}, ${fmt(s.price)}, ${s.month||'bez měsíce'}, ${shopStatusLabel(s.status)}\n  ${s.note||''}${s.url?'\n  '+s.url:''}`)].join('\n');}
     function appsMarkdown(){return ['# Moje aplikace',...state.apps.map(a=>`\n## ${a.name}${a.tag?' ('+a.tag+')':''}\n${a.note||''}${a.url?'\n'+a.url:''}\n${(a.notes||[]).map(n=>`- ${mdEscape(n.text)}`).join('\n')}`)].join('\n');}
+    function projectsMarkdown(){
+      const lines=['# Projekty domu'];
+      for(const project of state.projects){
+        const budget=summarizeProjectBudget(project);
+        lines.push(`\n## ${project.title}`);
+        lines.push(`- Stav: ${PROJECT_STATUS_LABELS[project.status]||project.status||'—'}`);
+        lines.push(`- Oblast: ${PROJECT_AREA_LABELS[project.area]||project.area||'—'}`);
+        lines.push(`- Termín: ${project.startMonth||'—'} až ${project.endMonth||'—'}`);
+        lines.push(`- Rozpočet: ${fmt(budget.planned)} plán / ${fmt(budget.actual)} skutečnost`);
+        if(project.description) lines.push(`\n${project.description}`);
+        if((project.costs||[]).length){
+          lines.push('\n### Rozpočet');
+          for(const item of project.costs){
+            lines.push(`- ${item.name}: plán ${fmt(projectCostPlanned(item))}, skutečnost ${fmt(item.actual||0)}${item.supplier?` – ${item.supplier}`:''}`);
+          }
+        }
+        if((project.notes||[]).length){
+          lines.push('\n### Poznámky');
+          for(const note of project.notes){
+            lines.push(`- ${note.title||'Poznámka'}${note.text?`: ${note.text}`:''}`);
+          }
+        }
+        if((project.links||[]).length){
+          lines.push('\n### AI vlákna a odkazy');
+          for(const link of project.links){
+            lines.push(`- ${link.title||link.url}: ${link.url}`);
+          }
+        }
+        if((project.attachments||[]).length){
+          lines.push('\n### Přílohy');
+          for(const attachment of project.attachments){
+            lines.push(`- ${attachment.name||'Příloha'} (${attachment.type||'soubor'})`);
+          }
+        }
+      }
+      return lines.join('\n');
+    }
+
     function installmentsMarkdown(){return ['# Splátkový kalendář',...state.installments.map(i=>{const c=computeInstallment(i); const history=(i.paymentHistory||[]).map(h=>`\n  - ${h.date}: ${h.type==='extra'?'mimořádná':'běžná'} splátka ${fmt(h.amount)}`).join(''); return `\n- **${i.creditor}** — zbývá ${fmt(c.remaining)} z ${fmt(c.total)}, měsíčně ${fmt(i.monthly)}${c.endMonth?', konec '+monthLabel(c.endMonth):''} • ${assignedToLabel(i.assignedTo)}${i.note?'\n  '+i.note:''}${history}`;})].join('\n');}
     function paymentsMarkdown(){return ['# Účty a závazky',...state.householdPayments.map(p=>`\n- [${p.status==='paid'?'x':' '}] **${p.title}** — ${fmt(p.amount)}, ${paymentFrequencyLabel(p.frequency)}, ${p.automatic?'automaticky hrazeno, další termín':'splatnost'} ${p.dueDate||'neuveden'} • ${assignedToLabel(p.assignedTo)} • ${p.trackFinance!==false?'propojeno s financemi':'bez finančního zápisu'}${p.note?'\n  '+p.note:''}`)].join('\n');}
     function groceriesMarkdown(){return ['# Nákupní seznam',...state.groceries.map(g=>`- [${g.done?'x':' '}] **${g.name}**${g.store?' — '+g.store:''}${g.note?' ('+g.note+')':''}`)].join('\n');}
@@ -2740,7 +2850,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       state.transactions.forEach(t=>lines.push(`- ${t.date} | období ${transactionAccountingMonth(t)} | ${t.kind==='income'?'Příjem':'Výdaj'} | ${t.category} | ${fmt(t.amount)} | ${t.description||''}`));
       lines.push('', '# Výplatní pásky'); state.payrolls.forEach(p=>lines.push(`- období ${p.month} | připsáno ${p.paymentDate||'neuvedeno'} | ${p.employer||''} | čistá ${fmt(p.fields?.netPay||0)} | hrubá ${fmt(p.fields?.grossPay||0)} | daň ${fmt(p.fields?.incomeTax||0)} | ${p.note||''}`));
       lines.push('', '# Šifrovaný trezor dokumentů'); state.documents.forEach(d=>lines.push(`- ${d.date||''} | ${d.title||''} | ${docCategoryLabel(d.category)} | ${d.fileName||''} | ${formatBytes(d.size)}`));
-      lines.push('', tasksMarkdown(), '', shoppingMarkdown(), '', groceriesMarkdown(), '', gardenMarkdown(), '', maintenanceMarkdown(), '', electricityMarkdown(), '', budgetMarkdown(), '', paymentsMarkdown(), '', aiMarkdown(), '', rewardsMarkdown(), '', installmentsMarkdown(), '', appsMarkdown());
+      lines.push('', tasksMarkdown(), '', shoppingMarkdown(), '', groceriesMarkdown(), '', gardenMarkdown(), '', maintenanceMarkdown(), '', electricityMarkdown(), '', budgetMarkdown(), '', paymentsMarkdown(), '', aiMarkdown(), '', rewardsMarkdown(), '', installmentsMarkdown(), '', appsMarkdown(), '', projectsMarkdown());
       if(notion) lines.push('', '---', 'Import do Notion: dlouhé texty vložte jako Markdown stránku; tabulky použijte přes CSV exporty.');
       return lines.join('\n');
     }
@@ -2830,6 +2940,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         tasks: Array.isArray(source.tasks) ? source.tasks.length : 0,
         shopping: Array.isArray(source.shopping) ? source.shopping.length : 0,
         apps: Array.isArray(source.apps) ? source.apps.length : 0,
+        projects: Array.isArray(source.projects) ? source.projects.length : 0,
         installments: Array.isArray(source.installments) ? source.installments.length : 0,
         householdPayments: Array.isArray(source.householdPayments) ? source.householdPayments.length : 0,
         budgetEntries: Array.isArray(source.budgetEntries) ? source.budgetEntries.length : 0,
@@ -2841,7 +2952,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       };
     }
     function countsText(c){
-      return `- poznámky: ${c.notes}\n- transakce: ${c.transactions}\n- výplatní pásky: ${c.payrolls}\n- dokumenty: ${c.documents}\n- úkoly: ${c.tasks}\n- velké nákupy: ${c.shopping}\n- aplikace/projekty: ${c.apps}\n- splátky: ${c.installments}\n- platby domácnosti: ${c.householdPayments}\n- útraty jídlo/benzín: ${c.budgetEntries}\n- nákupní seznam: ${c.groceries}\n- AI výkaz: ${c.aiEntries}\n- odměny: ${c.rewards}\n- zahrada (položky/údržba): ${c.gardenItems}/${c.gardenLogs}`;
+      return `- poznámky: ${c.notes}\n- transakce: ${c.transactions}\n- výplatní pásky: ${c.payrolls}\n- dokumenty: ${c.documents}\n- úkoly: ${c.tasks}\n- velké nákupy: ${c.shopping}\n- aplikace: ${c.apps}\n- projekty domu: ${c.projects}\n- splátky: ${c.installments}\n- platby domácnosti: ${c.householdPayments}\n- útraty jídlo/benzín: ${c.budgetEntries}\n- nákupní seznam: ${c.groceries}\n- AI výkaz: ${c.aiEntries}\n- odměny: ${c.rewards}\n- zahrada (položky/údržba): ${c.gardenItems}/${c.gardenLogs}`;
     }
     function describeImportMetadata(data){
       const meta = data?.metadata || {};
@@ -2992,6 +3103,7 @@ Poslední pojistka: pro potvrzení importu napiš ${word}.`,
       const prepared = await prepareBackupFileEntries(validated.records);
       imported.payrolls.forEach(p=>{ p.storedPdf = prepared.payrollIds.has(p.id); p.updatedAt = p.updatedAt || new Date().toISOString(); });
       imported.documents.forEach(d=>{ d.storedFile = prepared.docIds.has(d.id); d.updatedAt = d.updatedAt || new Date().toISOString(); });
+      imported.projects.forEach(project=>{ (project.attachments||[]).forEach(file=>{ file.storedFile=prepared.docIds.has(file.id); file.updatedAt=file.updatedAt||new Date().toISOString(); }); });
       imported.settings.lastRestoreAt = new Date().toISOString();
       const envelope = await createEncryptedStateEnvelope(imported, vaultKey, vaultSalt, vaultIterations);
       const restoreId = uid('restore');
@@ -3079,6 +3191,8 @@ Poslední pojistka: pro potvrzení importu napiš ${word}.`,
     function saveSettings(e){e.preventDefault(); state.settings.greetName=$('#greetName').value.trim(); state.settings.familyDisplayName=$('#familyDisplayName')?.value.trim()||''; state.settings.deviceName=$('#deviceName').value.trim(); state.settings.ownerName=$('#ownerName').value.trim(); state.settings.ownerFooter=$('#ownerFooter').value.trim(); state.settings.currency=sanitizeCurrency($('#currency').value); state.settings.savingGoal=number($('#savingGoal').value); state.settings.privateNotifications=$('#privateNotifications')?.checked!==false; state.settings.familySettingsUpdatedAt=new Date().toISOString(); save(); toast('Nastavení uloženo.');}
     // Krátký changelog (nejnovější nahoře, drž ~5 položek). Zobrazí se klepnutím na verzi v patičce.
     const CHANGELOG = [
+      'v5.0.0 · Nová záložka Projekty domu: samostatné projektové karty, stav a termíny, cílový i položkový rozpočet, materiály, nabídky, poznámky, odkazy na ChatGPT a Claude, šifrované obrázky, PDF a tabulky, vlastní kreslené náčrty a export projektu do Markdownu či CSV. Projektové přílohy jsou součástí kompletní šifrované zálohy.',
+      'v4.9.1 · Splátkový kalendář se po nastaveném dni automaticky aktualizuje, sníží dluh i počet plateb a vytvoří propojený finanční výdaj bez duplicit.',
       'v4.8.6 · Opravena kritická migrace starších nešifrovaných dat: při chybě se migrace bezpečně zastaví a původní data zůstanou beze změny. Vlastní trezor už neblokuje limit určený pro cizí importy. Měsíční výkaz funguje pod přísnou CSP, mzda se započítává jen z čisté částky nebo částky na účet a offline režim lépe zvládá chybějící soubory i pomalou síť.',
       'v4.8.5 · Přehled načte výplatu i ze starších pásek bez propojené transakce a chybějící mzdový příjem opraví. Tlačítko celé obrazovky používá skutečný Fullscreen API se záložním režimem. Aktivní otisk nebo zámek telefonu se při otevření spustí automaticky.',
       'v4.8.4 · Přehled nově porovnává připsanou výplatu se všemi skutečnými i plánovanými výdaji. Běžné i mimořádné splátky se automaticky zapisují do financí a starší záznamy se bezpečně doplní.',
@@ -3210,7 +3324,7 @@ Co chceš udělat teď?`,
       ok('Web Crypto API', window.crypto?.subtle?'Web Crypto API je dostupné pro šifrování stavu, souborů i záloh.':`Web Crypto API není dostupné; LifeHub ${SHORT_VERSION} nebude fungovat bezpečně.`, !!window.crypto?.subtle);
       ok('Dialogy aplikace','Potvrzení a hesla používají vlastní modální dialogy místo nativních prompt/confirm, takže jsou použitelné i testovatelné na mobilu.', true);
       const bytes=new Blob([JSON.stringify(state)]).size; ok('Velikost JSON dat', `${(bytes/1024).toFixed(1)} kB v localStorage.`);
-      ok('Počty položek', `${state.notes.length} poznámek, ${state.transactions.length} transakcí, ${state.payrolls.length} pásek, ${state.documents.length} dokumentů, ${state.tasks.length} úkolů, ${state.shopping.length} nákupů.`);
+      ok('Počty položek', `${state.notes.length} poznámek, ${state.transactions.length} transakcí, ${state.payrolls.length} pásek, ${state.documents.length} dokumentů, ${state.projects.length} projektů domu, ${state.tasks.length} úkolů, ${state.shopping.length} nákupů.`);
       ok('Citlivý obsah', `${state.payrolls.filter(p=>p.rawText).length} uložených raw textů z PDF, ${state.payrolls.filter(p=>p.storedPdf).length} uložených PDF pásek, ${state.documents.length} dokumentů v archivu. V LifeHub ${SHORT_VERSION} se ukládají šifrovaně po odemčení.`, true);
       $('#diagnostics').innerHTML=rows.join('');
     }
@@ -3989,6 +4103,293 @@ Co chceš udělat teď?`,
         kpi('Aktuální období',rewardPeriodLabel(currentRewardPeriod()),'Dvě období za školní rok')
       ].join('');
       $('#rewardList').innerHTML=items.map(r=>`<article class="item"><div class="item-top"><div><h4>${esc(r.title)}</h4><p><strong>${fmtHours(r.hours)}</strong> • ${esc(rewardPeriodLabel(r.period))}</p>${r.note?`<p>${esc(r.note)}</p>`:''}<p class="small">Aktualizováno ${esc(fmtDate(r.updatedAt||r.createdAt))}</p></div><div class="actions"><button class="mini-btn" data-edit-reward="${attr(r.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-reward="${attr(r.id)}" type="button">Smazat</button></div></div></article>`).join('')||empty('V tomto období zatím nejsou položky. Přidávejte je průběžně během celého období.');
+    }
+
+    // ===== Projekty domu – rekonstrukce, rozpočty, AI vlákna a náčrty =====
+    const PROJECT_PRIORITY_LABELS={high:'Vysoká',normal:'Normální',low:'Nízká'};
+    const PROJECT_COST_STATUS_LABELS={estimate:'Odhad',quote:'Nabídka',ordered:'Objednáno',paid:'Zaplaceno'};
+    function activeProject(){ return selectedProjectId ? state.projects.find(project=>project.id===selectedProjectId) : null; }
+    function projectStatusLabel(status){ return PROJECT_STATUS_LABELS[status] || PROJECT_STATUS_LABELS.idea; }
+    function projectAreaLabel(area){ return PROJECT_AREA_LABELS[area] || PROJECT_AREA_LABELS.other; }
+    function projectCostCategoryLabel(category){ return PROJECT_COST_CATEGORY_LABELS[category] || PROJECT_COST_CATEGORY_LABELS.other; }
+    function projectPriorityLabel(priority){ return PROJECT_PRIORITY_LABELS[priority] || PROJECT_PRIORITY_LABELS.normal; }
+    function projectCostStatusLabel(status){ return PROJECT_COST_STATUS_LABELS[status] || PROJECT_COST_STATUS_LABELS.estimate; }
+    function projectAccent(status){ return {idea:'#8b5cf6',research:'#0ea5e9',planning:'#f59e0b',realization:'#ef4444',paused:'#64748b',done:'#22c55e'}[status] || '#8b5cf6'; }
+    function projectSearchText(project){
+      return strip([
+        project.title,project.summary,project.goal,(project.tags||[]).join(' '),projectAreaLabel(project.area),projectStatusLabel(project.status),
+        ...(project.notes||[]).flatMap(note=>[note.title,note.text]),
+        ...(project.links||[]).flatMap(link=>[link.title,link.provider,link.summary,link.url]),
+        ...(project.costs||[]).flatMap(cost=>[cost.name,cost.supplier,cost.note,cost.category,cost.url]),
+        ...(project.attachments||[]).flatMap(file=>[file.fileName,file.caption,file.kind])
+      ].join(' '));
+    }
+    function projectDateLabel(month){ return /^\d{4}-\d{2}$/.test(String(month||'')) ? monthLabel(month) : 'neurčeno'; }
+    function projectCard(project){
+      const budget=summarizeProjectBudget(project);
+      const progress=projectStatusProgress(project.status);
+      const attachmentCount=(project.attachments||[]).length;
+      const researchCount=(project.notes||[]).length+(project.links||[]).length;
+      const summary=project.summary||project.goal||'Projekt zatím nemá stručný popis.';
+      return `<article class="project-card" ${cssVar('--project-accent',projectAccent(project.status))}>
+        <div class="project-card-head"><div><span class="status ${project.status==='done'?'good':project.status==='paused'?'warn':''}">${esc(projectStatusLabel(project.status))}</span><h3>${esc(project.title)}</h3><p>${esc(summary)}</p></div><span class="priority ${project.priority==='high'?'high':project.priority==='low'?'low':'mid'}">${esc(projectPriorityLabel(project.priority))}</span></div>
+        <div class="project-progress" title="Orientační fáze projektu"><span ${cssVar('--project-progress',`${progress}%`)}></span></div>
+        <div class="project-card-metrics"><div><span>Rozpočet</span><strong>${esc(fmt(budget.target||budget.planned))}</strong></div><div><span>Podklady</span><strong>${researchCount+attachmentCount}</strong></div><div><span>Cíl</span><strong>${esc(project.endMonth?projectDateLabel(project.endMonth):'neurčeno')}</strong></div></div>
+        <div class="meta"><span class="tag">${esc(projectAreaLabel(project.area))}</span>${(project.tags||[]).slice(0,3).map(tag=>`<span class="tag">${esc(tag)}</span>`).join('')}</div>
+        <div class="project-card-actions"><button class="btn primary" data-open-project="${attr(project.id)}" type="button">Otevřít projekt</button><button class="mini-btn" data-edit-project="${attr(project.id)}" type="button">Upravit</button></div>
+      </article>`;
+    }
+    function renderProjectPortfolioKpis(){
+      const box=$('#projectKpis'); if(!box) return;
+      const active=state.projects.filter(project=>project.status!=='done');
+      const realization=state.projects.filter(project=>project.status==='realization').length;
+      const target=active.reduce((sum,project)=>sum+summarizeProjectBudget(project).target,0);
+      const actual=state.projects.reduce((sum,project)=>sum+summarizeProjectBudget(project).actual,0);
+      const files=projectAttachmentMetadata(state.projects).length;
+      box.innerHTML=[
+        kpi('Aktivní projekty',active.length,`${realization} právě v realizaci`),
+        kpi('Cílové rozpočty',fmt(target),'Součet aktivních projektů'),
+        kpi('Skutečné náklady',fmt(actual),'Zadané zaplacené částky'),
+        kpi('Uložené podklady',files,'Obrázky, PDF, grafy a náčrty')
+      ].join('');
+    }
+    function renderProjects(){
+      const listView=$('#projectsListView'),detailView=$('#projectDetailView');
+      if(!listView||!detailView) return;
+      const project=activeProject();
+      if(project){ listView.classList.add('hide'); detailView.classList.remove('hide'); renderProjectDetail(project); return; }
+      if(selectedProjectId) selectedProjectId=null;
+      detailView.classList.add('hide'); listView.classList.remove('hide');
+      renderProjectPortfolioKpis();
+      const q=strip($('#projectSearch')?.value||'');
+      const status=$('#projectStatusFilter')?.value||'active';
+      const area=$('#projectAreaFilter')?.value||'all';
+      const sort=$('#projectSort')?.value||'updated';
+      const priorityOrder={high:0,normal:1,low:2};
+      let projects=state.projects.filter(project=>(status==='all'||(status==='active'?project.status!=='done':project.status===status))&&(area==='all'||project.area===area)&&(!q||projectSearchText(project).includes(q)));
+      projects.sort((a,b)=>sort==='name'?String(a.title).localeCompare(String(b.title),'cs'):sort==='priority'?(priorityOrder[a.priority]??9)-(priorityOrder[b.priority]??9):sort==='budget'?summarizeProjectBudget(b).reference-summarizeProjectBudget(a).reference:new Date(b.updatedAt||b.createdAt)-new Date(a.updatedAt||a.createdAt));
+      const box=$('#projectList');
+      box.innerHTML=projects.map(projectCard).join('')||`<div class="project-empty-cta"><span class="focus-icon">🏗️</span><strong>${state.projects.length?'Pro tento filtr nejsou žádné projekty.':'Zatím tu není žádný projekt.'}</strong><span>Vytvoř si samostatný prostor třeba pro bazén, přístřešek, koupelnu nebo dlažbu.</span><button class="btn primary" type="button" data-toggle-add="projectAddCard">Vytvořit první projekt</button></div>`;
+    }
+    function renderProjectDetail(project){
+      const budget=summarizeProjectBudget(project);
+      $('#projectDetailTitle').innerHTML=`<p class="eyebrow">${esc(projectAreaLabel(project.area))}</p><h2 class="tab-title">${esc(project.title)}</h2>`;
+      $('#projectDetailHero').innerHTML=`<div class="project-hero"><article class="project-hero-main"><div class="item-top"><div><span class="status ${project.status==='done'?'good':project.status==='paused'?'warn':''}">${esc(projectStatusLabel(project.status))}</span></div><span class="priority ${project.priority==='high'?'high':project.priority==='low'?'low':'mid'}">${esc(projectPriorityLabel(project.priority))}</span></div><h3>${esc(project.summary||'Projektové zadání zatím není doplněno.')}</h3>${project.goal?`<p>${esc(project.goal)}</p>`:''}<div class="project-progress"><span ${cssVar('--project-progress',`${projectStatusProgress(project.status)}%`)}></span></div><div class="project-hero-tags">${(project.tags||[]).map(tag=>`<span class="tag">${esc(tag)}</span>`).join('')||'<span class="tag">bez tagů</span>'}</div></article><aside class="project-hero-side"><div><span>Začátek</span><strong>${esc(projectDateLabel(project.startMonth))}</strong></div><div><span>Cílový konec</span><strong>${esc(projectDateLabel(project.endMonth))}</strong></div><div><span>Cílový rozpočet</span><strong>${esc(fmt(budget.target))}</strong></div><div><span>Naposledy změněno</span><strong>${esc(fmtDate(project.updatedAt||project.createdAt))}</strong></div></aside></div>`;
+      $('#projectBudgetSummary').innerHTML=`<div class="project-budget-summary"><div><span>Cílový rozpočet</span><strong>${esc(fmt(budget.target))}</strong></div><div><span>Rozpočtováno</span><strong>${esc(fmt(budget.planned))}</strong></div><div><span>Zaplaceno</span><strong class="${budget.overrun?'money-minus':''}">${esc(fmt(budget.actual))}</strong></div><div><span>${budget.overrun?'Překročení':'Zbývá'}</span><strong class="${budget.overrun?'money-minus':'money-plus'}">${esc(fmt(budget.overrun||budget.remaining))}</strong></div></div>`;
+      renderProjectBudgetChart(project);
+      renderProjectCosts(project);
+      renderProjectNotes(project);
+      renderProjectLinks(project);
+      renderProjectAttachments(project);
+    }
+    function renderProjectBudgetChart(project){
+      const box=$('#projectBudgetChart'); if(!box) return;
+      const groups=projectBudgetByCategory(project);
+      const max=Math.max(1,...groups.map(group=>Math.max(group.planned,group.actual)));
+      box.innerHTML=groups.map(group=>`<div class="project-budget-row"><span>${esc(projectCostCategoryLabel(group.category))}</span><div class="project-budget-track" title="Plán ${fmt(group.planned)}, skutečnost ${fmt(group.actual)}"><i ${cssVar('--budget-width',`${Math.max(3,Math.round(Math.max(group.planned,group.actual)/max*100))}%`)}></i></div><strong>${esc(fmt(group.actual||group.planned))}</strong></div>`).join('')||empty('Rozpočet je zatím prázdný. Přidej materiál, práci nebo nabídku.');
+    }
+    function renderProjectCosts(project){
+      const costs=[...(project.costs||[])].sort((a,b)=>({paid:0,ordered:1,quote:2,estimate:3}[a.status]??9)-({paid:0,ordered:1,quote:2,estimate:3}[b.status]??9)||String(a.name).localeCompare(String(b.name),'cs'));
+      $('#projectCostList').innerHTML=costs.map(cost=>{
+        const planned=projectCostPlanned(cost),actual=number(cost.actual);
+        return `<article class="item"><div class="project-cost-line"><div><h4>${esc(cost.name)}</h4><p>${esc(projectCostCategoryLabel(cost.category))}${cost.supplier?' • '+esc(cost.supplier):''}${cost.note?' • '+esc(cost.note):''}</p><div class="meta"><span class="tag">${esc(projectCostStatusLabel(cost.status))}</span>${cost.url?`<a class="tag" href="${attr(safeUrl(cost.url))}" target="_blank" rel="noopener noreferrer">odkaz ↗</a>`:''}</div></div><div class="project-cost-value"><span>Množství</span><strong>${esc(`${cost.quantity||0} ${cost.unit||''}`.trim())}</strong></div><div class="project-cost-value"><span>Plán</span><strong>${esc(fmt(planned))}</strong></div><div class="project-cost-value"><span>Skutečnost</span><strong class="${actual>planned&&planned?'money-minus':''}">${esc(fmt(actual))}</strong></div><div class="actions"><button class="mini-btn" data-edit-project-cost="${attr(cost.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-project-cost="${attr(cost.id)}" type="button">Smazat</button></div></div></article>`;
+      }).join('')||empty('Zatím nejsou zadané žádné rozpočtové položky.');
+    }
+    function renderProjectNotes(project){
+      const notes=[...(project.notes||[])].sort((a,b)=>new Date(b.updatedAt||b.createdAt)-new Date(a.updatedAt||a.createdAt));
+      $('#projectNoteList').innerHTML=notes.map(note=>`<article class="item"><div class="item-top"><div><h4>${esc(note.title||'Poznámka')}</h4><p>${esc(note.text)}</p><div class="meta"><span class="tag">${esc(fmtDate(note.updatedAt||note.createdAt))}</span></div></div><div class="actions"><button class="mini-btn" data-edit-project-note="${attr(note.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-project-note="${attr(note.id)}" type="button">Smazat</button></div></div></article>`).join('')||empty('Zatím žádné poznámky.');
+    }
+    function renderProjectLinks(project){
+      const links=[...(project.links||[])].sort((a,b)=>new Date(b.updatedAt||b.createdAt)-new Date(a.updatedAt||a.createdAt));
+      $('#projectLinkList').innerHTML=links.map(link=>`<article class="item"><div class="item-top"><div><h4>${esc(link.title)}</h4><p>${esc(link.summary||'Bez shrnutí')}</p><div class="meta"><span class="tag">${esc(link.provider||'Odkaz')}</span><a class="tag" href="${attr(safeUrl(link.url))}" target="_blank" rel="noopener noreferrer">otevřít ↗</a></div></div><div class="actions"><button class="mini-btn" data-edit-project-link="${attr(link.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-project-link="${attr(link.id)}" type="button">Smazat</button></div></div></article>`).join('')||empty('Zatím nejsou uložená žádná AI vlákna ani webové odkazy.');
+    }
+    function saveProject(event){
+      event.preventDefault();
+      const id=$('#projectId').value||uid('project');
+      const existing=state.projects.find(project=>project.id===id);
+      const project={id,title:$('#projectTitle').value.trim(),area:Object.prototype.hasOwnProperty.call(PROJECT_AREA_LABELS,$('#projectArea').value)?$('#projectArea').value:'other',status:Object.prototype.hasOwnProperty.call(PROJECT_STATUS_LABELS,$('#projectStatus').value)?$('#projectStatus').value:'idea',priority:['high','normal','low'].includes($('#projectPriority').value)?$('#projectPriority').value:'normal',budgetTarget:Math.max(0,number($('#projectBudget').value)),startMonth:/^\d{4}-\d{2}$/.test($('#projectStart').value)?$('#projectStart').value:'',endMonth:/^\d{4}-\d{2}$/.test($('#projectEnd').value)?$('#projectEnd').value:'',summary:$('#projectSummary').value.trim(),goal:$('#projectGoal').value.trim(),tags:$('#projectTags').value.split(',').map(tag=>tag.trim()).filter(Boolean).slice(0,30),notes:existing?.notes||[],links:existing?.links||[],costs:existing?.costs||[],attachments:existing?.attachments||[],createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+      if(!project.title){ toast('Zadej název projektu.','warn'); return; }
+      if(project.startMonth&&project.endMonth&&project.endMonth<project.startMonth){ toast('Cílové dokončení nemůže být před začátkem projektu.','warn'); return; }
+      if(existing) Object.assign(existing,project); else state.projects.unshift(project);
+      selectedProjectId=id;
+      save(); resetProjectForm(); renderProjects(); toast(existing?'Projekt byl aktualizován.':'Projekt byl vytvořen.');
+    }
+    function resetProjectForm(){
+      $('#projectForm')?.reset();
+      if($('#projectId')) $('#projectId').value='';
+      if($('#projectPriority')) $('#projectPriority').value='normal';
+      if($('#projectStatus')) $('#projectStatus').value='idea';
+      if($('#projectStart')) $('#projectStart').value=monthNow();
+    }
+    function editProjectForm(id){
+      const project=state.projects.find(item=>item.id===id); if(!project) return;
+      selectedProjectId=null; showTab('projects'); renderProjects(); toggleAddCard('projectAddCard',true);
+      $('#projectId').value=project.id; $('#projectTitle').value=project.title||''; $('#projectArea').value=project.area||'other'; $('#projectStatus').value=project.status||'idea'; $('#projectPriority').value=project.priority||'normal'; $('#projectBudget').value=project.budgetTarget||''; $('#projectStart').value=project.startMonth||''; $('#projectEnd').value=project.endMonth||''; $('#projectSummary').value=project.summary||''; $('#projectGoal').value=project.goal||''; $('#projectTags').value=(project.tags||[]).join(', ');
+      $('#projectTitle').focus();
+    }
+    function openProjectDetail(id){
+      if(!state.projects.some(project=>project.id===id)) return;
+      releaseProjectAttachmentUrls(); selectedProjectId=id; showTab('projects'); renderProjects();
+    }
+    async function deleteProject(id){
+      const project=state.projects.find(item=>item.id===id); if(!project) return;
+      const attachments=(project.attachments||[]).length;
+      if(!await confirmDialog(`Opravdu smazat projekt „${project.title}“? Smažou se také všechny jeho poznámky, rozpočet, odkazy a ${attachments} uložených příloh.`,{title:'Smazat celý projekt',confirmText:'Smazat projekt',danger:true})) return;
+      let failed=0;
+      for(const attachment of project.attachments||[]){ try{ await idbDelete(attachment.id,VAULT_STORE); }catch(error){ failed++; console.warn(error); } }
+      releaseProjectAttachmentUrls(); state.projects=state.projects.filter(item=>item.id!==id); if(selectedProjectId===id) selectedProjectId=null; save(); renderProjects(); toast(failed?'Projekt byl smazán, ale některé soubory se nepodařilo odstranit z úložiště.':'Projekt byl smazán.','warn');
+    }
+    function touchProject(project){ project.updatedAt=new Date().toISOString(); }
+    function saveProjectNote(event){
+      event.preventDefault(); const project=activeProject(); if(!project) return;
+      const id=$('#projectNoteId').value||uid('pnote'); const existing=(project.notes||[]).find(note=>note.id===id);
+      const note={id,title:$('#projectNoteTitle').value.trim()||'Poznámka',text:$('#projectNoteText').value.trim(),createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+      if(!note.text){ toast('Napiš obsah poznámky.','warn'); return; }
+      project.notes??=[]; if(existing) Object.assign(existing,note); else project.notes.unshift(note); touchProject(project); save(); resetProjectNoteForm(); renderProjectDetail(project); toast('Poznámka uložena.');
+    }
+    function resetProjectNoteForm(){ $('#projectNoteForm')?.reset(); if($('#projectNoteId')) $('#projectNoteId').value=''; }
+    function editProjectNoteForm(id){ const project=activeProject(),note=project?.notes?.find(item=>item.id===id); if(!note) return; $('#projectNoteId').value=note.id; $('#projectNoteTitle').value=note.title||''; $('#projectNoteText').value=note.text||''; $('#projectNoteTitle').focus(); }
+    function saveProjectLink(event){
+      event.preventDefault(); const project=activeProject(); if(!project) return;
+      const url=safeUrl($('#projectLinkUrl').value); if(!url){ toast('Zadej platný odkaz na AI vlákno nebo web.','warn'); return; }
+      const id=$('#projectLinkId').value||uid('plink'); const existing=(project.links||[]).find(link=>link.id===id);
+      const link={id,title:$('#projectLinkTitle').value.trim(),provider:$('#projectLinkProvider').value,url,summary:$('#projectLinkSummary').value.trim(),createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+      if(!link.title){ toast('Zadej název odkazu.','warn'); return; }
+      project.links??=[]; if(existing) Object.assign(existing,link); else project.links.unshift(link); touchProject(project); save(); resetProjectLinkForm(); renderProjectDetail(project); toast('Odkaz uložen.');
+    }
+    function resetProjectLinkForm(){ $('#projectLinkForm')?.reset(); if($('#projectLinkId')) $('#projectLinkId').value=''; if($('#projectLinkProvider')) $('#projectLinkProvider').value='ChatGPT'; }
+    function editProjectLinkForm(id){ const project=activeProject(),link=project?.links?.find(item=>item.id===id); if(!link) return; $('#projectLinkId').value=link.id; $('#projectLinkTitle').value=link.title||''; $('#projectLinkProvider').value=link.provider||'Jiné'; $('#projectLinkUrl').value=link.url||''; $('#projectLinkSummary').value=link.summary||''; $('#projectLinkTitle').focus(); }
+    function saveProjectCost(event){
+      event.preventDefault(); const project=activeProject(); if(!project) return;
+      const id=$('#projectCostId').value||uid('pcost'); const existing=(project.costs||[]).find(cost=>cost.id===id);
+      const cost={id,name:$('#projectCostName').value.trim(),category:Object.prototype.hasOwnProperty.call(PROJECT_COST_CATEGORY_LABELS,$('#projectCostCategory').value)?$('#projectCostCategory').value:'other',status:Object.prototype.hasOwnProperty.call(PROJECT_COST_STATUS_LABELS,$('#projectCostStatus').value)?$('#projectCostStatus').value:'estimate',quantity:Math.max(0,number($('#projectCostQuantity').value)),unit:$('#projectCostUnit').value.trim(),unitPrice:Math.max(0,number($('#projectCostUnitPrice').value)),actual:Math.max(0,number($('#projectCostActual').value)),supplier:$('#projectCostSupplier').value.trim(),url:safeUrl($('#projectCostUrl').value),note:$('#projectCostNote').value.trim(),createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+      if(!cost.name){ toast('Zadej název rozpočtové položky.','warn'); return; }
+      project.costs??=[]; if(existing) Object.assign(existing,cost); else project.costs.unshift(cost); touchProject(project); save(); resetProjectCostForm(); renderProjectDetail(project); toast('Rozpočtová položka uložena.');
+    }
+    function resetProjectCostForm(){ $('#projectCostForm')?.reset(); if($('#projectCostId')) $('#projectCostId').value=''; if($('#projectCostQuantity')) $('#projectCostQuantity').value='1'; if($('#projectCostStatus')) $('#projectCostStatus').value='estimate'; }
+    function editProjectCostForm(id){ const project=activeProject(),cost=project?.costs?.find(item=>item.id===id); if(!cost) return; toggleAddCard('projectCostAddCard',true); $('#projectCostId').value=cost.id; $('#projectCostName').value=cost.name||''; $('#projectCostCategory').value=cost.category||'other'; $('#projectCostStatus').value=cost.status||'estimate'; $('#projectCostQuantity').value=cost.quantity??1; $('#projectCostUnit').value=cost.unit||''; $('#projectCostUnitPrice').value=cost.unitPrice||''; $('#projectCostActual').value=cost.actual||''; $('#projectCostSupplier').value=cost.supplier||''; $('#projectCostUrl').value=cost.url||''; $('#projectCostNote').value=cost.note||''; $('#projectCostName').focus(); }
+    async function deleteProjectNestedItem(collection,id){
+      const project=activeProject(); if(!project||!Array.isArray(project[collection])) return;
+      if(!await confirmDialog('Opravdu smazat tuto položku z projektu?',{title:'Smazat položku',confirmText:'Smazat',danger:true})) return;
+      project[collection]=project[collection].filter(item=>item.id!==id); touchProject(project); save(); renderProjectDetail(project); toast('Položka byla smazána.','warn');
+    }
+    function projectAttachmentKind(file){
+      const type=String(file?.type||'').toLowerCase(),name=String(file?.name||'').toLowerCase();
+      if(type.startsWith('image/')) return 'image';
+      if(type==='application/pdf'||name.endsWith('.pdf')) return 'pdf';
+      if(/spreadsheet|excel|csv/.test(type)||/\.(xlsx?|csv)$/.test(name)) return 'table';
+      if(/word|document|text\//.test(type)||/\.(docx?|txt)$/.test(name)) return 'document';
+      return 'file';
+    }
+    function projectAttachmentIcon(kind){ return {image:'🖼️',sketch:'✏️',pdf:'📄',table:'📊',document:'📝',file:'📎'}[kind]||'📎'; }
+    function releaseProjectAttachmentUrls(){ projectAttachmentUrlCache.forEach(url=>{ try{ URL.revokeObjectURL(url); }catch(error){} }); projectAttachmentUrlCache.clear(); }
+    async function projectAttachmentUrl(id){
+      if(projectAttachmentUrlCache.has(id)) return projectAttachmentUrlCache.get(id);
+      const file=await idbGet(id,VAULT_STORE); if(!file) return '';
+      const url=URL.createObjectURL(file); projectAttachmentUrlCache.set(id,url); return url;
+    }
+    async function addProjectAttachments(event){
+      const project=activeProject(); const input=event.target; const files=Array.from(input.files||[]); input.value='';
+      if(!project||!files.length) return;
+      if(files.length>20){ toast('Najednou lze nahrát maximálně 20 souborů.','warn'); return; }
+      let stored=0;
+      for(const original of files){
+        try{
+          let file=original;
+          if(String(file.type||'').startsWith('image/')) file=await compressImage(file);
+          if(file.size>MAX_COMPLETE_BACKUP_FILE_BYTES) throw new Error(`Soubor ${file.name} překračuje limit ${formatBytes(MAX_COMPLETE_BACKUP_FILE_BYTES)}.`);
+          await assertStorageHeadroom(file.size);
+          const id=uid('pfile'); await idbPut(id,file,VAULT_STORE);
+          project.attachments??=[]; project.attachments.unshift({id,fileName:file.name||original.name||'soubor',mime:file.type||'application/octet-stream',size:file.size,kind:projectAttachmentKind(file),caption:'',storedFile:true,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
+          stored++;
+        }catch(error){ console.error(error); toast(`Soubor se nepodařilo uložit: ${error.message||error}`,'bad'); }
+      }
+      if(stored){ touchProject(project); save(); renderProjectDetail(project); toast(`Uloženo ${stored} ${stored===1?'příloha':'příloh'} do šifrovaného projektu.`); }
+    }
+    async function renderProjectAttachments(project){
+      const box=$('#projectAttachmentList'); if(!box) return;
+      const attachments=[...(project.attachments||[])].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+      if(!attachments.length){ box.innerHTML=empty('Zatím nejsou uložené žádné obrázky, grafy, PDF ani náčrty.'); return; }
+      box.innerHTML=attachments.map(file=>`<figure class="project-attachment"><div class="project-attachment-preview">${['image','sketch'].includes(file.kind)?`<img data-project-image="${attr(file.id)}" data-view-project-attachment="${attr(file.id)}" alt="${attr(file.caption||file.fileName)}" loading="lazy">`:`<button class="icon-btn" data-view-project-attachment="${attr(file.id)}" type="button" aria-label="Otevřít ${attr(file.fileName)}">${projectAttachmentIcon(file.kind)}</button>`}</div><strong title="${attr(file.fileName)}">${esc(file.fileName)}</strong><small>${esc(formatBytes(file.size))} • ${esc(fmtDate(file.createdAt))}</small><div class="actions"><button class="mini-btn" data-download-project-attachment="${attr(file.id)}" type="button">Stáhnout</button><button class="mini-btn" data-delete-project-attachment="${attr(file.id)}" type="button">Smazat</button></div></figure>`).join('');
+      for(const file of attachments.filter(item=>['image','sketch'].includes(item.kind))){
+        try{ const url=await projectAttachmentUrl(file.id); const image=box.querySelector(`img[data-project-image="${CSS.escape(file.id)}"]`); if(image&&url) image.src=url; }catch(error){ console.warn(error); }
+      }
+    }
+    function findProjectAttachment(id){
+      for(const project of state.projects){ const attachment=(project.attachments||[]).find(file=>file.id===id); if(attachment) return {project,attachment}; }
+      return null;
+    }
+    async function viewProjectAttachmentFile(id){
+      const found=findProjectAttachment(id); if(!found) return;
+      try{
+        const url=await projectAttachmentUrl(id); if(!url){ toast('Soubor nebyl nalezen v lokálním úložišti.','bad'); return; }
+        if(['image','sketch'].includes(found.attachment.kind)){ openDetailModal(found.attachment.caption||found.attachment.fileName,`<img class="photo-full" src="${attr(url)}" alt="${attr(found.attachment.fileName)}">`); return; }
+        if(found.attachment.kind==='pdf'){ window.open(url,'_blank','noopener,noreferrer'); return; }
+        await downloadProjectAttachmentFile(id);
+      }catch(error){ console.error(error); toast('Přílohu se nepodařilo otevřít.','bad'); }
+    }
+    async function downloadProjectAttachmentFile(id){
+      const found=findProjectAttachment(id); if(!found) return;
+      try{ const file=await idbGet(id,VAULT_STORE); if(!file){ toast('Soubor nebyl nalezen.','bad'); return; } download(found.attachment.fileName||file.name||`projekt-${id}`,file,file.type||found.attachment.mime||'application/octet-stream'); }
+      catch(error){ console.error(error); toast('Soubor se nepodařilo stáhnout.','bad'); }
+    }
+    async function deleteProjectAttachmentFile(id){
+      const found=findProjectAttachment(id); if(!found) return;
+      if(!await confirmDialog(`Smazat přílohu „${found.attachment.fileName}“ ze šifrovaného projektu?`,{title:'Smazat přílohu',confirmText:'Smazat',danger:true})) return;
+      try{ await idbDelete(id,VAULT_STORE); }catch(error){ console.error(error); toast('Přílohu se nepodařilo odstranit z úložiště.','bad'); return; }
+      const url=projectAttachmentUrlCache.get(id); if(url){ try{ URL.revokeObjectURL(url); }catch(error){} projectAttachmentUrlCache.delete(id); }
+      found.project.attachments=found.project.attachments.filter(file=>file.id!==id); touchProject(found.project); save(); renderProjectDetail(found.project); toast('Příloha byla smazána.','warn');
+    }
+    function projectCanvas(){ return $('#projectSketchCanvas'); }
+    function sketchContext(){ return projectCanvas()?.getContext('2d',{willReadFrequently:true}); }
+    function snapshotProjectSketch(){ const canvas=projectCanvas(),ctx=sketchContext(); if(!canvas||!ctx) return; projectSketchHistory.push(ctx.getImageData(0,0,canvas.width,canvas.height)); if(projectSketchHistory.length>8) projectSketchHistory.shift(); }
+    function clearProjectSketch({record=true}={}){ const canvas=projectCanvas(),ctx=sketchContext(); if(!canvas||!ctx) return; ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.restore(); if(record){ projectSketchHistory=[]; snapshotProjectSketch(); } }
+    function bindProjectSketchCanvas(){
+      const canvas=projectCanvas(); if(!canvas||canvas.dataset.bound==='true') return; canvas.dataset.bound='true';
+      const point=event=>{ const rect=canvas.getBoundingClientRect(); return {x:(event.clientX-rect.left)*canvas.width/rect.width,y:(event.clientY-rect.top)*canvas.height/rect.height}; };
+      canvas.addEventListener('pointerdown',event=>{ event.preventDefault(); projectSketchDrawing=true; projectSketchLastPoint=point(event); canvas.setPointerCapture?.(event.pointerId); });
+      canvas.addEventListener('pointermove',event=>{ if(!projectSketchDrawing||!projectSketchLastPoint) return; event.preventDefault(); const next=point(event),ctx=sketchContext(); ctx.strokeStyle=$('#projectSketchColor')?.value||'#172033'; ctx.lineWidth=Math.max(1,number($('#projectSketchWidth')?.value)||4); ctx.lineCap='round'; ctx.lineJoin='round'; ctx.beginPath(); ctx.moveTo(projectSketchLastPoint.x,projectSketchLastPoint.y); ctx.lineTo(next.x,next.y); ctx.stroke(); projectSketchLastPoint=next; });
+      const finish=event=>{ if(!projectSketchDrawing) return; projectSketchDrawing=false; projectSketchLastPoint=null; try{ canvas.releasePointerCapture?.(event.pointerId); }catch(error){} snapshotProjectSketch(); };
+      canvas.addEventListener('pointerup',finish); canvas.addEventListener('pointercancel',finish); canvas.addEventListener('pointerleave',event=>{ if(event.buttons===0) finish(event); });
+      document.addEventListener('keydown',event=>{ if(event.key==='Escape'&&!$('#projectSketchStudio')?.hidden) closeProjectSketchStudio(); });
+    }
+    function openProjectSketchStudio(){
+      if(!activeProject()) return; const studio=$('#projectSketchStudio'); if(!studio) return;
+      studio.hidden=false; studio.setAttribute('aria-hidden','false'); document.body.classList.add('modal-open'); $('#projectSketchName').value=`Náčrt – ${activeProject().title}`; clearProjectSketch(); setTimeout(()=>$('#projectSketchName')?.focus(),60);
+    }
+    function closeProjectSketchStudio(){ const studio=$('#projectSketchStudio'); if(!studio) return; studio.hidden=true; studio.setAttribute('aria-hidden','true'); document.body.classList.remove('modal-open'); projectSketchDrawing=false; projectSketchLastPoint=null; }
+    function undoProjectSketch(){
+      const canvas=projectCanvas(),ctx=sketchContext(); if(!canvas||!ctx||projectSketchHistory.length<=1){ toast('Není co vrátit.','warn'); return; }
+      projectSketchHistory.pop(); ctx.putImageData(projectSketchHistory[projectSketchHistory.length-1],0,0);
+    }
+    async function saveProjectSketch(){
+      const project=activeProject(),canvas=projectCanvas(); if(!project||!canvas) return;
+      const name=($('#projectSketchName').value.trim()||`Náčrt ${project.title}`).replace(/[\\/:*?"<>|]+/g,'-');
+      try{
+        const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+        if(!blob) throw new Error('Náčrt se nepodařilo převést na obrázek.');
+        const fileName=name.toLowerCase().endsWith('.png')?name:`${name}.png`;
+        let file; try{ file=new File([blob],fileName,{type:'image/png'}); }catch(error){ file=blob; file.name=fileName; }
+        await assertStorageHeadroom(file.size); const id=uid('psketch'); await idbPut(id,file,VAULT_STORE);
+        project.attachments??=[]; project.attachments.unshift({id,fileName,mime:'image/png',size:file.size,kind:'sketch',caption:name,storedFile:true,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}); touchProject(project); save(); closeProjectSketchStudio(); renderProjectDetail(project); toast('Náčrt byl uložen jako šifrovaný obrázek.');
+      }catch(error){ console.error(error); toast('Náčrt se nepodařilo uložit: '+(error.message||error),'bad'); }
+    }
+    async function exportSelectedProjectMarkdown(){
+      const project=activeProject(); if(!project){ toast('Nejdřív otevři projekt.','warn'); return; }
+      if(!await confirmPrivateExport(`Export projektu „${project.title}“`)) return;
+      const budget=summarizeProjectBudget(project); const lines=[`# ${project.title}`,'',`- Oblast: ${projectAreaLabel(project.area)}`,`- Stav: ${projectStatusLabel(project.status)}`,`- Priorita: ${projectPriorityLabel(project.priority)}`,`- Začátek: ${project.startMonth||'neurčeno'}`,`- Cílové dokončení: ${project.endMonth||'neurčeno'}`,`- Cílový rozpočet: ${budget.target}`,`- Rozpočtováno: ${budget.planned}`,`- Zaplaceno: ${budget.actual}`,`- Tagy: ${(project.tags||[]).join(', ')}`,'',`## Zadání`,'',project.summary||'—','',`## Cíl a požadavky`,'',project.goal||'—','',`## Rozpočet`,''];
+      (project.costs||[]).forEach(cost=>lines.push(`- **${cost.name}** | ${projectCostCategoryLabel(cost.category)} | ${projectCostStatusLabel(cost.status)} | plán ${projectCostPlanned(cost)} | skutečnost ${number(cost.actual)}${cost.supplier?` | ${cost.supplier}`:''}${cost.url?` | ${cost.url}`:''}${cost.note?`\n  ${cost.note}`:''}`));
+      lines.push('','## Poznámky',''); (project.notes||[]).forEach(note=>lines.push(`### ${note.title||'Poznámka'}`,'',note.text,''));
+      lines.push('## AI vlákna a odkazy',''); (project.links||[]).forEach(link=>lines.push(`- **${link.title}** (${link.provider}) – ${link.url}${link.summary?`\n  ${link.summary}`:''}`));
+      lines.push('','## Přílohy',''); (project.attachments||[]).forEach(file=>lines.push(`- ${file.fileName} (${file.kind}, ${formatBytes(file.size)})`));
+      download(`lifehub-projekt-${safeFilePart(project.title)}-${today()}.md`,lines.join('\n'),'text/markdown;charset=utf-8');
+    }
+    function safeFilePart(value){ return strip(value||'projekt').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,60)||'projekt'; }
+    async function exportSelectedProjectCsv(){
+      const project=activeProject(); if(!project){ toast('Nejdřív otevři projekt.','warn'); return; }
+      if(!await confirmPrivateExport(`CSV rozpočtu projektu „${project.title}“`)) return;
+      const rows=[['id','polozka','kategorie','stav','mnozstvi','jednotka','cena_za_jednotku','plan','skutecnost','dodavatel','url','poznamka'],...(project.costs||[]).map(cost=>[cost.id,cost.name,projectCostCategoryLabel(cost.category),projectCostStatusLabel(cost.status),cost.quantity,cost.unit,cost.unitPrice,projectCostPlanned(cost),cost.actual,cost.supplier,cost.url,cost.note])];
+      download(`lifehub-projekt-${safeFilePart(project.title)}-rozpocet-${today()}.csv`,csv(rows),'text/csv;charset=utf-8');
     }
 
     // ===== Servis domácnosti =====

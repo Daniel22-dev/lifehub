@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#11152f">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'none'; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
-  <title>LifeHub 4.8.6 | osobní digitální centrum</title>
+  <title>LifeHub 5.0.0 | osobní digitální centrum</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./lifehub-icon-v2.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./lifehub-icon-192-v2.png">
@@ -16,7 +16,7 @@
       <div class="brand">
         <div class="brand-mark" aria-hidden="true"><span>LH</span></div>
         <div class="brand-copy">
-          <h1>LifeHub <span id="appTitleVersion">4.8.6</span></h1>
+          <h1>LifeHub <span id="appTitleVersion">5.0.0</span></h1>
           <p>Soukromé centrum · offline · šifrované</p>
         </div>
       </div>
@@ -55,6 +55,7 @@
           <button data-tab="shopping" type="button"><span class="emoji">🏠</span><span class="label">Velké nákupy</span></button>
           <button data-tab="garden" type="button"><span class="emoji">🌱</span><span class="label">Zahrada</span></button>
           <div class="nav-group-label">Dům a technika</div>
+          <button data-tab="projects" type="button"><span class="emoji">🏗️</span><span class="label">Projekty domu</span></button>
           <button data-tab="maintenance" type="button"><span class="emoji">🛠️</span><span class="label">Servis domácnosti</span></button>
           <button data-tab="electricity" type="button"><span class="emoji">⚡</span><span class="label">Elektřina – Marek</span></button>
           <div class="nav-group-label">Práce a AI</div>
@@ -759,6 +760,130 @@
           </div>
         </section>
 
+
+        <section class="view" id="projects">
+          <div id="projectsListView">
+            <div class="section-head">
+              <div class="head-main">
+                <div>
+                  <h2 class="tab-title">Projekty domu</h2>
+                  <p class="tab-sub">Centrální místo pro rekonstrukce, stavby a větší plány kolem šumperáku</p>
+                </div>
+                <button class="info-dot" type="button" data-tip="Každý větší záměr má vlastní prostor pro poznámky, AI vlákna, rozpočet, dodavatele, obrázky, PDF, grafy a ruční náčrty. Přílohy jsou šifrované a přenášejí se kompletní zálohou.">i</button>
+              </div>
+            </div>
+            <div class="kpis" id="projectKpis"></div>
+            <article class="panel project-command-panel">
+              <div class="panel-head">
+                <div><p class="eyebrow">Portfolio rekonstrukce</p><h3>Všechny větší plány na jednom místě</h3></div>
+                <div class="actions"><button class="btn primary" type="button" data-toggle-add="projectAddCard">Nový projekt</button></div>
+              </div>
+              <div class="filters project-filters">
+                <input id="projectSearch" type="search" placeholder="Hledat projekt, poznámku, materiál nebo dodavatele…">
+                <select id="projectStatusFilter" title="Stav projektu"><option value="active">Aktivní projekty</option><option value="all">Všechny projekty</option><option value="idea">Nápady</option><option value="research">Průzkum</option><option value="planning">Plánování</option><option value="realization">Realizace</option><option value="paused">Pozastavené</option><option value="done">Dokončené</option></select>
+                <select id="projectAreaFilter" title="Oblast"><option value="all">Všechny oblasti</option><option value="house">Dům a interiér</option><option value="exterior">Exteriér</option><option value="garden">Zahrada</option><option value="technology">Technologie</option><option value="other">Jiné</option></select>
+                <select id="projectSort" title="Řazení"><option value="updated">Naposledy upravené</option><option value="priority">Priorita</option><option value="budget">Rozpočet</option><option value="name">Název</option></select>
+              </div>
+              <div class="project-grid" id="projectList"></div>
+            </article>
+
+            <article class="panel add-card" id="projectAddCard" data-collapsed="true">
+              <button class="add-card-head" type="button" data-toggle-add="projectAddCard"><span>➕ Vytvořit projekt</span><span class="chev">▾</span></button>
+              <div class="add-card-body">
+                <form class="form form-two" id="projectForm">
+                  <input type="hidden" id="projectId">
+                  <label class="wide">Název projektu<input id="projectTitle" required maxlength="180" placeholder="Např. nerezový bazén, přístřešek, koupelna, venkovní dlažba…"></label>
+                  <label>Oblast<select id="projectArea"><option value="house">🏠 Dům a interiér</option><option value="exterior">🧱 Exteriér</option><option value="garden">🌿 Zahrada</option><option value="technology">⚙️ Technologie</option><option value="other">📌 Jiné</option></select></label>
+                  <label>Stav<select id="projectStatus"><option value="idea">💡 Nápad</option><option value="research">🔎 Průzkum</option><option value="planning">📐 Plánování</option><option value="realization">🏗️ Realizace</option><option value="paused">⏸ Pozastaveno</option><option value="done">✅ Dokončeno</option></select></label>
+                  <label>Priorita<select id="projectPriority"><option value="high">Vysoká</option><option value="normal" selected>Normální</option><option value="low">Nízká</option></select></label>
+                  <label>Cílový rozpočet<input id="projectBudget" type="number" min="0" step="100" placeholder="0"></label>
+                  <label>Předpokládaný začátek<input id="projectStart" type="month"></label>
+                  <label>Cílové dokončení<input id="projectEnd" type="month"></label>
+                  <label class="wide">Stručné zadání<textarea id="projectSummary" rows="3" maxlength="3000" placeholder="Co se má postavit nebo změnit a v jakém rozsahu?"></textarea></label>
+                  <label class="wide">Cíl a hlavní požadavky<textarea id="projectGoal" rows="3" maxlength="5000" placeholder="Rozměry, omezení, požadované vlastnosti, co je nepřekročitelné…"></textarea></label>
+                  <label class="wide">Tagy<input id="projectTags" maxlength="500" placeholder="bazén, zahrada, voda, dřevo, 2027"></label>
+                  <div class="actions wide"><button class="btn primary" type="submit">Uložit projekt</button><button class="btn" id="resetProject" type="button">Vyčistit</button></div>
+                </form>
+              </div>
+            </article>
+          </div>
+
+          <div id="projectDetailView" class="hide">
+            <div class="section-head project-detail-head">
+              <div class="head-main">
+                <button class="btn secondary" id="projectBackBtn" type="button">← Všechny projekty</button>
+                <div id="projectDetailTitle"></div>
+              </div>
+              <div class="actions"><button class="btn" id="projectEditBtn" type="button">Upravit projekt</button><button class="btn danger" id="projectDeleteBtn" type="button">Smazat projekt</button></div>
+            </div>
+            <div id="projectDetailHero"></div>
+
+            <div class="project-detail-grid">
+              <div class="project-detail-main">
+                <article class="panel">
+                  <div class="panel-head"><div><p class="eyebrow">Rozpočet</p><h3>Plán, nabídky a skutečné náklady</h3></div><button class="btn primary" type="button" data-toggle-add="projectCostAddCard">Přidat položku</button></div>
+                  <div id="projectBudgetSummary"></div>
+                  <div class="project-budget-chart" id="projectBudgetChart"></div>
+                  <div class="list" id="projectCostList"></div>
+                </article>
+
+                <article class="panel add-card" id="projectCostAddCard" data-collapsed="true">
+                  <button class="add-card-head" type="button" data-toggle-add="projectCostAddCard"><span>💰 Přidat rozpočtovou položku</span><span class="chev">▾</span></button>
+                  <div class="add-card-body">
+                    <form class="form form-two" id="projectCostForm">
+                      <input type="hidden" id="projectCostId">
+                      <label class="wide">Položka / materiál / práce<input id="projectCostName" required maxlength="180" placeholder="Např. nerezová vana, dlažba, výkop, montáž…"></label>
+                      <label>Kategorie<select id="projectCostCategory"><option value="material">Materiál</option><option value="work">Práce</option><option value="technology">Technologie</option><option value="transport">Doprava</option><option value="documentation">Projekt / povolení</option><option value="reserve">Rezerva</option><option value="other">Jiné</option></select></label>
+                      <label>Stav<select id="projectCostStatus"><option value="estimate">Odhad</option><option value="quote">Nabídka</option><option value="ordered">Objednáno</option><option value="paid">Zaplaceno</option></select></label>
+                      <label>Množství<input id="projectCostQuantity" type="number" min="0" step="0.01" value="1"></label>
+                      <label>Jednotka<input id="projectCostUnit" maxlength="30" placeholder="ks, m², m, hod…"></label>
+                      <label>Cena za jednotku<input id="projectCostUnitPrice" type="number" min="0" step="0.01" placeholder="0"></label>
+                      <label>Skutečně zaplaceno<input id="projectCostActual" type="number" min="0" step="0.01" placeholder="0"></label>
+                      <label>Dodavatel / obchod<input id="projectCostSupplier" maxlength="160" placeholder="Firma, e-shop, řemeslník…"></label>
+                      <label>Odkaz<input id="projectCostUrl" type="url" placeholder="https://…"></label>
+                      <label class="wide">Poznámka<textarea id="projectCostNote" rows="3" maxlength="2000" placeholder="Varianta, rozměr, číslo nabídky, co cena zahrnuje…"></textarea></label>
+                      <div class="actions wide"><button class="btn primary" type="submit">Uložit položku</button><button class="btn" id="resetProjectCost" type="button">Vyčistit</button></div>
+                    </form>
+                  </div>
+                </article>
+
+                <article class="panel">
+                  <div class="panel-head"><div><p class="eyebrow">Podklady</p><h3>Obrázky, grafy, PDF a náčrty</h3></div><div class="actions"><button class="btn secondary" id="projectSketchBtn" type="button">✏️ Nový náčrt</button><label class="file-action">Nahrát soubory<input id="projectAttachmentInput" type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"></label></div></div>
+                  <p class="small">Obrázky se kvůli místu automaticky zmenší. Všechny přílohy se ukládají šifrovaně v tomto zařízení a jsou součástí kompletní šifrované zálohy.</p>
+                  <div class="project-attachment-grid" id="projectAttachmentList"></div>
+                </article>
+              </div>
+
+              <aside class="project-detail-side">
+                <article class="panel">
+                  <div class="panel-head"><div><p class="eyebrow">Poznámky</p><h3>Rozhodnutí, měření a nápady</h3></div></div>
+                  <form class="project-quick-form" id="projectNoteForm">
+                    <input type="hidden" id="projectNoteId">
+                    <input id="projectNoteTitle" maxlength="180" placeholder="Nadpis poznámky">
+                    <textarea id="projectNoteText" rows="5" maxlength="12000" required placeholder="Co je potřeba zachovat, ověřit nebo rozhodnout…"></textarea>
+                    <div class="actions"><button class="btn primary" type="submit">Uložit poznámku</button><button class="btn" id="resetProjectNote" type="button">Vyčistit</button></div>
+                  </form>
+                  <div class="list project-compact-list" id="projectNoteList"></div>
+                </article>
+
+                <article class="panel">
+                  <div class="panel-head"><div><p class="eyebrow">AI a web</p><h3>Vlákna a důležité odkazy</h3></div></div>
+                  <form class="project-quick-form" id="projectLinkForm">
+                    <input type="hidden" id="projectLinkId">
+                    <input id="projectLinkTitle" required maxlength="180" placeholder="Co se ve vlákně řešilo">
+                    <select id="projectLinkProvider"><option value="ChatGPT">ChatGPT</option><option value="Claude">Claude</option><option value="Gemini">Gemini</option><option value="Web">Web</option><option value="E-shop">E-shop</option><option value="Dodavatel">Dodavatel</option><option value="Jiné">Jiné</option></select>
+                    <input id="projectLinkUrl" type="url" required placeholder="https://…">
+                    <textarea id="projectLinkSummary" rows="3" maxlength="3000" placeholder="Hlavní závěr nebo proč se k odkazu vrátit…"></textarea>
+                    <div class="actions"><button class="btn primary" type="submit">Uložit odkaz</button><button class="btn" id="resetProjectLink" type="button">Vyčistit</button></div>
+                  </form>
+                  <div class="list project-compact-list" id="projectLinkList"></div>
+                </article>
+              </aside>
+            </div>
+            <div class="section-head-actions"><button class="btn secondary" data-action="export-project-md" type="button">Export projektu MD</button><button class="btn" data-action="export-project-csv" type="button">Rozpočet CSV</button></div>
+          </div>
+        </section>
+
         <section class="view" id="maintenance">
           <div class="section-head">
             <div class="head-main">
@@ -1201,7 +1326,7 @@
         </div>
       </div>
       <div class="lock-content">
-        <p class="eyebrow">LifeHub <span id="lockVersion">4.8.6</span></p>
+        <p class="eyebrow">LifeHub <span id="lockVersion">5.0.0</span></p>
         <h2 id="lockTitle">Odemknout LifeHub</h2>
         <p id="lockIntro">Zadej své heslo. Poznámky, finance ani dokumenty se před odemčením nenačtou.</p>
         <div class="lock-note" id="lockNote">Při prvním spuštění si nastavíš bezpečné heslo. Starší data lze jednorázově převést do šifrovaného úložiště.</div>
@@ -1227,6 +1352,23 @@
       <p class="eyebrow">Ochrana neuložených dat</p><h2 id="unsavedGuardTitle">LifeHub se nemůže bezpečně zamknout</h2>
       <p id="unsavedGuardText">Poslední změny se nepodařilo uložit. Obsah aplikace je skrytý, ale zůstává v paměti, dokud uložení neopakujete nebo nevytvoříte nouzovou zálohu.</p>
       <div class="actions"><button class="btn primary" id="guardRetrySaveBtn" type="button">Zkusit uložit znovu</button><button class="btn secondary" id="guardEmergencyBackupBtn" type="button">Stáhnout nouzovou zálohu</button><button class="btn danger" id="guardDiscardBtn" type="button">Zahodit změny a zamknout</button></div>
+    </div>
+  </div>
+
+
+  <div class="sketch-studio" id="projectSketchStudio" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="projectSketchTitle">
+    <div class="sketch-card">
+      <div class="sketch-head"><div><p class="eyebrow">Projektový náčrt</p><h2 id="projectSketchTitle">Nový náčrt</h2></div><button class="icon-btn" id="projectSketchClose" type="button" aria-label="Zavřít náčrt">✕</button></div>
+      <div class="sketch-toolbar">
+        <label>Název<input id="projectSketchName" maxlength="180" placeholder="Např. půdorys přístřešku"></label>
+        <label>Barva<select id="projectSketchColor"><option value="#172033">Tmavá</option><option value="#2563eb">Modrá</option><option value="#dc2626">Červená</option><option value="#16a34a">Zelená</option></select></label>
+        <label>Tloušťka<select id="projectSketchWidth"><option value="2">Tenká</option><option value="4" selected>Střední</option><option value="7">Silná</option></select></label>
+        <button class="btn" id="projectSketchUndo" type="button">Zpět</button>
+        <button class="btn" id="projectSketchClear" type="button">Vymazat</button>
+        <button class="btn primary" id="projectSketchSave" type="button">Uložit jako obrázek</button>
+      </div>
+      <div class="sketch-canvas-shell"><canvas id="projectSketchCanvas" width="1400" height="900" aria-label="Kreslicí plocha pro projektový náčrt"></canvas></div>
+      <p class="small">Kresli myší, prstem nebo perem. Náčrt se uloží jako šifrovaný PNG obrázek k otevřenému projektu.</p>
     </div>
   </div>
 

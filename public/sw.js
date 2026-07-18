@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lifehub-vite-shell-v4-9-1-installment-auto';
+const CACHE_NAME = 'lifehub-vite-shell-v5-0-0-projects';
 const STATIC_SHELL = [
   './', './index.html', './manifest.json', './lifehub-icon-v2.svg', './lifehub-icon-192-v2.png', './lifehub-icon-512-v2.png',
   './vendor/pdf.min.mjs', './vendor/pdf.worker.min.mjs', './manual.html', './school-logo.png'

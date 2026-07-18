@@ -1,3 +1,14 @@
+## 5.0.0
+
+- Přidána záložka **Projekty domu** pro rozsáhlejší rekonstrukce a investice.
+- Každý projekt má stav, prioritu, oblast, termíny, zadání, požadavky a tagy.
+- Položkový rozpočet sleduje materiál, práci, technologie, dopravu, nabídky, objednávky a skutečně zaplacené částky.
+- Projekt obsahuje poznámky a odkazy na ChatGPT, Claude, Gemini, weby, e-shopy a dodavatele.
+- Obrázky, PDF, dokumenty, tabulky a vlastní kreslené náčrty se ukládají šifrovaně.
+- Projekt lze exportovat do Markdownu a rozpočet do CSV.
+- Kompletní šifrovaná záloha nově přenáší a ověřuje také všechny projektové přílohy.
+- Datové schema bylo bezpečně zvýšeno na verzi 10; starší data zůstávají zachována.
+
 ## 4.9.1
 
 - Splátkový kalendář nyní po dosažení nastaveného dne splatnosti automaticky zaznamená běžnou měsíční splátku.

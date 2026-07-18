@@ -1,16 +1,16 @@
-# LifeHub 4.8.6
+# LifeHub 5.0.0
 
-Lokální šifrované osobní centrum pro poznámky, finance, dokumenty, úkoly, domácnost, zahradu a pracovní výkazy.
+Lokální šifrované osobní centrum pro poznámky, finance, dokumenty, úkoly, domácnost, zahradu, pracovní výkazy a větší projekty domu.
 
-## Novinky 4.8.6
+## Novinky 5.0.0
 
-- kritická oprava migrace starších nešifrovaných dat: nečitelný nebo neplatný stav už nikdy nepokračuje k zápisu prázdného trezoru,
-- vlastní dešifrovaný trezor už není omezen osm megabajty určenými pro cizí importy,
-- měsíční výkaz vykresluje graf a barevné prvky i při přísné Content Security Policy,
-- výplatní páska bez čisté mzdy nebo částky na účet už nevytvoří příjem z hrubé mzdy,
-- service worker přežije výpadek nepovinného souboru a při pomalé síti použije po třech sekundách uloženou aplikaci,
-- kontrolní řetězec začíná ESLintem a odhalí nedefinované funkce ještě před testy,
-- odstraněn nepoužívaný modul rodinné synchronizace a nereferencované kopie souborů.
+- nová záložka **Projekty domu** pro bazén, přístřešek, koupelnu, dlažbu a další rozsáhlejší záměry,
+- projektové zadání, požadavky, stav, priorita, termíny a tagy,
+- položkový rozpočet s plánem, skutečností, dodavateli, nabídkami a odkazy,
+- projektové poznámky a odkazy na ChatGPT, Claude, Gemini, weby a dodavatele,
+- šifrované obrázky, PDF, dokumenty, tabulky a vlastní kreslené náčrty,
+- export celého projektu do Markdownu a rozpočtu do CSV,
+- projektové soubory jsou součástí úplné kontroly kompletní šifrované zálohy.
 
 ## Kontrola před vydáním
 
@@ -28,6 +28,7 @@ npm run check
 - přísná CSP bez síťových spojení aplikace,
 - whitelistová sanitizace importovaného stavu,
 - nouzová šifrovaná záloha při selhání ukládání,
+- kompletní šifrovaná záloha včetně dokumentů, PDF a projektových příloh,
 - automatický zámek a podpora WebAuthn PRF na kompatibilních zařízeních.
 
 Podrobný přehled změn je v `CHANGELOG.md`. Interaktivní uživatelský návod je v `public/manual.html`.
