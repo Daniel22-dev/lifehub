@@ -75,7 +75,7 @@ import {
   sumMinutes,
   sumRewardHours
 } from '../features/budget.js';
-import { calculateRegularInstallmentPayment } from '../features/installments.js';
+import { calculateDueInstallmentPayments, calculateRegularInstallmentPayment } from '../features/installments.js';
 import { buildFamilySnapshot, FAMILY_COLLECTIONS, FAMILY_EXCLUDED_DESCRIPTION, summarizeFamilySnapshot } from '../features/family-snapshot.js';
 import { advanceAutomaticPayment, nextPaymentDueDate } from '../features/recurring-payments.js';
 import {
@@ -922,6 +922,7 @@ export function bootLifeHub(){
       const automaticPaymentsAdvanced = reconcileAutomaticHouseholdPayments();
       const payrollTransactionsReconciled = reconcilePayrollTransactions();
       const installmentTransactionsCreated = reconcileInstallmentTransactions();
+      const automaticInstallmentsAdvanced = reconcileAutomaticInstallmentPayments();
       renderAll();
       refreshBiometricAvailability().catch(()=>{});
       lastActivityAt = Date.now();
@@ -929,12 +930,13 @@ export function bootLifeHub(){
       saveLifecycle.reset();
       saveLifecycle.lastSavedAt = state.updatedAt || '';
       updateSaveUi();
-      if(migratedGroceries || automaticPaymentsAdvanced || payrollTransactionsReconciled.changed || installmentTransactionsCreated) save(false);
+      if(migratedGroceries || automaticPaymentsAdvanced || payrollTransactionsReconciled.changed || installmentTransactionsCreated || automaticInstallmentsAdvanced.payments) save(false);
       if(migratedGroceries) toast(`${migratedGroceries} položek potravin bylo přesunuto do nové záložky Nákupní seznam.`);
       if(automaticPaymentsAdvanced) toast(`Automatické platby byly posunuty podle termínů (${automaticPaymentsAdvanced}).`,'good');
       if(payrollTransactionsReconciled.created) toast(`Do financí byla doplněna chybějící výplata (${payrollTransactionsReconciled.created}).`,'good');
       if(payrollTransactionsReconciled.removedGrossFallbacks) toast(`Z financí bylo odstraněno ${payrollTransactionsReconciled.removedGrossFallbacks} chybně vytvořených příjmů z hrubé mzdy. Doplňte u těchto pásek čistou mzdu nebo částku na účet.`,'warn');
       if(installmentTransactionsCreated) toast(`Do financí bylo doplněno ${installmentTransactionsCreated} dříve zaznamenaných splátek.`,'good');
+      if(automaticInstallmentsAdvanced.payments) toast(`Po termínu bylo automaticky zpracováno ${automaticInstallmentsAdvanced.payments} ${automaticInstallmentsAdvanced.payments===1?'splátkové období':'splátkových období'} v částce ${fmt(automaticInstallmentsAdvanced.amount)}.`,'good');
       const who = (state.settings.greetName||'').trim();
       if(method==='biometric') toast(`Odemčeno zámkem zařízení${who?', '+who:''}. 👋`,'good');
       else toast(encrypted ? `${greeting()}${who?', '+who:''}! 👋` : 'Šifrovaný trezor je připraven.');
@@ -2651,7 +2653,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         createdAt:textLimit(a?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(a?.updatedAt,40)||new Date().toISOString()
       })).filter(a=>a.name);
       clean.installments = asArray(data.installments,1000).map(i=>({
-        id:safeId(i?.id,'inst'), creditor:textLimit(i?.creditor,160), total:Math.max(0,number(i?.total)), monthly:Math.max(0,number(i?.monthly)), startMonth:textLimit(i?.startMonth,7), paid:Math.max(0,number(i?.paid)), dueDay:Math.min(31,Math.max(0,Math.round(number(i?.dueDay)))), note:textLimit(i?.note,1000), assignedTo:['me','partner','both'].includes(i?.assignedTo)?i.assignedTo:'both', shared:i?.shared!==false, paymentHistory:asArray(i?.paymentHistory,5000).map(h=>({id:safeId(h?.id,'ipay'),date:textLimit(h?.date,10),amount:Math.max(0,number(h?.amount)),type:['regular','extra','correction'].includes(h?.type)?h.type:'regular',transactionId:textLimit(h?.transactionId,100),financeDetached:h?.financeDetached===true,createdAt:textLimit(h?.createdAt,40)||new Date().toISOString()})).filter(h=>/^\d{4}-\d{2}-\d{2}$/.test(h.date)), createdAt:textLimit(i?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(i?.updatedAt,40)||new Date().toISOString()
+        id:safeId(i?.id,'inst'), creditor:textLimit(i?.creditor,160), total:Math.max(0,number(i?.total)), monthly:Math.max(0,number(i?.monthly)), startMonth:textLimit(i?.startMonth,7), paid:Math.max(0,number(i?.paid)), dueDay:Math.min(31,Math.max(0,Math.round(number(i?.dueDay)))), autoPaidBaseline:i?.autoPaidBaseline===null||i?.autoPaidBaseline===undefined||i?.autoPaidBaseline===''?null:Math.max(0,number(i?.autoPaidBaseline)), autoExtraBaseline:Math.max(0,number(i?.autoExtraBaseline)), note:textLimit(i?.note,1000), assignedTo:['me','partner','both'].includes(i?.assignedTo)?i.assignedTo:'both', shared:i?.shared!==false, paymentHistory:asArray(i?.paymentHistory,5000).map(h=>({id:safeId(h?.id,'ipay'),date:textLimit(h?.date,10),amount:Math.max(0,number(h?.amount)),type:['regular','extra','correction'].includes(h?.type)?h.type:'regular',automatic:h?.automatic===true,transactionId:textLimit(h?.transactionId,100),financeDetached:h?.financeDetached===true,createdAt:textLimit(h?.createdAt,40)||new Date().toISOString()})).filter(h=>/^\d{4}-\d{2}-\d{2}$/.test(h.date)), createdAt:textLimit(i?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(i?.updatedAt,40)||new Date().toISOString()
       })).filter(i=>i.creditor);
       clean.householdPayments = asArray(data.householdPayments,5000).map(p=>({
         id:safeId(p?.id,'pay'), title:textLimit(p?.title,180), category:textLimit(p?.category,80), amount:Math.max(0,number(p?.amount)), frequency:['once','monthly','quarterly','yearly'].includes(p?.frequency)?p.frequency:'once', dueDate:textLimit(p?.dueDate,10), assignedTo:['me','partner','both'].includes(p?.assignedTo)?p.assignedTo:'both', automatic:p?.automatic===true, trackFinance:p?.trackFinance!==false, status:p?.status==='paid'?'paid':'pending', lastPaidAt:textLimit(p?.lastPaidAt,10), note:textLimit(p?.note,1000), shared:p?.shared!==false, paymentHistory:asArray(p?.paymentHistory,5000).map(h=>({id:safeId(h?.id,'hpay'),date:textLimit(h?.date,10),amount:Math.max(0,number(h?.amount)),automatic:h?.automatic===true,transactionId:textLimit(h?.transactionId,100),createdAt:textLimit(h?.createdAt,40)||new Date().toISOString()})).filter(h=>/^\d{4}-\d{2}-\d{2}$/.test(h.date)), createdAt:textLimit(p?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(p?.updatedAt,40)||new Date().toISOString()
@@ -3298,7 +3300,7 @@ Co chceš udělat teď?`,
     }
     function installmentCard(i,c,done=false){
       const history=(i.paymentHistory||[]).slice(0,20);
-      const historyLabel=h=>h.type==='extra'?'Mimořádná':h.type==='correction'?'Oprava':'Běžná';
+      const historyLabel=h=>h.type==='extra'?'Mimořádná':h.type==='correction'?'Oprava':h.automatic?'Běžná automaticky':'Běžná';
       const historyHtml=history.length?`<details class="history"><summary>Historie plateb (${i.paymentHistory.length})</summary><div class="history-list">${history.map(h=>`<div><span>${esc(fmtDate(`${h.date}T00:00:00`))}</span><strong>${esc(historyLabel(h))} ${h.type==='correction'?'−':''}${fmt(Math.abs(number(h.amount)))}</strong></div>`).join('')}</div></details>`:'';
       return `<article class="item ${done?'archive-item':''}"><div class="item-top"><div><h4>${esc(i.creditor)}${done?' ✅':''}</h4><p><span class="installment-remaining ${done?'money-plus':'money-minus'}">${done?'Doplaceno':'Zbývá '+fmt(c.remaining)}</span> • měsíčně ${fmt(i.monthly)} • celkem ${fmt(c.total)}</p>${i.note?`<p>${esc(i.note)}</p>`:''}</div><div class="actions">${done?`<button class="mini-btn" data-reopen-inst="${attr(i.id)}" type="button">Znovu otevřít</button>`:`<button class="mini-btn" data-pay-inst="${attr(i.id)}" type="button">+ splátka</button><button class="mini-btn" data-extra-inst="${attr(i.id)}" type="button">+ mimořádná</button>`}<button class="mini-btn" data-edit-inst="${attr(i.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-inst="${attr(i.id)}" type="button">Smazat</button></div></div>${barRow(`Splaceno ${fmt(c.paid)} z ${fmt(c.total)}`, c.progress+'%', c.progress)}<div class="meta">${c.endMonth?`<span class="tag">konec ${esc(monthLabel(c.endMonth))}</span>`:''}<span class="tag">zbývá ${c.remainingMonths} měs.</span>${i.startMonth?`<span class="tag">od ${esc(monthLabel(i.startMonth))}</span>`:''}${i.dueDay?`<span class="tag">splatnost ${esc(String(i.dueDay))}. v měsíci</span>`:''}<span class="tag">${esc(assignedToLabel(i.assignedTo))}</span>${i.shared!==false?'<span class="tag">👥 sdílené</span>':'<span class="tag">🔒 soukromé</span>'}</div>${historyHtml}</article>`;
     }
@@ -3308,10 +3310,17 @@ Co chceš udělat teď?`,
       if(!(total>0) || !(monthly>0)){toast('Celková částka i měsíční splátka musí být vyšší než nula.','bad');return;}
       const id=$('#instId').value||uid('inst');
       const existing=state.installments.find(x=>x.id===id);
-      const i={id,creditor:$('#instCreditor').value.trim(),total,monthly,startMonth:$('#instStart').value,paid:number($('#instPaid').value),dueDay:Math.min(31,Math.max(0,Math.round(number($('#instDueDay').value)))),note:$('#instNote').value.trim(),assignedTo:['me','partner','both'].includes($('#instAssignedTo')?.value)?$('#instAssignedTo').value:'both',shared:!!$('#instShared')?.checked,paymentHistory:Array.isArray(existing?.paymentHistory)?existing.paymentHistory:[],createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+      const startMonth=$('#instStart').value;
+      const paid=number($('#instPaid').value);
+      const history=Array.isArray(existing?.paymentHistory)?existing.paymentHistory:[];
+      const extraPaid=history.filter(row=>row?.type==='extra').reduce((sum,row)=>sum+Math.max(0,number(row?.amount)),0);
+      const scheduleReset=!existing || startMonth!==(existing.startMonth||'') || Math.abs(paid-number(existing.paid))>0.001;
+      const i={id,creditor:$('#instCreditor').value.trim(),total,monthly,startMonth,paid,dueDay:Math.min(31,Math.max(0,Math.round(number($('#instDueDay').value)))),autoPaidBaseline:scheduleReset?paid:(existing?.autoPaidBaseline??null),autoExtraBaseline:scheduleReset?extraPaid:Math.max(0,number(existing?.autoExtraBaseline)),note:$('#instNote').value.trim(),assignedTo:['me','partner','both'].includes($('#instAssignedTo')?.value)?$('#instAssignedTo').value:'both',shared:!!$('#instShared')?.checked,paymentHistory:history,createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
       if(existing){ Object.assign(existing,i); refreshLinkedInstallmentTransactions(existing); }
       else state.installments.unshift(i);
-      save(); resetInstallmentForm(); toast('Splátkový kalendář uložen.');
+      const automatic=reconcileAutomaticInstallmentPayments();
+      save(); resetInstallmentForm();
+      toast(automatic.payments?`Splátkový kalendář uložen a po splatnosti automaticky odečteno ${fmt(automatic.amount)}.`:'Splátkový kalendář uložen.');
     }
     function resetInstallmentForm(){ $('#instForm').reset(); $('#instId').value=''; $('#instStart').value=monthNow(); if($('#instShared')) $('#instShared').checked=true; if($('#instAssignedTo')) $('#instAssignedTo').value='both'; }
     function editInstallment(id){const i=state.installments.find(x=>x.id===id); if(!i)return; showTab('installments'); toggleAddCard('instAddCard',true); $('#instId').value=i.id; $('#instCreditor').value=i.creditor; $('#instTotal').value=i.total||''; $('#instMonthly').value=i.monthly||''; $('#instStart').value=i.startMonth||monthNow(); $('#instPaid').value=i.paid||''; $('#instDueDay').value=i.dueDay||''; $('#instNote').value=i.note||''; if($('#instAssignedTo')) $('#instAssignedTo').value=i.assignedTo||'both'; if($('#instShared')) $('#instShared').checked=i.shared!==false; $('#instCreditor').focus();}
@@ -3358,6 +3367,24 @@ Co chceš udělat teď?`,
       }
       return created;
     }
+    function reconcileAutomaticInstallmentPayments(){
+      let payments=0, amount=0;
+      for(const installment of state.installments){
+        const due=calculateDueInstallmentPayments(installment,{today:today()});
+        if(!due.entries.length) continue;
+        installment.paymentHistory=Array.isArray(installment.paymentHistory)?installment.paymentHistory:[];
+        for(const entry of due.entries){
+          const historyEntry={id:uid('ipay'),date:entry.date,amount:entry.amount,type:'regular',automatic:true,createdAt:new Date().toISOString()};
+          installment.paymentHistory.unshift(historyEntry);
+          upsertInstallmentTransaction(installment,historyEntry);
+          payments++;
+          amount+=entry.amount;
+        }
+        installment.paid=due.newPaid;
+        installment.updatedAt=new Date().toISOString();
+      }
+      return {payments,amount};
+    }
     async function deleteInstallment(id){
       const installment=state.installments.find(item=>item.id===id); if(!installment) return;
       const historyIds=new Set((installment.paymentHistory||[]).map(row=>row.id));
@@ -3384,6 +3411,10 @@ Co chceš udělat teď?`,
       const remaining=Math.min(number(i.total),Math.max(0,number(values.remaining)));
       if(!(remaining>0)){ toast('Zbývající částka musí být vyšší než nula.','bad'); return; }
       i.paid=Math.max(0,number(i.total)-remaining);
+      const currentDay=Number(today().slice(8,10));
+      i.startMonth=i.dueDay>currentDay?monthNow():addMonths(monthNow(),1);
+      i.autoPaidBaseline=i.paid;
+      i.autoExtraBaseline=(i.paymentHistory||[]).filter(row=>row?.type==='extra').reduce((sum,row)=>sum+Math.max(0,number(row?.amount)),0);
       i.paymentHistory=Array.isArray(i.paymentHistory)?i.paymentHistory:[];
       i.paymentHistory.unshift({id:uid('ipay'),date:today(),amount:remaining,type:'correction',createdAt:new Date().toISOString()});
       i.updatedAt=new Date().toISOString();

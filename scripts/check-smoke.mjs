@@ -60,6 +60,8 @@ mustContain('lifehub-app.js', app, 'function hasLegacyState()');
 mustContain('lifehub-app.js', app, 'if(startupStorageError)');
 mustContain('lifehub-app.js', app, 'init().catch(error =>');
 mustContain('lifehub-app.js', app, 'calculateRegularInstallmentPayment');
+mustContain('lifehub-app.js', app, 'calculateDueInstallmentPayments');
+mustContain('lifehub-app.js', app, 'function reconcileAutomaticInstallmentPayments');
 mustContain('lifehub-app.js', app, 'buildDataBackupPayload({includeFamilyPassword:false})');
 mustContain('lifehub-app.js', app, 'Rodinný soubor je připraven');
 mustContain('lifehub-app.js', app, "const shareMime='text/plain;charset=utf-8'");

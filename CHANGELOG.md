@@ -1,3 +1,10 @@
+## 4.9.1
+
+- Splátkový kalendář nyní po dosažení nastaveného dne splatnosti automaticky zaznamená běžnou měsíční splátku.
+- Automaticky se sníží zbývající dluh i počet zbývajících plateb a vytvoří se propojený výdaj v Příjmech a výdajích.
+- Při delší době bez otevření aplikace se bezpečně doplní všechna splatná období od nastaveného začátku; stejné období se nikdy nezapočítá dvakrát.
+- Den splatnosti 29.–31. se v kratším měsíci použije jako poslední kalendářní den daného měsíce.
+
 ## 4.9.0
 
 - nová záložka **Elektřina – Marek** s poznámkami, nápady, materiálem, cenami a PDF podkladem pro elektrikáře,

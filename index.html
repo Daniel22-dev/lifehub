@@ -405,7 +405,7 @@
                 <h2 class="tab-title">Splátkový kalendář</h2>
                 <p class="tab-sub">Komu splácíš, kolik měsíčně a kolik ještě zbývá</p>
               </div>
-              <button class="info-dot" type="button" data-tip="Zadej komu splácíš, celkovou částku a měsíční splátku. Kolik zbývá = celková částka minus zaznamenané splátky. Novou půjčku nech s poli „Už splaceno“ na 0 (zbývá celá částka); u rozjeté půjčky zadej, kolik už máš zaplaceno. Splátky pak zaznamenáváš tlačítky: „+ splátka“ přičte běžnou měsíční splátku, „+ mimořádná“ přičte libovolnou částku navíc a posune měsíc konce dřív. Jednou týdně tě aplikace při otevření upozorní na zbývající částky – povol notifikace tlačítkem níže.">i</button>
+              <button class="info-dot" type="button" data-tip="Zadej komu splácíš, celkovou částku, měsíční splátku, počáteční měsíc a den splatnosti. Jakmile nastavený den uplyne, LifeHub při otevření automaticky odečte běžnou splátku, sníží počet zbývajících plateb a zapíše propojený výdaj. Při delší pauze doplní všechna již splatná období bez dvojího započtení. Tlačítko „+ splátka“ slouží pro předčasnou běžnou úhradu a „+ mimořádná“ pro částku navíc.">i</button>
             </div>
             <div class="actions"><button class="btn secondary" id="enableNotifBtn" type="button">Povolit týdenní notifikace</button></div>
           </div>
@@ -428,7 +428,7 @@
                 <label>Měsíční splátka<input id="instMonthly" type="number" min="0" step="0.01" required placeholder="0"></label>
                 <label>Od měsíce<input id="instStart" type="month"></label>
                 <label>Už splaceno<input id="instPaid" type="number" min="0" step="0.01" placeholder="0"></label>
-                <label>Den v měsíci (splatnost)<input id="instDueDay" type="number" min="1" max="31" placeholder="15"></label>
+                <label>Den automatické splátky<input id="instDueDay" type="number" min="1" max="31" placeholder="15"></label>
                 <label>Kdo řeší<select id="instAssignedTo"><option value="both">Oba</option><option value="me">Já</option><option value="partner">Partner</option></select></label>
                 <label class="check-label"><input id="instShared" type="checkbox" checked> Sdílet v rodině</label>
                 <label class="wide">Poznámka<input id="instNote" placeholder="Číslo smlouvy, úrok, poznámka…"></label>
