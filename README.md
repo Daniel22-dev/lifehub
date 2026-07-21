@@ -1,16 +1,15 @@
-# LifeHub 5.0.0
+# LifeHub 5.0.1
 
 Lokální šifrované osobní centrum pro poznámky, finance, dokumenty, úkoly, domácnost, zahradu, pracovní výkazy a větší projekty domu.
 
-## Novinky 5.0.0
+## Novinky 5.0.1
 
-- nová záložka **Projekty domu** pro bazén, přístřešek, koupelnu, dlažbu a další rozsáhlejší záměry,
-- projektové zadání, požadavky, stav, priorita, termíny a tagy,
-- položkový rozpočet s plánem, skutečností, dodavateli, nabídkami a odkazy,
-- projektové poznámky a odkazy na ChatGPT, Claude, Gemini, weby a dodavatele,
-- šifrované obrázky, PDF, dokumenty, tabulky a vlastní kreslené náčrty,
-- export celého projektu do Markdownu a rozpočtu do CSV,
-- projektové soubory jsou součástí úplné kontroly kompletní šifrované zálohy.
+- ve **Velkých nákupech** lze zaškrtnout libovolnou kombinaci aktivních i odložených položek,
+- společná cena se přepočítává okamžitě a výběr zůstává zachován při změně filtrů,
+- souhrn upozorní na vybrané položky bez zadané ceny,
+- právě zobrazené položky lze označit hromadně a celý výběr jedním tlačítkem vyčistit,
+- kalkulačka je dočasná a po zamknutí aplikace se z bezpečnostních důvodů vymaže,
+- projektové centrum domu, šifrované přílohy a všechny funkce verze 5.0.0 zůstávají zachovány.
 
 ## Kontrola před vydáním
 

@@ -150,6 +150,8 @@ export function bootLifeHub(){
     let lastActivityAt = Date.now();
     let selectedAppId = null;
     let selectedProjectId = null;
+    const selectedShoppingIds = new Set();
+    let visibleShoppingComboIds = [];
     const projectAttachmentUrlCache = new Map();
     let projectSketchDrawing = false;
     let projectSketchLastPoint = null;
@@ -537,6 +539,8 @@ export function bootLifeHub(){
       ['taskSearch','taskStatusFilter','taskAreaFilter','taskSort'].forEach(id=>$('#'+id).addEventListener('input',renderTasks));
       $('#shoppingForm').addEventListener('submit',saveShopping);
       $('#resetShop').addEventListener('click',resetShoppingForm);
+      $('#shopSelectVisible')?.addEventListener('click',selectVisibleShoppingForCombo);
+      $('#shopClearSelection')?.addEventListener('click',clearShoppingComboSelection);
       ['shopSearch','shopPriorityFilter','shopStatusFilter','shopSort','shoppingYear'].forEach(id=>$('#'+id).addEventListener('input',renderShopping));
       $('#appForm')?.addEventListener('submit',saveApp);
       $('#resetApp')?.addEventListener('click',resetAppForm);
@@ -689,6 +693,8 @@ export function bootLifeHub(){
       const editShop = e.target.closest('[data-edit-shop]')?.dataset.editShop;
       const delShop = e.target.closest('[data-delete-shop]')?.dataset.deleteShop;
       const shopStatusButton = e.target.closest('[data-shop-status]');
+      const shopComboToggle = e.target.closest('[data-shop-combo]');
+      const shopComboRemove = e.target.closest('[data-remove-shop-combo]')?.dataset.removeShopCombo;
       const viewNote = e.target.closest('[data-view-note]')?.dataset.viewNote;
       const openApp = e.target.closest('[data-open-app]')?.dataset.openApp;
       const editApp = e.target.closest('[data-edit-app]')?.dataset.editApp;
@@ -740,6 +746,8 @@ export function bootLifeHub(){
       if(delDoc) deleteVaultDoc(delDoc); if(downDoc) downloadVaultDoc(downDoc);
       if(editTask) editTaskForm(editTask); if(delTask) deleteItem('tasks',delTask); if(toggleTask) toggleTaskDone(toggleTask);
       if(editShop) editShoppingForm(editShop); if(delShop) deleteItem('shopping',delShop); if(shopStatusButton) setShoppingStatus(shopStatusButton.dataset.shopId,shopStatusButton.dataset.shopStatus);
+      if(shopComboToggle) setShoppingComboSelection(shopComboToggle.dataset.shopCombo, shopComboToggle.checked);
+      if(shopComboRemove) setShoppingComboSelection(shopComboRemove, false);
       if(openApp) openApp1(openApp); if(editApp) editApp1(editApp); if(delApp) deleteApp(delApp); if(delAppNote) deleteAppNote(delAppNote);
       if(openProject) openProjectDetail(openProject); if(editProject) editProjectForm(editProject); if(delProject) deleteProject(delProject);
       if(editProjectNote) editProjectNoteForm(editProjectNote); if(delProjectNote) deleteProjectNestedItem('notes',delProjectNote);
@@ -1189,6 +1197,8 @@ export function bootLifeHub(){
       const photoGrid = $('#groceryPhotoGrid'); if(photoGrid) photoGrid.innerHTML='';
       const photoInput = $('#groceryPhotoInput'); if(photoInput) photoInput.value='';
       selectedAppId = null;
+      selectedShoppingIds.clear();
+      visibleShoppingComboIds = [];
       const preview = $('#markdownPreview'); if(preview) preview.textContent = '';
       const search = $('#globalSearch'); if(search) search.value = '';
       const results = $('#globalResults'); if(results) results.innerHTML = '';
@@ -2468,6 +2478,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       const sortFn=(a,b)=> sort==='priority'?(order[a.priority]??9)-(order[b.priority]??9): sort==='month'?String(a.month||'9999').localeCompare(String(b.month||'9999')): sort==='price'?number(b.price)-number(a.price):new Date(b.createdAt)-new Date(a.createdAt);
       const statusMatch=s=>stat==='all'||(stat==='open'?s.status==='planned':s.status===stat);
       const arr=state.shopping.filter(s=>statusMatch(s)&&matches(s)).sort(sortFn);
+      visibleShoppingComboIds=arr.filter(s=>s.status!=='bought').map(s=>s.id);
       const list=$('#shoppingList'); if(list) list.innerHTML=arr.map(s=>shoppingCard(s)).join('') || empty('Žádné velké nákupy pro aktuální filtr.');
 
       const useArchives=stat==='open'&&!q;
@@ -2479,13 +2490,72 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       const boughtArchive=$('#shoppingBoughtArchive'); if(boughtArchive) boughtArchive.hidden=!(useArchives&&bought.length);
       const boughtCount=$('#shoppingBoughtCount'); if(boughtCount) boughtCount.textContent=String(bought.length);
       const boughtList=$('#shoppingBoughtList'); if(boughtList) boughtList.innerHTML=bought.map(s=>shoppingCard(s,true)).join('')||empty('Žádné koupené položky.');
+      renderShoppingCombo();
     }
     function shoppingCard(s,archived=false){
       const restore=archived?`<button class="mini-btn" data-shop-id="${attr(s.id)}" data-shop-status="planned" type="button">Vrátit do plánu</button>`:'';
-      return `<article class="item ${archived?'archive-item':''}"><div class="item-top"><div><h4>${esc(s.name)}</h4><p><strong>${fmt(s.price)}</strong> • ${shopPriorityLabel(s.priority)} • ${esc(s.month?monthLabel(s.month):'bez měsíce')}</p>${s.note?`<p>${esc(s.note)}</p>`:''}<div class="meta">${s.store?`<span class="tag">🏬 ${esc(s.store)}</span>`:''}<span class="priority ${s.priority==='urgent'?'high':s.priority==='soon'?'mid':'low'}">${shopPriorityLabel(s.priority)}</span><span class="tag">${shopStatusLabel(s.status)}</span>${s.category?`<span class="tag">${esc(s.category)}</span>`:''}${s.url?`<a class="tag" href="${attr(safeUrl(s.url))}" target="_blank" rel="noopener">odkaz ↗</a>`:''}</div></div><div class="actions">${restore}<button class="mini-btn" data-edit-shop="${attr(s.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-shop="${attr(s.id)}" type="button">Smazat</button></div></div></article>`;
+      const selectable=s.status!=='bought';
+      const selector=selectable?`<label class="shopping-combo-check"><input type="checkbox" data-shop-combo="${attr(s.id)}" ${selectedShoppingIds.has(s.id)?'checked':''}><span>Do kombinace</span></label>`:'';
+      return `<article class="item shopping-item ${archived?'archive-item':''} ${selectedShoppingIds.has(s.id)?'shopping-item-selected':''}"><div class="item-top"><div class="shopping-item-main">${selector}<div><h4>${esc(s.name)}</h4><p><strong>${fmt(s.price)}</strong> • ${shopPriorityLabel(s.priority)} • ${esc(s.month?monthLabel(s.month):'bez měsíce')}</p>${s.note?`<p>${esc(s.note)}</p>`:''}<div class="meta">${s.store?`<span class="tag">🏬 ${esc(s.store)}</span>`:''}<span class="priority ${s.priority==='urgent'?'high':s.priority==='soon'?'mid':'low'}">${shopPriorityLabel(s.priority)}</span><span class="tag">${shopStatusLabel(s.status)}</span>${s.category?`<span class="tag">${esc(s.category)}</span>`:''}${s.url?`<a class="tag" href="${attr(safeUrl(s.url))}" target="_blank" rel="noopener">odkaz ↗</a>`:''}</div></div></div><div class="actions">${restore}<button class="mini-btn" data-edit-shop="${attr(s.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-shop="${attr(s.id)}" type="button">Smazat</button></div></div></article>`;
+    }
+    function shoppingComboItems(){
+      const valid=[];
+      for(const id of [...selectedShoppingIds]){
+        const item=state.shopping.find(s=>s.id===id && s.status!=='bought');
+        if(item) valid.push(item); else selectedShoppingIds.delete(id);
+      }
+      return valid;
+    }
+    function shoppingCountLabel(count){
+      const lastTwo=count%100, last=count%10;
+      if(lastTwo>=11&&lastTwo<=14) return `${count} položek`;
+      if(last===1) return `${count} položka`;
+      if(last>=2&&last<=4) return `${count} položky`;
+      return `${count} položek`;
+    }
+    function renderShoppingCombo(){
+      const items=shoppingComboItems();
+      const total=items.reduce((sum,item)=>sum+number(item.price),0);
+      const missing=items.filter(item=>!number(item.price)).length;
+      const totalEl=$('#shopComboTotal'); if(totalEl) totalEl.textContent=fmt(total);
+      const summary=$('#shopComboSummary');
+      if(summary){
+        summary.textContent=items.length
+          ? `Vybráno: ${shoppingCountLabel(items.length)}${missing?` • ${shoppingCountLabel(missing)} bez zadané ceny není započítáno`:''}.`
+          : 'Zaškrtněte položky, které chcete koupit společně.';
+      }
+      const list=$('#shopComboItems');
+      if(list){
+        list.innerHTML=items.map(item=>`<button class="shopping-combo-chip" data-remove-shop-combo="${attr(item.id)}" type="button" aria-label="Odebrat ${attr(item.name)} z kombinace"><span>${esc(item.name)}</span><strong>${fmt(item.price)}</strong><b aria-hidden="true">×</b></button>`).join('');
+      }
+      const clear=$('#shopClearSelection'); if(clear) clear.disabled=!items.length;
+      const selectVisible=$('#shopSelectVisible');
+      if(selectVisible){
+        const selectable=visibleShoppingComboIds.filter(id=>!selectedShoppingIds.has(id));
+        selectVisible.disabled=!selectable.length;
+        selectVisible.textContent=selectable.length?'Vybrat zobrazené':'Zobrazené vybrány';
+      }
+    }
+    function setShoppingComboSelection(id,selected){
+      const item=state.shopping.find(s=>s.id===id && s.status!=='bought');
+      if(selected && item) selectedShoppingIds.add(id); else selectedShoppingIds.delete(id);
+      renderShoppingList();
+    }
+    function selectVisibleShoppingForCombo(){
+      let added=0;
+      visibleShoppingComboIds.forEach(id=>{ if(!selectedShoppingIds.has(id)){ selectedShoppingIds.add(id); added++; } });
+      renderShoppingList();
+      if(added) toast(added===1?'Do kombinace přidána 1 zobrazená položka.':`Do kombinace přidány ${shoppingCountLabel(added)}.`);
+    }
+    function clearShoppingComboSelection(){
+      if(!selectedShoppingIds.size) return;
+      selectedShoppingIds.clear();
+      renderShoppingList();
+      toast('Výběr kombinace byl zrušen.');
     }
     function setShoppingStatus(id,status){
       const item=state.shopping.find(s=>s.id===id); if(!item||!['planned','paused','bought'].includes(status)) return;
+      if(status==='bought') selectedShoppingIds.delete(id);
       item.status=status; item.updatedAt=new Date().toISOString(); save();
       toast(status==='planned'?'Položka vrácena mezi aktivní plány.':status==='bought'?'Položka označena jako koupená.':'Položka odložena.');
     }
@@ -3191,6 +3261,7 @@ Poslední pojistka: pro potvrzení importu napiš ${word}.`,
     function saveSettings(e){e.preventDefault(); state.settings.greetName=$('#greetName').value.trim(); state.settings.familyDisplayName=$('#familyDisplayName')?.value.trim()||''; state.settings.deviceName=$('#deviceName').value.trim(); state.settings.ownerName=$('#ownerName').value.trim(); state.settings.ownerFooter=$('#ownerFooter').value.trim(); state.settings.currency=sanitizeCurrency($('#currency').value); state.settings.savingGoal=number($('#savingGoal').value); state.settings.privateNotifications=$('#privateNotifications')?.checked!==false; state.settings.familySettingsUpdatedAt=new Date().toISOString(); save(); toast('Nastavení uloženo.');}
     // Krátký changelog (nejnovější nahoře, drž ~5 položek). Zobrazí se klepnutím na verzi v patičce.
     const CHANGELOG = [
+      'v5.0.1 · Velké nákupy mají kalkulačku kombinace. Libovolné aktivní nebo odložené položky lze zaškrtnout, okamžitě se zobrazí jejich společná cena, počet vybraných věcí a upozornění na položky bez ceny. Výběr lze doplňovat napříč filtry, hromadně označit právě zobrazené položky a jedním tlačítkem vyčistit.',
       'v5.0.0 · Nová záložka Projekty domu: samostatné projektové karty, stav a termíny, cílový i položkový rozpočet, materiály, nabídky, poznámky, odkazy na ChatGPT a Claude, šifrované obrázky, PDF a tabulky, vlastní kreslené náčrty a export projektu do Markdownu či CSV. Projektové přílohy jsou součástí kompletní šifrované zálohy.',
       'v4.9.1 · Splátkový kalendář se po nastaveném dni automaticky aktualizuje, sníží dluh i počet plateb a vytvoří propojený finanční výdaj bez duplicit.',
       'v4.8.6 · Opravena kritická migrace starších nešifrovaných dat: při chybě se migrace bezpečně zastaví a původní data zůstanou beze změny. Vlastní trezor už neblokuje limit určený pro cizí importy. Měsíční výkaz funguje pod přísnou CSP, mzda se započítává jen z čisté částky nebo částky na účet a offline režim lépe zvládá chybějící soubory i pomalou síť.',

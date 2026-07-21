@@ -1,3 +1,13 @@
+## 5.0.1
+
+- Do sekce **Velké nákupy** byla přidána kalkulačka kombinace.
+- Aktivní i odložené položky lze jednotlivě zaškrtávat a okamžitě vidět jejich společnou cenu.
+- Výběr zůstává zachován při vyhledávání, filtrování a změně řazení, takže lze skládat kombinace napříč kategoriemi.
+- Tlačítko **Vybrat zobrazené** přidá všechny aktuálně zobrazené nekoupené položky.
+- Vybrané položky lze odebrat přímo ze souhrnu nebo celý výběr jedním tlačítkem zrušit.
+- Položky bez ceny zůstávají ve výběru, ale LifeHub výslovně upozorní, že nejsou započítány do součtu.
+- Kalkulačka nemění uložená data a při zamknutí či novém načtení aplikace se vyčistí.
+
 ## 5.0.0
 
 - Přidána záložka **Projekty domu** pro rozsáhlejší rekonstrukce a investice.

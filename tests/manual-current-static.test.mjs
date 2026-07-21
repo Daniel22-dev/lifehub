@@ -4,9 +4,12 @@ import fs from 'node:fs';
 
 const manual = fs.readFileSync(new URL('../public/manual.html', import.meta.url), 'utf8');
 
-test('interaktivní manuál odpovídá funkcím LifeHubu 5.0.0', () => {
+test('interaktivní manuál odpovídá funkcím LifeHubu 5.0.1', () => {
   for (const text of [
-    'LifeHub 5.0.0',
+    'LifeHub 5.0.1',
+    'Kalkulačka kombinace',
+    'Do kombinace',
+    'Součet vybraných položek',
     'Projekty domu',
     'GPT / Claude vlákna',
     'kreslené náčrty',
