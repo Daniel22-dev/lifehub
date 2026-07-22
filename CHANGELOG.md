@@ -1,3 +1,10 @@
+## 5.0.7
+
+- Opravena chybějící evidence uhrazených položek z modulu **Účty a závazky** v rozpisu **Už utraceno**.
+- Při odemčení aplikace se z historie úhrad bezpečně doplní chybějící propojené finanční transakce bez vytváření duplicit.
+- U starších jednorázových závazků označených jako zaplacené se doplní historie úhrady podle posledního data úhrady, případně podle data splatnosti, pokud jiné datum není k dispozici.
+- Ručně odpojený výdaj zůstane odpojený a při další aktualizaci se znovu nevytvoří.
+
 ## 5.0.6
 
 - Karta **Už utraceno** na Přehledu je klikací a zobrazuje úplný seznam položek započtených do aktuálního měsíce.

@@ -808,7 +808,7 @@ export function bootLifeHub(){
       if(paymentLinked){
         const payment=state.householdPayments.find(p=>p.id===transaction.paymentId);
         const historyEntry=payment?.paymentHistory?.find(h=>h.id===transaction.paymentHistoryId||h.transactionId===id);
-        if(historyEntry) delete historyEntry.transactionId;
+        if(historyEntry){ delete historyEntry.transactionId; historyEntry.financeDetached=true; }
       }
       if(installmentLinked){
         const installment=state.installments.find(item=>item.id===transaction.installmentId);
@@ -1029,6 +1029,7 @@ export function bootLifeHub(){
       hydrateSettings();
       const migratedGroceries = migrateLegacyGroceries();
       const automaticPaymentsAdvanced = reconcileAutomaticHouseholdPayments();
+      const paymentTransactionsReconciled = reconcileHouseholdPaymentTransactions();
       const payrollTransactionsReconciled = reconcilePayrollTransactions();
       const installmentTransactionsCreated = reconcileInstallmentTransactions();
       const automaticInstallmentsAdvanced = reconcileAutomaticInstallmentPayments();
@@ -1039,9 +1040,10 @@ export function bootLifeHub(){
       saveLifecycle.reset();
       saveLifecycle.lastSavedAt = state.updatedAt || '';
       updateSaveUi();
-      if(migratedGroceries || automaticPaymentsAdvanced || payrollTransactionsReconciled.changed || installmentTransactionsCreated || automaticInstallmentsAdvanced.payments) save(false);
+      if(migratedGroceries || automaticPaymentsAdvanced || paymentTransactionsReconciled.changed || payrollTransactionsReconciled.changed || installmentTransactionsCreated || automaticInstallmentsAdvanced.payments) save(false);
       if(migratedGroceries) toast(`${migratedGroceries} položek potravin bylo přesunuto do nové záložky Nákupní seznam.`);
       if(automaticPaymentsAdvanced) toast(`Automatické platby byly posunuty podle termínů (${automaticPaymentsAdvanced}).`,'good');
+      if(paymentTransactionsReconciled.created) toast(`Do financí bylo doplněno ${paymentTransactionsReconciled.created} dříve uhrazených účtů nebo závazků.`,'good');
       if(payrollTransactionsReconciled.created) toast(`Do financí byla doplněna chybějící výplata (${payrollTransactionsReconciled.created}).`,'good');
       if(payrollTransactionsReconciled.removedGrossFallbacks) toast(`Z financí bylo odstraněno ${payrollTransactionsReconciled.removedGrossFallbacks} chybně vytvořených příjmů z hrubé mzdy. Doplňte u těchto pásek čistou mzdu nebo částku na účet.`,'warn');
       if(installmentTransactionsCreated) toast(`Do financí bylo doplněno ${installmentTransactionsCreated} dříve zaznamenaných splátek.`,'good');
@@ -3041,7 +3043,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         id:safeId(i?.id,'inst'), creditor:textLimit(i?.creditor,160), total:Math.max(0,number(i?.total)), monthly:Math.max(0,number(i?.monthly)), startMonth:textLimit(i?.startMonth,7), paid:Math.max(0,number(i?.paid)), dueDay:Math.min(31,Math.max(0,Math.round(number(i?.dueDay)))), autoPaidBaseline:i?.autoPaidBaseline===null||i?.autoPaidBaseline===undefined||i?.autoPaidBaseline===''?null:Math.max(0,number(i?.autoPaidBaseline)), autoExtraBaseline:Math.max(0,number(i?.autoExtraBaseline)), note:textLimit(i?.note,1000), assignedTo:['me','partner','both'].includes(i?.assignedTo)?i.assignedTo:'both', shared:i?.shared!==false, paymentHistory:asArray(i?.paymentHistory,5000).map(h=>({id:safeId(h?.id,'ipay'),date:textLimit(h?.date,10),amount:Math.max(0,number(h?.amount)),type:['regular','extra','correction'].includes(h?.type)?h.type:'regular',automatic:h?.automatic===true,transactionId:textLimit(h?.transactionId,100),financeDetached:h?.financeDetached===true,createdAt:textLimit(h?.createdAt,40)||new Date().toISOString()})).filter(h=>/^\d{4}-\d{2}-\d{2}$/.test(h.date)), createdAt:textLimit(i?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(i?.updatedAt,40)||new Date().toISOString()
       })).filter(i=>i.creditor);
       clean.householdPayments = asArray(data.householdPayments,5000).map(p=>({
-        id:safeId(p?.id,'pay'), title:textLimit(p?.title,180), category:textLimit(p?.category,80), amount:Math.max(0,number(p?.amount)), frequency:['once','monthly','quarterly','yearly'].includes(p?.frequency)?p.frequency:'once', dueDate:textLimit(p?.dueDate,10), assignedTo:['me','partner','both'].includes(p?.assignedTo)?p.assignedTo:'both', automatic:p?.automatic===true, trackFinance:p?.trackFinance!==false, status:p?.status==='paid'?'paid':'pending', lastPaidAt:textLimit(p?.lastPaidAt,10), note:textLimit(p?.note,1000), shared:p?.shared!==false, paymentHistory:asArray(p?.paymentHistory,5000).map(h=>({id:safeId(h?.id,'hpay'),date:textLimit(h?.date,10),amount:Math.max(0,number(h?.amount)),automatic:h?.automatic===true,transactionId:textLimit(h?.transactionId,100),createdAt:textLimit(h?.createdAt,40)||new Date().toISOString()})).filter(h=>/^\d{4}-\d{2}-\d{2}$/.test(h.date)), createdAt:textLimit(p?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(p?.updatedAt,40)||new Date().toISOString()
+        id:safeId(p?.id,'pay'), title:textLimit(p?.title,180), category:textLimit(p?.category,80), amount:Math.max(0,number(p?.amount)), frequency:['once','monthly','quarterly','yearly'].includes(p?.frequency)?p.frequency:'once', dueDate:textLimit(p?.dueDate,10), assignedTo:['me','partner','both'].includes(p?.assignedTo)?p.assignedTo:'both', automatic:p?.automatic===true, trackFinance:p?.trackFinance!==false, status:p?.status==='paid'?'paid':'pending', lastPaidAt:textLimit(p?.lastPaidAt,10), note:textLimit(p?.note,1000), shared:p?.shared!==false, paymentHistory:asArray(p?.paymentHistory,5000).map(h=>({id:safeId(h?.id,'hpay'),date:textLimit(h?.date,10),amount:Math.max(0,number(h?.amount)),automatic:h?.automatic===true,transactionId:textLimit(h?.transactionId,100),financeDetached:h?.financeDetached===true,createdAt:textLimit(h?.createdAt,40)||new Date().toISOString()})).filter(h=>/^\d{4}-\d{2}-\d{2}$/.test(h.date)), createdAt:textLimit(p?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(p?.updatedAt,40)||new Date().toISOString()
       })).filter(p=>p.title&&/^\d{4}-\d{2}-\d{2}$/.test(p.dueDate));
       clean.budgetEntries = asArray(data.budgetEntries,20000).map(b=>({
         id:safeId(b?.id,'budget'), date:textLimit(b?.date,10), kind:b?.kind==='fuel'?'fuel':'food', amount:Math.max(0,number(b?.amount)), note:textLimit(b?.note,300), shared:b?.shared!==false, createdAt:textLimit(b?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(b?.updatedAt,40)||new Date().toISOString()
@@ -3504,6 +3506,7 @@ Poslední pojistka: pro potvrzení importu napiš ${word}.`,
     function saveSettings(e){e.preventDefault(); state.settings.greetName=$('#greetName').value.trim(); state.settings.familyDisplayName=$('#familyDisplayName')?.value.trim()||''; state.settings.deviceName=$('#deviceName').value.trim(); state.settings.ownerName=$('#ownerName').value.trim(); state.settings.ownerFooter=$('#ownerFooter').value.trim(); state.settings.currency=sanitizeCurrency($('#currency').value); state.settings.savingGoal=number($('#savingGoal').value); state.settings.privateNotifications=$('#privateNotifications')?.checked!==false; state.settings.familySettingsUpdatedAt=new Date().toISOString(); save(); toast('Nastavení uloženo.');}
     // Krátký changelog (nejnovější nahoře, drž ~5 položek). Zobrazí se klepnutím na verzi v patičce.
     const CHANGELOG = [
+      'v5.0.7 · Opravena chybějící položková evidence Účtů a závazků v kartě Už utraceno. LifeHub při odemčení bezpečně doplní chybějící finanční záznamy z historie úhrad a také opraví starší jednorázové zaplacené závazky.',
       'v5.0.6 · Karta Už utraceno na Přehledu je klikací a zobrazí úplný rozpis měsíčních výdajů včetně účtů, splátek, Velkých nákupů, zahrady, servisu, ručních výdajů a jídla s benzínem. Příjmy jsou zelené, výdaje červené.',
       'v5.0.4 · Zahradní nákupy fungují stejně jako Velké nákupy: po zaškrtnutí je vidět fajfka, položka se přesune do archivu Pořízeno a cena se zapíše do výdajů daného měsíce. Do financí se nově automaticky propisují také ceny zahradní údržby a domácího servisu.',
       'v5.0.3 · Po označení velkého nákupu jako koupeného zůstane položka krátce na místě: políčko zobrazí fajfku, karta zezelená a teprve potom se přesune mezi koupené. Finanční výdaj se přitom uloží okamžitě.',
@@ -3927,9 +3930,12 @@ Co chceš udělat teď?`,
       return `${payment.title}${payment.frequency!=='once'?` • ${paymentFrequencyLabel(payment.frequency)}`:''}`;
     }
     function upsertPaymentTransaction(payment,historyEntry){
-      if(!historyEntry || !(number(historyEntry.amount)>0)) return '';
+      if(!historyEntry || historyEntry.financeDetached===true || !(number(historyEntry.amount)>0)) return '';
       let transaction=state.transactions.find(t=>t.id===historyEntry.transactionId) || state.transactions.find(t=>t.source==='payment'&&t.paymentHistoryId===historyEntry.id);
-      if(!payment?.trackFinance && !transaction) return '';
+      if(!transaction){
+        transaction=state.transactions.find(t=>t.source==='payment'&&t.paymentId===payment?.id&&t.date===historyEntry.date&&Math.abs(number(t.amount)-number(historyEntry.amount))<0.01);
+      }
+      if(payment?.trackFinance===false && !transaction) return '';
       const values={
         date:historyEntry.date,kind:'expense',category:payment.category||'účty a závazky',amount:Math.max(0,number(historyEntry.amount)),
         description:paymentTransactionDescription(payment),source:'payment',paymentId:payment.id,paymentHistoryId:historyEntry.id,
@@ -3950,9 +3956,39 @@ Co chceš udělat teď?`,
     }
     function refreshLinkedPaymentTransactions(payment){
       for(const historyEntry of payment.paymentHistory||[]){
+        if(historyEntry.financeDetached===true) continue;
         const linked=historyEntry.transactionId && state.transactions.some(t=>t.id===historyEntry.transactionId);
         if(linked) upsertPaymentTransaction(payment,historyEntry);
       }
+    }
+    function reconcileHouseholdPaymentTransactions(){
+      let created=0, backfilledHistory=0, updated=0;
+      for(const payment of state.householdPayments){
+        payment.paymentHistory=Array.isArray(payment.paymentHistory)?payment.paymentHistory:[];
+        const legacyPaidDate=/^\d{4}-\d{2}-\d{2}$/.test(String(payment.lastPaidAt||''))
+          ? String(payment.lastPaidAt)
+          : payment.status==='paid'&&/^\d{4}-\d{2}-\d{2}$/.test(String(payment.dueDate||''))
+            ? String(payment.dueDate)
+            : '';
+        if(payment.trackFinance!==false && legacyPaidDate && number(payment.amount)>0){
+          const hasHistory=payment.paymentHistory.some(entry=>entry.date===legacyPaidDate&&Math.abs(number(entry.amount)-number(payment.amount))<0.01);
+          if(!hasHistory){
+            payment.paymentHistory.unshift({id:uid('hpay'),date:legacyPaidDate,amount:Math.max(0,number(payment.amount)),automatic:payment.automatic===true,createdAt:payment.updatedAt||payment.createdAt||new Date().toISOString()});
+            backfilledHistory++;
+          }
+        }
+        for(const historyEntry of payment.paymentHistory){
+          if(payment.trackFinance===false || historyEntry.financeDetached===true || !(number(historyEntry.amount)>0)) continue;
+          const existing=state.transactions.find(t=>t.id===historyEntry.transactionId)
+            || state.transactions.find(t=>t.source==='payment'&&t.paymentHistoryId===historyEntry.id)
+            || state.transactions.find(t=>t.source==='payment'&&t.paymentId===payment.id&&t.date===historyEntry.date&&Math.abs(number(t.amount)-number(historyEntry.amount))<0.01);
+          const before=existing?JSON.stringify([existing.date,existing.amount,existing.category,existing.description,existing.paymentId,existing.paymentHistoryId]):'';
+          upsertPaymentTransaction(payment,historyEntry);
+          if(!existing) created++;
+          else if(before!==JSON.stringify([existing.date,existing.amount,existing.category,existing.description,existing.paymentId,existing.paymentHistoryId])) updated++;
+        }
+      }
+      return {created,backfilledHistory,updated,changed:created>0||backfilledHistory>0||updated>0};
     }
     function saveHouseholdPayment(e){
       e.preventDefault();
