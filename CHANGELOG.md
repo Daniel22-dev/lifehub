@@ -1,3 +1,12 @@
+## 5.0.2
+
+- Ve Velkých nákupech je u každé položky přímé zaškrtnutí „Označit jako koupené“.
+- Při označení se použije aktuální datum a cena položky se automaticky vytvoří jako propojený výdaj v Příjmech a výdajích.
+- Úprava názvu, ceny nebo kategorie koupeného nákupu aktualizuje i propojený výdaj.
+- Vrácení položky do plánu odstraní automaticky vytvořený výdaj.
+- Výdaj lze ve financích odpojit bez změny stavu nákupu.
+- Koupené nákupy se v ročním přehledu řadí podle skutečného data nákupu.
+
 ## 5.0.1
 
 - Do sekce **Velké nákupy** byla přidána kalkulačka kombinace.

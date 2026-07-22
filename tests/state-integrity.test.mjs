@@ -5,7 +5,7 @@ import { ensureUniqueIds, migrateStateSchema } from '../src/core/state-integrity
 test('migrace doplní aktuální schemaVersion bez změny vstupu', () => {
   const original={schemaVersion:2,notes:[{id:'a'}]};
   const migrated=migrateStateSchema(original);
-  assert.equal(migrated.schemaVersion,10);
+  assert.equal(migrated.schemaVersion,11);
   assert.equal(original.schemaVersion,2);
 });
 
@@ -38,7 +38,7 @@ test('migrace převádí stará odměnová období a zapíná propojení plateb'
   assert.equal(out.rewards[0].period,'2026-2027-A');
   assert.equal(out.rewards[1].period,'2025-2026-B');
   assert.equal(out.householdPayments[0].trackFinance,true);
-  assert.equal(out.schemaVersion,10);
+  assert.equal(out.schemaVersion,11);
 });
 
 
@@ -48,14 +48,14 @@ test('migrace doplní nové servisní a elektro kolekce a cenu zahradní údržb
   assert.deepEqual(out.electricalNotes,[]);
   assert.deepEqual(out.maintenanceLogs,[]);
   assert.equal(out.gardenLogs[0].price,0);
-  assert.equal(out.schemaVersion,10);
+  assert.equal(out.schemaVersion,11);
 });
 
 
 test('migrace doplní projekty domu a vnořené kolekce', () => {
   const input={schemaVersion:9,projects:[{id:'p1',title:'Bazén'}]};
   const out=migrateStateSchema(input);
-  assert.equal(out.schemaVersion,10);
+  assert.equal(out.schemaVersion,11);
   assert.deepEqual(out.projects[0].notes,[]);
   assert.deepEqual(out.projects[0].links,[]);
   assert.deepEqual(out.projects[0].costs,[]);
@@ -68,4 +68,14 @@ test('duplicitní ID uvnitř projektu se nahradí', () => {
   ensureUniqueIds(state,prefix=>`${prefix}_${++seq}`);
   assert.equal(new Set(state.projects[0].notes.map(item=>item.id)).size,2);
   assert.equal(new Set(state.projects[0].attachments.map(item=>item.id)).size,2);
+});
+
+
+test('migrace doplní vazbu velkých nákupů na finance', () => {
+  const input={schemaVersion:10,shopping:[{id:'s1',name:'Sekačka',status:'planned'}]};
+  const out=migrateStateSchema(input);
+  assert.equal(out.schemaVersion,11);
+  assert.equal(out.shopping[0].purchaseDate,'');
+  assert.equal(out.shopping[0].transactionId,'');
+  assert.equal(out.shopping[0].financeDetached,false);
 });

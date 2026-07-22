@@ -108,7 +108,7 @@ export function bootLifeHub(){
     const VERSION = APP_VERSION;
     const SHORT_VERSION = String(VERSION).split('-')[0]; // např. "3.1.8" – nadpis, titulek, zámek
     const FORBIDDEN_IMPORT_KEYS = new Set(['__proto__','constructor','prototype']);
-    const STATE_SCHEMA_VERSION = 10;
+    const STATE_SCHEMA_VERSION = 11;
     const BIOMETRIC_META_KEY = 'biometricUnlock';
     const VENDOR_BASE_URL = new URL('vendor/', PUBLIC_BASE_URL);
     const PDF_JS_LOCAL = new URL('pdf.min.mjs', VENDOR_BASE_URL).href;
@@ -610,6 +610,7 @@ export function bootLifeHub(){
       $('#rewardHtmlBtn')?.addEventListener('click',downloadRewardReportHtml);
       $('#fab')?.addEventListener('click',handleFabClick);
       document.addEventListener('click',handleInfoAndAddCards,true);
+      document.addEventListener('change',event=>{ const input=event.target.closest?.('[data-toggle-shop-bought]'); if(input) toggleShoppingBought(input.dataset.toggleShopBought,input.checked); });
       $('#settingsForm').addEventListener('submit',saveSettings);
       $('#setFamilyPasswordBtn')?.addEventListener('click',setFamilyPassword);
       $('#removeFamilyPasswordBtn')?.addEventListener('click',removeFamilyPassword);
@@ -745,7 +746,7 @@ export function bootLifeHub(){
       if(delPayroll) deletePayroll(delPayroll); if(downPayroll) downloadPayrollPdf(downPayroll); if(purgePayroll) purgePayrollPdf(purgePayroll);
       if(delDoc) deleteVaultDoc(delDoc); if(downDoc) downloadVaultDoc(downDoc);
       if(editTask) editTaskForm(editTask); if(delTask) deleteItem('tasks',delTask); if(toggleTask) toggleTaskDone(toggleTask);
-      if(editShop) editShoppingForm(editShop); if(delShop) deleteItem('shopping',delShop); if(shopStatusButton) setShoppingStatus(shopStatusButton.dataset.shopId,shopStatusButton.dataset.shopStatus);
+      if(editShop) editShoppingForm(editShop); if(delShop) deleteShopping(delShop); if(shopStatusButton) setShoppingStatus(shopStatusButton.dataset.shopId,shopStatusButton.dataset.shopStatus);
       if(shopComboToggle) setShoppingComboSelection(shopComboToggle.dataset.shopCombo, shopComboToggle.checked);
       if(shopComboRemove) setShoppingComboSelection(shopComboRemove, false);
       if(openApp) openApp1(openApp); if(editApp) editApp1(editApp); if(delApp) deleteApp(delApp); if(delAppNote) deleteAppNote(delAppNote);
@@ -776,12 +777,15 @@ export function bootLifeHub(){
       if(!transaction) return;
       const paymentLinked=transaction.source==='payment'&&transaction.paymentId;
       const installmentLinked=transaction.source==='installment'&&transaction.installmentId;
-      const linked=paymentLinked||installmentLinked;
+      const shoppingLinked=transaction.source==='shopping'&&transaction.shoppingId;
+      const linked=paymentLinked||installmentLinked||shoppingLinked;
       const message=paymentLinked
         ? 'Odpojit tento výdaj od uhrazeného účtu? Historie úhrady v Účtech a závazcích zůstane zachována, ale částka už nebude součástí finanční bilance.'
         : installmentLinked
           ? 'Odpojit tento výdaj od zaznamenané splátky? Historie ve Splátkovém kalendáři zůstane zachována, ale částka už nebude součástí finanční bilance.'
-          : 'Opravdu smazat tuto transakci?';
+          : shoppingLinked
+            ? 'Odpojit tento výdaj od koupené položky ve Velkých nákupech? Položka zůstane označena jako koupená, ale částka už nebude součástí finanční bilance.'
+            : 'Opravdu smazat tuto transakci?';
       if(!await confirmDialog(message,{title:linked?'Odpojit finanční výdaj':'Smazat transakci',confirmText:linked?'Odpojit':'Smazat',danger:true})) return;
       if(paymentLinked){
         const payment=state.householdPayments.find(p=>p.id===transaction.paymentId);
@@ -793,9 +797,16 @@ export function bootLifeHub(){
         const historyEntry=installment?.paymentHistory?.find(h=>h.id===transaction.installmentHistoryId||h.transactionId===id);
         if(historyEntry){ delete historyEntry.transactionId; historyEntry.financeDetached=true; }
       }
+      if(shoppingLinked){
+        const shoppingItem=state.shopping.find(item=>item.id===transaction.shoppingId);
+        if(shoppingItem){ shoppingItem.transactionId=''; shoppingItem.financeDetached=true; shoppingItem.updatedAt=new Date().toISOString(); }
+      }
       state.transactions=state.transactions.filter(t=>t.id!==id);
       save();
-      toast(linked?'Výdaj byl odpojen; úhrada zůstala v příslušné historii.':'Transakce smazána.','warn');
+      const detachedMessage=shoppingLinked
+        ? 'Výdaj byl odpojen; velký nákup zůstává označený jako koupený.'
+        : 'Výdaj byl odpojen; úhrada zůstala v příslušné historii.';
+      toast(linked?detachedMessage:'Transakce smazána.','warn');
     }
 
     // ===== Tooltipy, rozbalovací karty, plovoucí +, rychlé přidání =====
@@ -2227,14 +2238,18 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
             ? `uhrazeno ${t.date} • z Účtů a závazků`
             : t.source==='installment'
               ? `uhrazeno ${t.date} • ze Splátkového kalendáře`
-              : `${t.date} • ruční záznam`;
+              : t.source==='shopping'
+                ? `koupeno ${t.date} • z Velkých nákupů`
+                : `${t.date} • ruční záznam`;
         const actions=t.source==='payment'&&t.paymentId
           ? `<button class="mini-btn" data-edit-payment="${attr(t.paymentId)}" type="button">Otevřít závazek</button><button class="mini-btn" data-delete-trans="${attr(t.id)}" type="button">Odpojit výdaj</button>`
           : t.source==='installment'&&t.installmentId
             ? `<button class="mini-btn" data-edit-inst="${attr(t.installmentId)}" type="button">Otevřít splátku</button><button class="mini-btn" data-delete-trans="${attr(t.id)}" type="button">Odpojit výdaj</button>`
-            : `<button class="mini-btn" data-edit-trans="${attr(t.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-trans="${attr(t.id)}" type="button">Smazat</button>`;
-        const linkedClass=['payment','installment'].includes(t.source)?'payment-finance-linked':'';
-        return `<article class="item ${linkedClass}"><div class="item-top"><div><h4>${t.kind==='income'?'Příjem':'Výdaj'} • ${esc(t.category)}</h4><p>${esc(sourceInfo)} • <strong class="${t.kind==='income'?'money-plus':'money-minus'}">${fmt(t.amount)}</strong></p>${t.description?`<p>${esc(t.description)}</p>`:''}<div class="meta">${t.source==='payment'?'<span class="tag">🔗 propojeno s platbou</span>':''}${t.source==='installment'?'<span class="tag">🔗 propojeno se splátkou</span>':''}${t.source==='payroll'?'<span class="tag">📄 výplatní páska</span>':''}</div></div><div class="actions">${actions}</div></div></article>`;
+            : t.source==='shopping'&&t.shoppingId
+              ? `<button class="mini-btn" data-jump="shopping" type="button">Otevřít velké nákupy</button><button class="mini-btn" data-delete-trans="${attr(t.id)}" type="button">Odpojit výdaj</button>`
+              : `<button class="mini-btn" data-edit-trans="${attr(t.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-trans="${attr(t.id)}" type="button">Smazat</button>`;
+        const linkedClass=['payment','installment','shopping'].includes(t.source)?'payment-finance-linked':'';
+        return `<article class="item ${linkedClass}"><div class="item-top"><div><h4>${t.kind==='income'?'Příjem':'Výdaj'} • ${esc(t.category)}</h4><p>${esc(sourceInfo)} • <strong class="${t.kind==='income'?'money-plus':'money-minus'}">${fmt(t.amount)}</strong></p>${t.description?`<p>${esc(t.description)}</p>`:''}<div class="meta">${t.source==='payment'?'<span class="tag">🔗 propojeno s platbou</span>':''}${t.source==='installment'?'<span class="tag">🔗 propojeno se splátkou</span>':''}${t.source==='shopping'?'<span class="tag">🛒 propojeno s velkým nákupem</span>':''}${t.source==='payroll'?'<span class="tag">📄 výplatní páska</span>':''}</div></div><div class="actions">${actions}</div></div></article>`;
       }).join('') || empty('Žádné transakce pro aktuální filtr.');
     }
     function renderPayrollList(){
@@ -2435,79 +2450,166 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
     function taskPriorityLabel(p){return p==='high'?'🔴 Vysoká':p==='low'?'🟢 Nízká':'🟡 Střední';}
     function taskHorizonLabel(h){return h==='week'?'Tento týden':h==='long'?'Dlouhodobé':'Tento měsíc';}
 
-    function saveShopping(e){e.preventDefault(); const id=$('#shopId').value||uid('shop'); const existing=state.shopping.find(s=>s.id===id); const s={id,name:$('#shopName').value.trim(),segment:'general',store:$('#shopStore').value,priority:$('#shopPriority').value,status:$('#shopStatus').value,category:$('#shopCategory').value.trim(),price:number($('#shopPrice').value),month:$('#shopMonth').value,url:safeUrl($('#shopUrl').value),note:$('#shopNote').value.trim(),shared:!!$('#shopShared')?.checked,createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()}; if(existing)Object.assign(existing,s); else state.shopping.unshift(s); save(); resetShoppingForm(); toast('Velký nákup uložen.');}
+    function shoppingTransactionDescription(item){
+      return `${item.name}${item.store?` • ${item.store}`:''}`;
+    }
+    function findShoppingTransaction(item){
+      return state.transactions.find(t=>t.id===item?.transactionId) || state.transactions.find(t=>t.source==='shopping'&&t.shoppingId===item?.id);
+    }
+    function upsertShoppingTransaction(item){
+      if(!item || item.status!=='bought' || item.financeDetached===true || !(number(item.price)>0)) return '';
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(String(item.purchaseDate||''))) item.purchaseDate=today();
+      let transaction=findShoppingTransaction(item);
+      const values={
+        date:item.purchaseDate,kind:'expense',category:item.category||'velké nákupy',amount:Math.max(0,number(item.price)),
+        description:shoppingTransactionDescription(item),source:'shopping',shoppingId:item.id,shared:item.shared!==false,updatedAt:new Date().toISOString()
+      };
+      if(transaction) Object.assign(transaction,values);
+      else{
+        transaction={id:uid('trans'),...values,createdAt:new Date().toISOString()};
+        state.transactions.unshift(transaction);
+      }
+      item.transactionId=transaction.id;
+      return transaction.id;
+    }
+    function removeShoppingTransaction(item){
+      if(!item) return false;
+      const before=state.transactions.length;
+      state.transactions=state.transactions.filter(t=>!(t.id===item.transactionId || (t.source==='shopping'&&t.shoppingId===item.id)));
+      item.transactionId='';
+      return state.transactions.length<before;
+    }
+    function markShoppingBought(item){
+      if(!item) return {linked:false};
+      selectedShoppingIds.delete(item.id);
+      item.status='bought';
+      item.purchaseDate=today();
+      item.financeDetached=false;
+      item.updatedAt=new Date().toISOString();
+      return {linked:!!upsertShoppingTransaction(item)};
+    }
+    function restoreShoppingPlan(item,status='planned'){
+      if(!item) return {removed:false};
+      const removed=removeShoppingTransaction(item);
+      item.status=status;
+      item.purchaseDate='';
+      item.financeDetached=false;
+      item.updatedAt=new Date().toISOString();
+      return {removed};
+    }
+    function saveShopping(e){
+      e.preventDefault();
+      const id=$('#shopId').value||uid('shop');
+      const existing=state.shopping.find(item=>item.id===id);
+      const previousStatus=existing?.status||'';
+      const nextStatus=$('#shopStatus').value;
+      const item={
+        id,name:$('#shopName').value.trim(),segment:'general',store:$('#shopStore').value,priority:$('#shopPriority').value,status:nextStatus,
+        category:$('#shopCategory').value.trim(),price:number($('#shopPrice').value),month:$('#shopMonth').value,url:safeUrl($('#shopUrl').value),note:$('#shopNote').value.trim(),
+        shared:!!$('#shopShared')?.checked,purchaseDate:existing?.purchaseDate||'',transactionId:existing?.transactionId||'',financeDetached:existing?.financeDetached===true,
+        createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()
+      };
+      if(existing) Object.assign(existing,item); else state.shopping.unshift(item);
+      const saved=existing||item;
+      let financeMessage='';
+      if(nextStatus==='bought'){
+        if(previousStatus!=='bought'){
+          const result=markShoppingBought(saved);
+          financeMessage=result.linked?' Výdaj byl automaticky zapsán do aktuálního měsíce.':' Položka je koupená, ale výdaj nebyl vytvořen, protože chybí cena.';
+        }else if(saved.financeDetached!==true){
+          if(number(saved.price)>0){
+            upsertShoppingTransaction(saved);
+          }else{
+            const removed=removeShoppingTransaction(saved);
+            financeMessage=removed?' Propojený výdaj byl odstraněn, protože položka už nemá cenu.':' Pro finanční zápis doplň cenu.';
+          }
+        }
+      }else if(previousStatus==='bought'){
+        const result=restoreShoppingPlan(saved,nextStatus);
+        if(result.removed) financeMessage=' Propojený výdaj byl odstraněn.';
+      }
+      save(); resetShoppingForm(); toast(`Velký nákup uložen.${financeMessage}`);
+    }
     function resetShoppingForm(){ $('#shoppingForm').reset(); $('#shopId').value=''; $('#shopMonth').value=monthNow(); if($('#shopShared')) $('#shopShared').checked=true; }
-    function editShoppingForm(id){const s=state.shopping.find(x=>x.id===id); if(!s)return; showTab('shopping'); toggleAddCard('shopAddCard',true); $('#shopId').value=s.id; $('#shopName').value=s.name; $('#shopStore').value=s.store||''; $('#shopPriority').value=s.priority; $('#shopStatus').value=s.status; $('#shopCategory').value=s.category||''; $('#shopPrice').value=s.price||''; $('#shopMonth').value=s.month||''; $('#shopUrl').value=s.url||''; $('#shopNote').value=s.note||''; if($('#shopShared')) $('#shopShared').checked=s.shared!==false;}
+    function editShoppingForm(id){const item=state.shopping.find(x=>x.id===id); if(!item)return; showTab('shopping'); toggleAddCard('shopAddCard',true); $('#shopId').value=item.id; $('#shopName').value=item.name; $('#shopStore').value=item.store||''; $('#shopPriority').value=item.priority; $('#shopStatus').value=item.status; $('#shopCategory').value=item.category||''; $('#shopPrice').value=item.price||''; $('#shopMonth').value=item.month||''; $('#shopUrl').value=item.url||''; $('#shopNote').value=item.note||''; if($('#shopShared')) $('#shopShared').checked=item.shared!==false;}
+    function shoppingDisplayMonth(item){
+      if(item?.status==='bought' && /^\d{4}-\d{2}-\d{2}$/.test(String(item.purchaseDate||''))) return String(item.purchaseDate).slice(0,7);
+      return item?.month||'';
+    }
     function renderShopping(){
       const year=Number($('#shoppingYear')?.value||currentYear());
-      const active=state.shopping.filter(s=>s.status!=='bought');
-      const urgent=active.filter(s=>s.priority==='urgent').reduce((a,s)=>a+number(s.price),0);
-      const yearTotal=active.filter(s=>s.month?.startsWith(year+'-')).reduce((a,s)=>a+number(s.price),0);
-      const bought=state.shopping.filter(s=>s.status==='bought').length;
+      const active=state.shopping.filter(item=>item.status!=='bought');
+      const urgent=active.filter(item=>item.priority==='urgent').reduce((sum,item)=>sum+number(item.price),0);
+      const yearTotal=active.filter(item=>item.month?.startsWith(year+'-')).reduce((sum,item)=>sum+number(item.price),0);
+      const bought=state.shopping.filter(item=>item.status==='bought').length;
       $('#shoppingKpis').innerHTML=[kpi('Aktivní plány',active.length,'Velké nákupy k pořízení'),kpi('Urgentní',fmt(urgent),'Součet cen urgentních'),kpi('Roční plán',fmt(yearTotal),String(year)),kpi('Koupeno',bought,'Dokončené nákupy')].join('');
       renderShoppingChart(year); renderShoppingList();
     }
     function renderShoppingChart(year){
-      // Dřívější SVG graf ukazoval jen sloupce odhadovaných cen plánovaných nákupů po
-      // měsících – bez cen a s položkami v jednom měsíci nic neříkal. Tento přehled
-      // ukazuje po měsících plán i skutečně koupené a upozorní na chybějící ceny.
       const el=$('#shoppingChart'); if(!el) return;
-      const inYear=state.shopping.filter(x=>String(x.month||'').startsWith(year+'-'));
-      const noMonth=state.shopping.filter(x=>!x.month && x.status!=='bought');
+      const inYear=state.shopping.filter(item=>String(shoppingDisplayMonth(item)).startsWith(year+'-'));
+      const noMonth=state.shopping.filter(item=>!shoppingDisplayMonth(item) && item.status!=='bought');
       const byMonth={};
-      inYear.forEach(x=>{ (byMonth[x.month]??={planned:0,bought:0,count:0}); byMonth[x.month].count++; if(x.status==='bought') byMonth[x.month].bought+=number(x.price); else byMonth[x.month].planned+=number(x.price); });
+      inYear.forEach(item=>{ const key=shoppingDisplayMonth(item); (byMonth[key]??={planned:0,bought:0,count:0}); byMonth[key].count++; if(item.status==='bought') byMonth[key].bought+=number(item.price); else byMonth[key].planned+=number(item.price); });
       const months=Object.keys(byMonth).sort();
-      const maxVal=Math.max(1,...months.map(m=>byMonth[m].planned+byMonth[m].bought));
-      let html=months.map(m=>{
-        const d=byMonth[m];
-        const label=`${d.planned?`plán ${fmt(d.planned)}`:''}${d.planned&&d.bought?' • ':''}${d.bought?`koupeno ${fmt(d.bought)}`:''}${!d.planned&&!d.bought?'bez odhadu ceny':''} • ${d.count} pol.`;
-        return barRow(monthLabel(m), label, (d.planned+d.bought)/maxVal*100);
+      const maxVal=Math.max(1,...months.map(month=>byMonth[month].planned+byMonth[month].bought));
+      let html=months.map(month=>{
+        const data=byMonth[month];
+        const label=`${data.planned?`plán ${fmt(data.planned)}`:''}${data.planned&&data.bought?' • ':''}${data.bought?`koupeno ${fmt(data.bought)}`:''}${!data.planned&&!data.bought?'bez odhadu ceny':''} • ${data.count} pol.`;
+        return barRow(monthLabel(month),label,(data.planned+data.bought)/maxVal*100);
       }).join('');
       if(noMonth.length){
-        const sum=noMonth.reduce((a,x)=>a+number(x.price),0);
-        html+=barRow('Bez plánovaného měsíce', `plán ${fmt(sum)} • ${noMonth.length} pol.`, 0);
+        const sum=noMonth.reduce((total,item)=>total+number(item.price),0);
+        html+=barRow('Bez plánovaného měsíce',`plán ${fmt(sum)} • ${noMonth.length} pol.`,0);
       }
-      const noPrice=state.shopping.filter(x=>x.status!=='bought' && !number(x.price)).length;
-      if(noPrice) html+=`<p class="small">💡 U ${noPrice} aktivních položek chybí odhad ceny – po doplnění bude roční plán vypovídající.</p>`;
-      el.innerHTML=html||empty(`Pro rok ${year} zatím nejsou žádné velké nákupy. Přidejte položku s plánovaným měsícem a odhadem ceny.`);
+      const noPrice=state.shopping.filter(item=>item.status!=='bought'&&!number(item.price)).length;
+      if(noPrice) html+=`<p class="small">💡 U ${noPrice} aktivních položek chybí cena – bez ní se při označení jako koupené nevytvoří finanční výdaj.</p>`;
+      el.innerHTML=html||empty(`Pro rok ${year} zatím nejsou žádné velké nákupy. Přidejte položku s plánovaným měsícem a cenou.`);
     }
     function renderShoppingList(){
       const q=strip($('#shopSearch')?.value||''), pri=$('#shopPriorityFilter')?.value||'all', stat=$('#shopStatusFilter')?.value||'open', sort=$('#shopSort')?.value||'priority';
       const order={urgent:0,soon:1,later:2};
-      const matches=s=>(pri==='all'||s.priority===pri)&&(!q||strip([s.name,s.note,s.category,s.store].join(' ')).includes(q));
-      const sortFn=(a,b)=> sort==='priority'?(order[a.priority]??9)-(order[b.priority]??9): sort==='month'?String(a.month||'9999').localeCompare(String(b.month||'9999')): sort==='price'?number(b.price)-number(a.price):new Date(b.createdAt)-new Date(a.createdAt);
-      const statusMatch=s=>stat==='all'||(stat==='open'?s.status==='planned':s.status===stat);
-      const arr=state.shopping.filter(s=>statusMatch(s)&&matches(s)).sort(sortFn);
-      visibleShoppingComboIds=arr.filter(s=>s.status!=='bought').map(s=>s.id);
-      const list=$('#shoppingList'); if(list) list.innerHTML=arr.map(s=>shoppingCard(s)).join('') || empty('Žádné velké nákupy pro aktuální filtr.');
-
+      const matches=item=>(pri==='all'||item.priority===pri)&&(!q||strip([item.name,item.note,item.category,item.store].join(' ')).includes(q));
+      const sortFn=(a,b)=> sort==='priority'?(order[a.priority]??9)-(order[b.priority]??9): sort==='month'?String(shoppingDisplayMonth(a)||'9999').localeCompare(String(shoppingDisplayMonth(b)||'9999')): sort==='price'?number(b.price)-number(a.price):new Date(b.createdAt)-new Date(a.createdAt);
+      const statusMatch=item=>stat==='all'||(stat==='open'?item.status==='planned':item.status===stat);
+      const arr=state.shopping.filter(item=>statusMatch(item)&&matches(item)).sort(sortFn);
+      visibleShoppingComboIds=arr.filter(item=>item.status!=='bought').map(item=>item.id);
+      const list=$('#shoppingList'); if(list) list.innerHTML=arr.map(item=>shoppingCard(item)).join('')||empty('Žádné velké nákupy pro aktuální filtr.');
       const useArchives=stat==='open'&&!q;
-      const paused=state.shopping.filter(s=>s.status==='paused'&&matches(s)).sort(sortFn);
-      const bought=state.shopping.filter(s=>s.status==='bought'&&matches(s)).sort((a,b)=>String(b.updatedAt||b.createdAt).localeCompare(String(a.updatedAt||a.createdAt)));
+      const paused=state.shopping.filter(item=>item.status==='paused'&&matches(item)).sort(sortFn);
+      const bought=state.shopping.filter(item=>item.status==='bought'&&matches(item)).sort((a,b)=>String(b.purchaseDate||b.updatedAt||b.createdAt).localeCompare(String(a.purchaseDate||a.updatedAt||a.createdAt)));
       const pausedArchive=$('#shoppingPausedArchive'); if(pausedArchive) pausedArchive.hidden=!(useArchives&&paused.length);
       const pausedCount=$('#shoppingPausedCount'); if(pausedCount) pausedCount.textContent=String(paused.length);
-      const pausedList=$('#shoppingPausedList'); if(pausedList) pausedList.innerHTML=paused.map(s=>shoppingCard(s,true)).join('')||empty('Žádné odložené položky.');
+      const pausedList=$('#shoppingPausedList'); if(pausedList) pausedList.innerHTML=paused.map(item=>shoppingCard(item,true)).join('')||empty('Žádné odložené položky.');
       const boughtArchive=$('#shoppingBoughtArchive'); if(boughtArchive) boughtArchive.hidden=!(useArchives&&bought.length);
       const boughtCount=$('#shoppingBoughtCount'); if(boughtCount) boughtCount.textContent=String(bought.length);
-      const boughtList=$('#shoppingBoughtList'); if(boughtList) boughtList.innerHTML=bought.map(s=>shoppingCard(s,true)).join('')||empty('Žádné koupené položky.');
+      const boughtList=$('#shoppingBoughtList'); if(boughtList) boughtList.innerHTML=bought.map(item=>shoppingCard(item,true)).join('')||empty('Žádné koupené položky.');
       renderShoppingCombo();
     }
-    function shoppingCard(s,archived=false){
-      const restore=archived?`<button class="mini-btn" data-shop-id="${attr(s.id)}" data-shop-status="planned" type="button">Vrátit do plánu</button>`:'';
-      const selectable=s.status!=='bought';
-      const selector=selectable?`<label class="shopping-combo-check"><input type="checkbox" data-shop-combo="${attr(s.id)}" ${selectedShoppingIds.has(s.id)?'checked':''}><span>Do kombinace</span></label>`:'';
-      return `<article class="item shopping-item ${archived?'archive-item':''} ${selectedShoppingIds.has(s.id)?'shopping-item-selected':''}"><div class="item-top"><div class="shopping-item-main">${selector}<div><h4>${esc(s.name)}</h4><p><strong>${fmt(s.price)}</strong> • ${shopPriorityLabel(s.priority)} • ${esc(s.month?monthLabel(s.month):'bez měsíce')}</p>${s.note?`<p>${esc(s.note)}</p>`:''}<div class="meta">${s.store?`<span class="tag">🏬 ${esc(s.store)}</span>`:''}<span class="priority ${s.priority==='urgent'?'high':s.priority==='soon'?'mid':'low'}">${shopPriorityLabel(s.priority)}</span><span class="tag">${shopStatusLabel(s.status)}</span>${s.category?`<span class="tag">${esc(s.category)}</span>`:''}${s.url?`<a class="tag" href="${attr(safeUrl(s.url))}" target="_blank" rel="noopener">odkaz ↗</a>`:''}</div></div></div><div class="actions">${restore}<button class="mini-btn" data-edit-shop="${attr(s.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-shop="${attr(s.id)}" type="button">Smazat</button></div></div></article>`;
+    function shoppingCard(item,archived=false){
+      const restore=archived&&item.status!=='planned'?`<button class="mini-btn" data-shop-id="${attr(item.id)}" data-shop-status="planned" type="button">Vrátit do plánu</button>`:'';
+      const selectable=item.status!=='bought';
+      const selector=selectable?`<label class="shopping-combo-check"><input type="checkbox" data-shop-combo="${attr(item.id)}" ${selectedShoppingIds.has(item.id)?'checked':''}><span>Do kombinace</span></label>`:'';
+      const boughtChecked=item.status==='bought';
+      const boughtToggle=`<label class="shopping-bought-check"><input type="checkbox" data-toggle-shop-bought="${attr(item.id)}" ${boughtChecked?'checked':''}><span>${boughtChecked?'Koupeno':'Označit jako koupené'}</span></label>`;
+      const dateLine=boughtChecked&&item.purchaseDate?`koupeno ${esc(item.purchaseDate)}`:esc(item.month?monthLabel(item.month):'bez měsíce');
+      const financeTag=boughtChecked
+        ? item.transactionId?'<span class="tag shopping-finance-linked">💸 zapsáno ve výdajích</span>'
+          : item.financeDetached?'<span class="tag shopping-finance-detached">výdaj odpojen</span>'
+            : number(item.price)>0?'<span class="tag shopping-finance-missing">výdaj zatím není propojen</span>':'<span class="tag shopping-finance-missing">chybí cena pro výdaj</span>'
+        : '';
+      return `<article class="item shopping-item ${archived?'archive-item':''} ${selectedShoppingIds.has(item.id)?'shopping-item-selected':''}"><div class="item-top"><div class="shopping-item-main">${selector}<div><h4>${esc(item.name)}</h4><p><strong>${fmt(item.price)}</strong> • ${shopPriorityLabel(item.priority)} • ${dateLine}</p>${item.note?`<p>${esc(item.note)}</p>`:''}<div class="meta">${item.store?`<span class="tag">🏬 ${esc(item.store)}</span>`:''}<span class="priority ${item.priority==='urgent'?'high':item.priority==='soon'?'mid':'low'}">${shopPriorityLabel(item.priority)}</span><span class="tag">${shopStatusLabel(item.status)}</span>${item.category?`<span class="tag">${esc(item.category)}</span>`:''}${financeTag}${item.url?`<a class="tag" href="${attr(safeUrl(item.url))}" target="_blank" rel="noopener">odkaz ↗</a>`:''}</div></div></div><div class="actions">${boughtToggle}${restore}<button class="mini-btn" data-edit-shop="${attr(item.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-shop="${attr(item.id)}" type="button">Smazat</button></div></div></article>`;
     }
     function shoppingComboItems(){
       const valid=[];
       for(const id of [...selectedShoppingIds]){
-        const item=state.shopping.find(s=>s.id===id && s.status!=='bought');
+        const item=state.shopping.find(entry=>entry.id===id&&entry.status!=='bought');
         if(item) valid.push(item); else selectedShoppingIds.delete(id);
       }
       return valid;
     }
     function shoppingCountLabel(count){
-      const lastTwo=count%100, last=count%10;
+      const lastTwo=count%100,last=count%10;
       if(lastTwo>=11&&lastTwo<=14) return `${count} položek`;
       if(last===1) return `${count} položka`;
       if(last>=2&&last<=4) return `${count} položky`;
@@ -2525,9 +2627,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
           : 'Zaškrtněte položky, které chcete koupit společně.';
       }
       const list=$('#shopComboItems');
-      if(list){
-        list.innerHTML=items.map(item=>`<button class="shopping-combo-chip" data-remove-shop-combo="${attr(item.id)}" type="button" aria-label="Odebrat ${attr(item.name)} z kombinace"><span>${esc(item.name)}</span><strong>${fmt(item.price)}</strong><b aria-hidden="true">×</b></button>`).join('');
-      }
+      if(list) list.innerHTML=items.map(item=>`<button class="shopping-combo-chip" data-remove-shop-combo="${attr(item.id)}" type="button" aria-label="Odebrat ${attr(item.name)} z kombinace"><span>${esc(item.name)}</span><strong>${fmt(item.price)}</strong><b aria-hidden="true">×</b></button>`).join('');
       const clear=$('#shopClearSelection'); if(clear) clear.disabled=!items.length;
       const selectVisible=$('#shopSelectVisible');
       if(selectVisible){
@@ -2537,8 +2637,8 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       }
     }
     function setShoppingComboSelection(id,selected){
-      const item=state.shopping.find(s=>s.id===id && s.status!=='bought');
-      if(selected && item) selectedShoppingIds.add(id); else selectedShoppingIds.delete(id);
+      const item=state.shopping.find(entry=>entry.id===id&&entry.status!=='bought');
+      if(selected&&item) selectedShoppingIds.add(id); else selectedShoppingIds.delete(id);
       renderShoppingList();
     }
     function selectVisibleShoppingForCombo(){
@@ -2553,11 +2653,33 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       renderShoppingList();
       toast('Výběr kombinace byl zrušen.');
     }
+    function toggleShoppingBought(id,checked){
+      setShoppingStatus(id,checked?'bought':'planned');
+    }
     function setShoppingStatus(id,status){
-      const item=state.shopping.find(s=>s.id===id); if(!item||!['planned','paused','bought'].includes(status)) return;
-      if(status==='bought') selectedShoppingIds.delete(id);
-      item.status=status; item.updatedAt=new Date().toISOString(); save();
-      toast(status==='planned'?'Položka vrácena mezi aktivní plány.':status==='bought'?'Položka označena jako koupená.':'Položka odložena.');
+      const item=state.shopping.find(entry=>entry.id===id); if(!item||!['planned','paused','bought'].includes(status)) return;
+      if(status==='bought'){
+        const result=markShoppingBought(item);
+        save();
+        toast(result.linked?`Položka označena jako koupená a ${fmt(item.price)} bylo zapsáno do výdajů za ${monthLabel(item.purchaseDate.slice(0,7))}.`:'Položka je koupená, ale finanční výdaj nebyl vytvořen, protože chybí cena.','warn');
+        return;
+      }
+      const wasBought=item.status==='bought';
+      const result=wasBought?restoreShoppingPlan(item,status):{removed:false};
+      if(!wasBought){ item.status=status; item.updatedAt=new Date().toISOString(); }
+      save();
+      toast(status==='planned'?(result.removed?'Položka vrácena do plánu a propojený výdaj odstraněn.':'Položka vrácena mezi aktivní plány.'):'Položka odložena.');
+    }
+    async function deleteShopping(id){
+      const item=state.shopping.find(entry=>entry.id===id); if(!item) return;
+      const linked=!!findShoppingTransaction(item);
+      const message=linked?'Smazat tuto položku i její automaticky propojený výdaj v Příjmech a výdajích?':'Opravdu smazat tuto položku?';
+      if(!await confirmDialog(message,{title:'Smazat velký nákup',confirmText:'Smazat',danger:true})) return;
+      removeShoppingTransaction(item);
+      selectedShoppingIds.delete(id);
+      state.shopping=state.shopping.filter(entry=>entry.id!==id);
+      save();
+      toast(linked?'Velký nákup i propojený výdaj byly smazány.':'Položka smazána.','warn');
     }
     function shopPriorityLabel(p){return p==='urgent'?'Urgentní':p==='soon'?'Brzy':'Dlouhodobé';}
     function shopStatusLabel(s){return s==='bought'?'Koupeno':s==='paused'?'Odloženo':'Plánováno';}
@@ -2764,7 +2886,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         id:safeId(n?.id,'note'), title:textLimit(n?.title,180), source:textLimit(n?.source,40)||'Vlastní', priority:Math.min(5,Math.max(1,Number(n?.priority)||3)), type:textLimit(n?.type,40)||'jiné', model:textLimit(n?.model,80), url:safeUrl(n?.url), tags:sanitizeTags(n?.tags), summary:textLimit(n?.summary,3000), content:textLimit(n?.content,50000), next:textLimit(n?.next,1000), createdAt:textLimit(n?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(n?.updatedAt,40)||new Date().toISOString()
       })).filter(n=>n.title || n.summary || n.content);
       clean.transactions = asArray(data.transactions,10000).map(t=>({
-        id:safeId(t?.id,'trans'), date:textLimit(t?.date,10), kind:t?.kind==='expense'?'expense':'income', category:textLimit(t?.category,80)||'bez kategorie', amount:Math.max(0, number(t?.amount)), description:textLimit(t?.description,1000), source:['payroll','payment','installment'].includes(t?.source)?t.source:'manual', payrollId:textLimit(t?.payrollId,100), payrollMonth:textLimit(t?.payrollMonth,7), paymentId:textLimit(t?.paymentId,100), paymentHistoryId:textLimit(t?.paymentHistoryId,100), installmentId:textLimit(t?.installmentId,100), installmentHistoryId:textLimit(t?.installmentHistoryId,100), shared:t?.source==='payroll'?false:t?.shared!==false, createdAt:textLimit(t?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(t?.updatedAt,40)||new Date().toISOString()
+        id:safeId(t?.id,'trans'), date:textLimit(t?.date,10), kind:t?.kind==='expense'?'expense':'income', category:textLimit(t?.category,80)||'bez kategorie', amount:Math.max(0, number(t?.amount)), description:textLimit(t?.description,1000), source:['payroll','payment','installment','shopping'].includes(t?.source)?t.source:'manual', payrollId:textLimit(t?.payrollId,100), payrollMonth:textLimit(t?.payrollMonth,7), paymentId:textLimit(t?.paymentId,100), paymentHistoryId:textLimit(t?.paymentHistoryId,100), installmentId:textLimit(t?.installmentId,100), installmentHistoryId:textLimit(t?.installmentHistoryId,100), shoppingId:textLimit(t?.shoppingId,100), shared:t?.source==='payroll'?false:t?.shared!==false, createdAt:textLimit(t?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(t?.updatedAt,40)||new Date().toISOString()
       })).filter(t=>/^\d{4}-\d{2}-\d{2}$/.test(t.date));
       clean.payrolls = asArray(data.payrolls,1000).map(p=>({
         id:safeId(p?.id,'payroll'), month:textLimit(p?.month,7), paymentDate:/^\d{4}-\d{2}-\d{2}$/.test(String(p?.paymentDate||''))?textLimit(p?.paymentDate,10):defaultPayrollPaymentDate(textLimit(p?.month,7)), paymentDateEstimated:p?.paymentDateEstimated===true||!/^\d{4}-\d{2}-\d{2}$/.test(String(p?.paymentDate||'')), employer:textLimit(p?.employer,160), note:textLimit(p?.note,1000), fileName:textLimit(p?.fileName,220), fileSize:Math.max(0, number(p?.fileSize)), fields:sanitizePayrollFields(p?.fields||{}), evidence:sanitizeEvidence(p?.evidence), rawText:textLimit(p?.rawText,200000), storedPdf:preserveStoredFiles ? !!p?.storedPdf : false, createdAt:textLimit(p?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(p?.updatedAt,40)||''
@@ -2779,7 +2901,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         return {id:safeId(t?.id,'task'), title:textLimit(t?.title,180), priority, horizon, due:textLimit(t?.due,10), area:textLimit(t?.area,80), note:textLimit(t?.note,1000), assignedTo:['me','partner','both'].includes(t?.assignedTo)?t.assignedTo:'both', shared:t?.shared!==false, done:!!t?.done, createdAt:textLimit(t?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(t?.updatedAt,40)||new Date().toISOString()};
       }).filter(t=>t.title);
       clean.shopping = asArray(data.shopping,5000).map(sh=>({
-        id:safeId(sh?.id,'shop'), name:textLimit(sh?.name,180), segment:['general','groceries'].includes(sh?.segment)?sh.segment:'general', store:textLimit(sh?.store,60), priority:['urgent','soon','later'].includes(sh?.priority)?sh.priority:'soon', status:['planned','bought','paused'].includes(sh?.status)?sh.status:'planned', category:textLimit(sh?.category,80), price:Math.max(0, number(sh?.price)), month:textLimit(sh?.month,7), url:safeUrl(sh?.url), note:textLimit(sh?.note,1000), shared:sh?.shared!==false, createdAt:textLimit(sh?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(sh?.updatedAt,40)||new Date().toISOString()
+        id:safeId(sh?.id,'shop'), name:textLimit(sh?.name,180), segment:['general','groceries'].includes(sh?.segment)?sh.segment:'general', store:textLimit(sh?.store,60), priority:['urgent','soon','later'].includes(sh?.priority)?sh.priority:'soon', status:['planned','bought','paused'].includes(sh?.status)?sh.status:'planned', category:textLimit(sh?.category,80), price:Math.max(0, number(sh?.price)), month:textLimit(sh?.month,7), url:safeUrl(sh?.url), note:textLimit(sh?.note,1000), shared:sh?.shared!==false, purchaseDate:/^\d{4}-\d{2}-\d{2}$/.test(String(sh?.purchaseDate||''))?textLimit(sh.purchaseDate,10):'', transactionId:textLimit(sh?.transactionId,100), financeDetached:sh?.financeDetached===true, createdAt:textLimit(sh?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(sh?.updatedAt,40)||new Date().toISOString()
       })).filter(sh=>sh.name);
       clean.apps = asArray(data.apps,2000).map(a=>({
         id:safeId(a?.id,'app'), name:textLimit(a?.name,180), url:safeUrl(a?.url), tag:textLimit(a?.tag,60), note:textLimit(a?.note,1000),
@@ -2846,7 +2968,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       if(!await confirmPrivateExport(`CSV export: ${kind}`)) return;
       const maps={
         notes:[['id','title','source','type','priority','model','url','tags','summary','content','next','createdAt','updatedAt'], ...state.notes.map(n=>[n.id,n.title,n.source,n.type,n.priority,n.model,n.url,(n.tags||[]).join('; '),n.summary,n.content,n.next,n.createdAt,n.updatedAt])],
-        transactions:[['id','date','accountingMonth','kind','category','amount','description','source','payrollMonth','paymentId'], ...state.transactions.map(t=>[t.id,t.date,transactionAccountingMonth(t),t.kind,t.category,t.amount,t.description,t.source,t.payrollMonth||'',t.paymentId||''])],
+        transactions:[['id','date','accountingMonth','kind','category','amount','description','source','payrollMonth','paymentId','shoppingId'], ...state.transactions.map(t=>[t.id,t.date,transactionAccountingMonth(t),t.kind,t.category,t.amount,t.description,t.source,t.payrollMonth||'',t.paymentId||'',t.shoppingId||''])],
         payrolls:[['id','month','paymentDate','employer','fileName','cleanPay','netPay','grossPay','taxBase','incomeTax','taxpayerDiscount','childDiscount','socialInsurance','healthInsurance','deductions','bonus','note','storedPdf'], ...state.payrolls.map(p=>[p.id,p.month,p.paymentDate||'',p.employer,p.fileName,p.fields?.cleanPay||p.fields?.netPay,p.fields?.netPay||p.fields?.cleanPay,p.fields?.grossPay,p.fields?.taxBase,p.fields?.incomeTax,p.fields?.taxpayerDiscount,p.fields?.childDiscount,p.fields?.socialInsurance,p.fields?.healthInsurance,p.fields?.deductions,p.fields?.bonus,p.note,p.storedPdf])],
         tasks:[['id','title','priority','horizon','due','area','note','done','createdAt'], ...state.tasks.map(t=>[t.id,t.title,t.priority,t.horizon,t.due,t.area,t.note,t.done,t.createdAt])],
         shopping:[['id','name','segment','store','priority','status','category','price','month','url','note','createdAt'], ...state.shopping.map(s=>[s.id,s.name,s.segment,s.store,s.priority,s.status,s.category,s.price,s.month,s.url,s.note,s.createdAt])],
@@ -2865,7 +2987,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
     }
     function notesMarkdown(){return ['# Poznámky LifeHub',...state.notes.map(n=>`\n## ${n.title}\n- Zdroj: ${n.source}\n- Typ: ${n.type}\n- Priorita: ${n.priority}/5\n- Model: ${n.model||''}\n- URL: ${n.url||''}\n- Tagy: ${(n.tags||[]).join(', ')}\n\n${mdEscape(n.summary)}\n\n${mdEscape(n.content)}\n\n**Další krok:** ${mdEscape(n.next)}`)].join('\n');}
     function tasksMarkdown(){return ['# Úkoly LifeHub',...state.tasks.map(t=>`\n- [${t.done?'x':' '}] **${t.title}** (${taskPriorityLabel(t.priority)}, ${taskHorizonLabel(t.horizon)}${t.due?', '+t.due:''}) — ${t.area||''}\n  ${t.note||''}`)].join('\n');}
-    function shoppingMarkdown(){return ['# Velké nákupy LifeHub',...state.shopping.map(s=>`\n- **${s.name}**${s.store?' ('+s.store+')':''} — ${shopPriorityLabel(s.priority)}, ${fmt(s.price)}, ${s.month||'bez měsíce'}, ${shopStatusLabel(s.status)}\n  ${s.note||''}${s.url?'\n  '+s.url:''}`)].join('\n');}
+    function shoppingMarkdown(){return ['# Velké nákupy LifeHub',...state.shopping.map(s=>`\n- **${s.name}**${s.store?' ('+s.store+')':''} — ${shopPriorityLabel(s.priority)}, ${fmt(s.price)}, ${s.status==='bought'?(s.purchaseDate||s.month||'bez data'):(s.month||'bez měsíce')}, ${shopStatusLabel(s.status)}\n  ${s.note||''}${s.url?'\n  '+s.url:''}`)].join('\n');}
     function appsMarkdown(){return ['# Moje aplikace',...state.apps.map(a=>`\n## ${a.name}${a.tag?' ('+a.tag+')':''}\n${a.note||''}${a.url?'\n'+a.url:''}\n${(a.notes||[]).map(n=>`- ${mdEscape(n.text)}`).join('\n')}`)].join('\n');}
     function projectsMarkdown(){
       const lines=['# Projekty domu'];
@@ -3261,6 +3383,7 @@ Poslední pojistka: pro potvrzení importu napiš ${word}.`,
     function saveSettings(e){e.preventDefault(); state.settings.greetName=$('#greetName').value.trim(); state.settings.familyDisplayName=$('#familyDisplayName')?.value.trim()||''; state.settings.deviceName=$('#deviceName').value.trim(); state.settings.ownerName=$('#ownerName').value.trim(); state.settings.ownerFooter=$('#ownerFooter').value.trim(); state.settings.currency=sanitizeCurrency($('#currency').value); state.settings.savingGoal=number($('#savingGoal').value); state.settings.privateNotifications=$('#privateNotifications')?.checked!==false; state.settings.familySettingsUpdatedAt=new Date().toISOString(); save(); toast('Nastavení uloženo.');}
     // Krátký changelog (nejnovější nahoře, drž ~5 položek). Zobrazí se klepnutím na verzi v patičce.
     const CHANGELOG = [
+      'v5.0.2 · Velké nákupy lze přímo odškrtnout jako koupené. Cena se ke dni označení automaticky zapíše jako propojený výdaj do aktuálního měsíce. Vrácení položky do plánu odstraní automatický výdaj; odpojení ve financích ponechá nákup koupený.',
       'v5.0.1 · Velké nákupy mají kalkulačku kombinace. Libovolné aktivní nebo odložené položky lze zaškrtnout, okamžitě se zobrazí jejich společná cena, počet vybraných věcí a upozornění na položky bez ceny. Výběr lze doplňovat napříč filtry, hromadně označit právě zobrazené položky a jedním tlačítkem vyčistit.',
       'v5.0.0 · Nová záložka Projekty domu: samostatné projektové karty, stav a termíny, cílový i položkový rozpočet, materiály, nabídky, poznámky, odkazy na ChatGPT a Claude, šifrované obrázky, PDF a tabulky, vlastní kreslené náčrty a export projektu do Markdownu či CSV. Projektové přílohy jsou součástí kompletní šifrované zálohy.',
       'v4.9.1 · Splátkový kalendář se po nastaveném dni automaticky aktualizuje, sníží dluh i počet plateb a vytvoří propojený finanční výdaj bez duplicit.',

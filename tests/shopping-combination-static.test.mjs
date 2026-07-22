@@ -25,10 +25,10 @@ test('výběr položek se počítá odděleně od uloženého stavu', () => {
 });
 
 test('nekoupené položky mají zaškrtávací volbu a koupené se z výběru odstraní', () => {
-  assert.ok(app.includes("const selectable=s.status!=='bought'"));
+  assert.ok(app.includes("const selectable=item.status!=='bought'"));
   assert.ok(app.includes('data-shop-combo='));
-  assert.ok(app.includes("if(status==='bought') selectedShoppingIds.delete(id)"));
-  assert.ok(app.includes("state.shopping.find(s=>s.id===id && s.status!=='bought')"));
+  assert.ok(app.includes("selectedShoppingIds.delete(item.id)"));
+  assert.ok(app.includes("state.shopping.find(entry=>entry.id===id&&entry.status!=='bought')"));
 });
 
 test('kalkulačka má mobilní styly a zvýraznění vybraných karet', () => {

@@ -5,7 +5,7 @@ export const STATE_COLLECTIONS_WITH_IDS = Object.freeze([
   'projects','householdPayments','budgetEntries','groceries','aiEntries','rewards','gardenItems','gardenLogs','electricalNotes','maintenanceLogs'
 ]);
 
-export function migrateStateSchema(input, targetSchema = 10){
+export function migrateStateSchema(input, targetSchema = 11){
   const migrated = JSON.parse(JSON.stringify(input || {}));
   const current = Math.max(1, Math.round(Number(migrated.schemaVersion) || 1));
   if(current < 6 && Array.isArray(migrated.payrolls)){
@@ -69,6 +69,16 @@ export function migrateStateSchema(input, targetSchema = 10){
       if(!Array.isArray(project.links)) project.links=[];
       if(!Array.isArray(project.costs)) project.costs=[];
       if(!Array.isArray(project.attachments)) project.attachments=[];
+    }
+  }
+  if(current < 11){
+    if(Array.isArray(migrated.shopping)){
+      for(const item of migrated.shopping){
+        if(!item || typeof item!=='object') continue;
+        if(item.purchaseDate===undefined) item.purchaseDate='';
+        if(item.transactionId===undefined) item.transactionId='';
+        if(item.financeDetached===undefined) item.financeDetached=false;
+      }
     }
   }
   if(current < targetSchema) migrated.schemaVersion = targetSchema;

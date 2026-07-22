@@ -15,6 +15,7 @@ export function buildTransactionRecord(input, existing = null, now = new Date().
     paymentHistoryId: existing?.paymentHistoryId || '',
     installmentId: existing?.installmentId || '',
     installmentHistoryId: existing?.installmentHistoryId || '',
+    shoppingId: existing?.shoppingId || '',
     createdAt: existing?.createdAt || now,
     updatedAt: now
   };

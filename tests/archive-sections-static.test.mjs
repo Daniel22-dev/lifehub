@@ -24,5 +24,5 @@ test('archivované položky lze vrátit zpět', () => {
 });
 
 test('výchozí velké nákupy zobrazují jen plánované položky', () => {
-  assert.match(app, /stat==='open'\?s\.status==='planned'/);
+  assert.match(app, /stat==='open'\?item\.status==='planned'/);
 });

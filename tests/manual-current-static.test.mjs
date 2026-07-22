@@ -4,9 +4,10 @@ import fs from 'node:fs';
 
 const manual = fs.readFileSync(new URL('../public/manual.html', import.meta.url), 'utf8');
 
-test('interaktivní manuál odpovídá funkcím LifeHubu 5.0.1', () => {
+test('interaktivní manuál odpovídá funkcím LifeHubu 5.0.2', () => {
   for (const text of [
-    'LifeHub 5.0.1',
+    'LifeHub 5.0.2',
+    'automaticky zapíše jako propojený výdaj',
     'Kalkulačka kombinace',
     'Do kombinace',
     'Součet vybraných položek',

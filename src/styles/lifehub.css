@@ -991,7 +991,7 @@ html:fullscreen body,html:-webkit-full-screen body{min-height:100%;padding-botto
 @media(max-width:680px){.project-grid{grid-template-columns:1fr}.project-filters{grid-template-columns:1fr}.project-card{min-height:0}.project-card-metrics{grid-template-columns:1fr 1fr}.project-card-metrics div:last-child{grid-column:1/-1}.project-detail-head .actions{display:grid;grid-template-columns:1fr 1fr;width:100%}.project-hero-side{grid-template-columns:1fr 1fr}.project-budget-summary{grid-template-columns:1fr 1fr}.project-budget-row{grid-template-columns:1fr auto}.project-budget-track{grid-column:1/-1;grid-row:2}.project-attachment-grid{grid-template-columns:1fr 1fr}.sketch-studio{padding:6px}.sketch-card{height:98vh;border-radius:18px;padding:12px}.sketch-toolbar{grid-template-columns:1fr 1fr}.sketch-toolbar label:first-child{grid-column:1/-1}.sketch-canvas-shell{padding:8px}}
 @media(max-width:420px){.project-attachment-grid{grid-template-columns:1fr}.project-hero-side{grid-template-columns:1fr}.project-budget-summary{grid-template-columns:1fr}.project-detail-head .actions{grid-template-columns:1fr}.project-cost-line{grid-template-columns:1fr}.project-cost-line>div{grid-column:1/-1}.sketch-toolbar{grid-template-columns:1fr}}
 
-/* ===== LifeHub 5.0.1 – kalkulačka kombinace velkých nákupů ===== */
+/* ===== LifeHub 5.0.2 – velké nákupy a automatické finanční propojení ===== */
 .shopping-combo{
   margin:0 0 14px;padding:16px;border:1px solid rgba(110,231,255,.28);border-radius:22px;
   background:linear-gradient(135deg,rgba(139,92,246,.14),rgba(6,182,212,.09));
@@ -1028,3 +1028,17 @@ html:fullscreen body,html:-webkit-full-screen body{min-height:100%;padding-botto
   .shopping-combo-chip{width:100%;border-radius:14px;justify-content:flex-start}.shopping-combo-chip span{flex:1;max-width:none;text-align:left}
 }
 @media(max-width:390px){.shopping-combo-actions{grid-template-columns:1fr}}
+
+
+/* LifeHub 5.0.2 – označení velkého nákupu jako koupeného */
+.shopping-bought-check{
+  display:inline-flex;align-items:center;gap:8px;padding:8px 11px;border-radius:12px;
+  border:1px solid rgba(110,231,255,.25);background:rgba(110,231,255,.07);
+  font-weight:800;cursor:pointer;white-space:nowrap
+}
+.shopping-bought-check input{width:auto;min-height:auto;margin:0;accent-color:var(--primary)}
+.shopping-bought-check:has(input:checked){border-color:rgba(77,224,155,.5);background:rgba(77,224,155,.12)}
+.shopping-finance-linked{border-color:rgba(77,224,155,.35);color:var(--ok)}
+.shopping-finance-missing{border-color:rgba(255,184,77,.35);color:var(--warn)}
+.shopping-finance-detached{border-color:rgba(255,120,120,.35);color:var(--danger)}
+@media(max-width:640px){.shopping-bought-check{width:100%;justify-content:center}.shopping-item .actions{width:100%}}

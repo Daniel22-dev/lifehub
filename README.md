@@ -1,6 +1,12 @@
-# LifeHub 5.0.1
+# LifeHub 5.0.2
 
 Lokální šifrované osobní centrum pro poznámky, finance, dokumenty, úkoly, domácnost, zahradu, pracovní výkazy a větší projekty domu.
+
+## Novinky 5.0.2
+
+- Velký nákup lze přímo označit jako koupený.
+- Cena se automaticky zapíše jako propojený výdaj ke dni označení.
+- Vrácení nákupu do plánu odstraní automatický výdaj; výdaj lze také samostatně odpojit.
 
 ## Novinky 5.0.1
 

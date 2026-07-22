@@ -90,3 +90,11 @@ test('měsíční plán nepočítá stejnou výplatu dvakrát z pásky i transak
   });
   assert.equal(summary.salaryCredited,40000);
 });
+
+
+test('úprava výdaje z velkého nákupu zachová vazbu na položku', () => {
+  const existing={id:'trans_4',source:'shopping',shoppingId:'shop_1',createdAt:'2026-07-22T09:00:00.000Z'};
+  const result=buildTransactionRecord({id:'trans_4',date:'2026-07-22',kind:'expense',category:'domácnost',amount:12500,description:'Sekačka'},existing,'2026-07-22T09:30:00.000Z');
+  assert.equal(result.source,'shopping');
+  assert.equal(result.shoppingId,'shop_1');
+});
