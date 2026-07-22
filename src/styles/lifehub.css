@@ -900,13 +900,23 @@ body.focus-mode .sidebar{top:92px}
 /* ===== LifeHub 4.8.4 – souhrn měsíčních financí ===== */
 .monthly-finance-panel{margin:16px 0}
 .monthly-finance-kpis{margin-bottom:14px}
+.kpi-toggle{width:100%;text-align:left;cursor:pointer;font:inherit;color:inherit}
+.kpi-toggle:hover{transform:translateY(-1px);border-color:var(--border-strong);background:rgba(255,255,255,.06)}
+.kpi-toggle:focus-visible{outline:2px solid var(--info);outline-offset:2px;box-shadow:var(--focus)}
+.kpi-toggle.is-open{border-color:rgba(6,182,212,.35);box-shadow:0 18px 40px rgba(6,182,212,.12)}
+.monthly-finance-detail{margin:4px 0 14px;padding:14px 16px;border:1px solid var(--border);border-radius:22px;background:linear-gradient(135deg,rgba(255,255,255,.06),rgba(255,255,255,.03));box-shadow:var(--shadow-card)}
+.monthly-finance-detail[hidden]{display:none}
+.monthly-finance-detail-head,.monthly-finance-detail-empty{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.monthly-finance-detail-empty{display:grid;gap:6px;margin-bottom:0}
+.monthly-finance-detail .list{margin-top:6px}
+.monthly-finance-detail .item{padding:14px 15px}
 .monthly-finance-breakdown{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}
 .monthly-finance-breakdown>div{display:grid;gap:6px;padding:13px 14px;border:1px solid var(--border);border-radius:16px;background:color-mix(in srgb,var(--surface-soft) 88%,transparent)}
 .monthly-finance-breakdown span{color:var(--muted);font-size:.73rem;line-height:1.35;font-weight:750}
 .monthly-finance-breakdown strong{font-size:1rem}
 .monthly-finance-note{margin:12px 2px 0}
 @media(max-width:1100px){.monthly-finance-breakdown{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:680px){.monthly-finance-breakdown{grid-template-columns:1fr 1fr}.monthly-finance-panel .panel-head{align-items:flex-start}.monthly-finance-panel .panel-head .actions{display:grid;grid-template-columns:1fr 1fr;width:100%}}
+@media(max-width:680px){.monthly-finance-detail-head{display:grid}.monthly-finance-breakdown{grid-template-columns:1fr 1fr}.monthly-finance-panel .panel-head{align-items:flex-start}.monthly-finance-panel .panel-head .actions{display:grid;grid-template-columns:1fr 1fr;width:100%}}
 @media(max-width:380px){.monthly-finance-breakdown{grid-template-columns:1fr}.monthly-finance-panel .panel-head .actions{grid-template-columns:1fr}}
 
 /* ===== LifeHub 4.8.5 – skutečný fullscreen ===== */
@@ -1030,15 +1040,35 @@ html:fullscreen body,html:-webkit-full-screen body{min-height:100%;padding-botto
 @media(max-width:390px){.shopping-combo-actions{grid-template-columns:1fr}}
 
 
-/* LifeHub 5.0.2 – označení velkého nákupu jako koupeného */
+/* LifeHub 5.0.3 – viditelné potvrzení koupeného velkého nákupu */
 .shopping-bought-check{
   display:inline-flex;align-items:center;gap:8px;padding:8px 11px;border-radius:12px;
   border:1px solid rgba(110,231,255,.25);background:rgba(110,231,255,.07);
-  font-weight:800;cursor:pointer;white-space:nowrap
+  font-weight:800;cursor:pointer;white-space:nowrap;
+  transition:border-color .18s ease,background .18s ease,transform .18s ease
 }
-.shopping-bought-check input{width:auto;min-height:auto;margin:0;accent-color:var(--primary)}
-.shopping-bought-check:has(input:checked){border-color:rgba(77,224,155,.5);background:rgba(77,224,155,.12)}
+.shopping-bought-check input{width:20px;height:20px;min-height:auto;margin:0;accent-color:var(--ok);flex:0 0 auto}
+.shopping-bought-check:has(input:checked){border-color:rgba(77,224,155,.62);background:rgba(77,224,155,.16)}
+.shopping-bought-check.shopping-bought-confirming{border-color:rgba(77,224,155,.85);background:rgba(77,224,155,.2);transform:scale(1.02)}
+.shopping-item.shopping-bought-confirming{border-color:rgba(77,224,155,.7);background:rgba(77,224,155,.09);box-shadow:0 0 0 2px rgba(77,224,155,.12),var(--shadow-card);animation:shoppingBoughtPulse .65s ease both}
+@keyframes shoppingBoughtPulse{0%{transform:scale(1)}45%{transform:scale(.992)}100%{transform:scale(1);opacity:.9}}
+@media(prefers-reduced-motion:reduce){.shopping-item.shopping-bought-confirming{animation:none}.shopping-bought-check{transition:none}}
 .shopping-finance-linked{border-color:rgba(77,224,155,.35);color:var(--ok)}
 .shopping-finance-missing{border-color:rgba(255,184,77,.35);color:var(--warn)}
 .shopping-finance-detached{border-color:rgba(255,120,120,.35);color:var(--danger)}
 @media(max-width:640px){.shopping-bought-check{width:100%;justify-content:center}.shopping-item .actions{width:100%}}
+
+/* LifeHub 5.0.4 – potvrzení zahradního nákupu před přesunem do archivu */
+.garden-bought-check{
+  display:inline-flex;align-items:center;gap:8px;padding:8px 11px;border-radius:12px;
+  border:1px solid rgba(110,231,255,.25);background:rgba(110,231,255,.07);
+  font-weight:800;cursor:pointer;white-space:nowrap;
+  transition:border-color .18s ease,background .18s ease,transform .18s ease
+}
+.garden-bought-check input{width:20px;height:20px;min-height:auto;margin:0;accent-color:var(--ok);flex:0 0 auto}
+.garden-bought-check:has(input:checked){border-color:rgba(77,224,155,.62);background:rgba(77,224,155,.16)}
+.garden-bought-check.garden-bought-confirming{border-color:rgba(77,224,155,.85);background:rgba(77,224,155,.2);transform:scale(1.02)}
+.garden-purchase-item.garden-bought-confirming{border-color:rgba(77,224,155,.7);background:rgba(77,224,155,.09);box-shadow:0 0 0 2px rgba(77,224,155,.12),var(--shadow-card);animation:gardenBoughtPulse .65s ease both}
+@keyframes gardenBoughtPulse{0%{transform:scale(1)}45%{transform:scale(.992)}100%{transform:scale(1);opacity:.9}}
+@media(prefers-reduced-motion:reduce){.garden-purchase-item.garden-bought-confirming{animation:none}.garden-bought-check{transition:none}}
+@media(max-width:640px){.garden-bought-check{width:100%;justify-content:center}.garden-purchase-item .actions{width:100%}}

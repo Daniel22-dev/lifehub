@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#11152f">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'none'; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
-  <title>LifeHub 5.0.2 | osobní digitální centrum</title>
+  <title>LifeHub 5.0.6 | osobní digitální centrum</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./lifehub-icon-v2.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./lifehub-icon-192-v2.png">
@@ -16,7 +16,7 @@
       <div class="brand">
         <div class="brand-mark" aria-hidden="true"><span>LH</span></div>
         <div class="brand-copy">
-          <h1>LifeHub <span id="appTitleVersion">5.0.2</span></h1>
+          <h1>LifeHub <span id="appTitleVersion">5.0.6</span></h1>
           <p>Soukromé centrum · offline · šifrované</p>
         </div>
       </div>
@@ -246,7 +246,7 @@
             <div class="filters filter-four">
               <input id="transSearch" type="search" placeholder="Hledat v transakcích…">
               <select id="transKindFilter" title="Typ"><option value="all">Vše</option><option value="income">Příjmy</option><option value="expense">Výdaje</option></select>
-              <select id="transSourceFilter" title="Zdroj"><option value="all">Všechny zdroje</option><option value="manual">Ruční</option><option value="payroll">Výplatní pásky</option><option value="payment">Účty a závazky</option><option value="installment">Splátkový kalendář</option><option value="shopping">Velké nákupy</option></select>
+              <select id="transSourceFilter" title="Zdroj"><option value="all">Všechny zdroje</option><option value="manual">Ruční</option><option value="payroll">Výplatní pásky</option><option value="payment">Účty a závazky</option><option value="installment">Splátkový kalendář</option><option value="shopping">Velké nákupy</option><option value="garden-item">Zahrada – nákupy</option><option value="garden-log">Zahrada – údržba</option><option value="maintenance">Servis a údržba</option></select>
               <select id="transPeriodFilter" title="Období"><option value="selected">Vybraný měsíc</option><option value="year">Celý rok</option><option value="all">Vše</option></select>
             </div>
             <div class="list" id="transactionsList"></div>
@@ -712,7 +712,7 @@
                 <h2 class="tab-title">Zahrada</h2>
                 <p class="tab-sub">Co pořídit a deník údržby trávníku, techniky a zeleně</p>
               </div>
-              <button class="info-dot" type="button" data-tip="Nahoře je seznam věcí k pořízení (s odkazem, cenou a horizontem), dole deník údržby: hnojení, vertikutace, aerifikace, servis sekačky a další. U každého typu vidíte, kdy proběhl naposledy.">i</button>
+              <button class="info-dot" type="button" data-tip="Nahoře je seznam věcí k pořízení. Po označení položky jako pořízené se její cena automaticky zapíše do výdajů daného měsíce a položka se přesune do archivu Pořízeno. Dole je deník údržby; zadaná cena zásahu se rovněž automaticky zapíše do výdajů podle uvedeného data.">i</button>
             </div>
           </div>
           <div class="kpis" id="gardenKpis"></div>
@@ -902,7 +902,7 @@
           <div class="section-head">
             <div class="head-main">
               <div><h2 class="tab-title">Servis domácnosti</h2><p class="tab-sub">Kotle, spotřebiče, filtry, revize, komín, žumpa a další pravidelná údržba</p></div>
-              <button class="info-dot" type="button" data-tip="Zapište každý provedený servis, cenu a případný další termín. LifeHub tak uchová historii nákladů i připomínku, co bude potřeba řešit příště.">i</button>
+              <button class="info-dot" type="button" data-tip="Zapište každý provedený servis, cenu a případný další termín. Je-li vyplněná cena, LifeHub ji automaticky zapíše do výdajů měsíce podle data servisu. Historie nákladů i další termín zůstávají v této sekci.">i</button>
             </div>
           </div>
           <div class="kpis" id="maintenanceKpis"></div>
@@ -1340,7 +1340,7 @@
         </div>
       </div>
       <div class="lock-content">
-        <p class="eyebrow">LifeHub <span id="lockVersion">5.0.2</span></p>
+        <p class="eyebrow">LifeHub <span id="lockVersion">5.0.6</span></p>
         <h2 id="lockTitle">Odemknout LifeHub</h2>
         <p id="lockIntro">Zadej své heslo. Poznámky, finance ani dokumenty se před odemčením nenačtou.</p>
         <div class="lock-note" id="lockNote">Při prvním spuštění si nastavíš bezpečné heslo. Starší data lze jednorázově převést do šifrovaného úložiště.</div>

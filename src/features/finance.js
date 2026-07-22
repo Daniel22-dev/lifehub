@@ -16,6 +16,9 @@ export function buildTransactionRecord(input, existing = null, now = new Date().
     installmentId: existing?.installmentId || '',
     installmentHistoryId: existing?.installmentHistoryId || '',
     shoppingId: existing?.shoppingId || '',
+    gardenItemId: existing?.gardenItemId || '',
+    gardenLogId: existing?.gardenLogId || '',
+    maintenanceId: existing?.maintenanceId || '',
     createdAt: existing?.createdAt || now,
     updatedAt: now
   };

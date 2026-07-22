@@ -1,3 +1,25 @@
+## 5.0.6
+
+- Karta **Už utraceno** na Přehledu je klikací a zobrazuje úplný seznam položek započtených do aktuálního měsíce.
+- Rozpis zahrnuje ruční výdaje, účty a faktury, splátky, Velké nákupy, zahradní nákupy, zahradní údržbu, servis domácnosti i jídlo a benzín.
+- Každá položka zobrazuje částku, datum, zdroj a tlačítko pro otevření příslušného modulu.
+- Příjmy jsou zobrazeny zeleně, výdaje červeně a výsledná bilance podle znaménka.
+
+## 5.0.4
+
+- Zahradní nákupy se po zaškrtnutí přesunou do archivu Pořízeno a jejich cena se automaticky zapíše do výdajů aktuálního měsíce.
+- Před přesunem se stejně jako u Velkých nákupů zobrazí fajfka a krátké zelené potvrzení.
+- Zadané ceny zahradní údržby a domácího servisu se automaticky zapisují do výdajů podle uvedeného data.
+- Úprava a smazání zdrojového záznamu bezpečně aktualizují nebo odstraní propojený výdaj; výdaj lze také samostatně odpojit.
+- Finance mají nové filtry a štítky pro zahradní nákupy, zahradní údržbu a servis.
+
+## 5.0.3
+
+- Po zaškrtnutí „Označit jako koupené“ zůstane karta ještě 650 ms na místě, aby byla vidět fajfka a zelené potvrzení.
+- Stav nákupu a propojený finanční výdaj se uloží okamžitě; odložený je pouze vizuální přesun položky do archivu koupených.
+- Zaškrtávací políčko je větší a lépe čitelné na telefonu i počítači.
+- Animace respektuje systémové nastavení omezeného pohybu.
+
 ## 5.0.2
 
 - Ve Velkých nákupech je u každé položky přímé zaškrtnutí „Označit jako koupené“.

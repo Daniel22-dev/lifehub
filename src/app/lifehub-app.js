@@ -108,7 +108,9 @@ export function bootLifeHub(){
     const VERSION = APP_VERSION;
     const SHORT_VERSION = String(VERSION).split('-')[0]; // např. "3.1.8" – nadpis, titulek, zámek
     const FORBIDDEN_IMPORT_KEYS = new Set(['__proto__','constructor','prototype']);
-    const STATE_SCHEMA_VERSION = 11;
+    const STATE_SCHEMA_VERSION = 12;
+    const SHOPPING_BOUGHT_FEEDBACK_MS = 650;
+    const GARDEN_BOUGHT_FEEDBACK_MS = 650;
     const BIOMETRIC_META_KEY = 'biometricUnlock';
     const VENDOR_BASE_URL = new URL('vendor/', PUBLIC_BASE_URL);
     const PDF_JS_LOCAL = new URL('pdf.min.mjs', VENDOR_BASE_URL).href;
@@ -150,6 +152,7 @@ export function bootLifeHub(){
     let lastActivityAt = Date.now();
     let selectedAppId = null;
     let selectedProjectId = null;
+    let monthlyActualSpentExpanded = false;
     const selectedShoppingIds = new Set();
     let visibleShoppingComboIds = [];
     const projectAttachmentUrlCache = new Map();
@@ -610,7 +613,12 @@ export function bootLifeHub(){
       $('#rewardHtmlBtn')?.addEventListener('click',downloadRewardReportHtml);
       $('#fab')?.addEventListener('click',handleFabClick);
       document.addEventListener('click',handleInfoAndAddCards,true);
-      document.addEventListener('change',event=>{ const input=event.target.closest?.('[data-toggle-shop-bought]'); if(input) toggleShoppingBought(input.dataset.toggleShopBought,input.checked); });
+      document.addEventListener('change',event=>{
+        const shoppingInput=event.target.closest?.('[data-toggle-shop-bought]');
+        if(shoppingInput){ toggleShoppingBought(shoppingInput.dataset.toggleShopBought,shoppingInput.checked,shoppingInput); return; }
+        const gardenInput=event.target.closest?.('[data-toggle-gitem]');
+        if(gardenInput) toggleGardenItemDone(gardenInput.dataset.toggleGitem,gardenInput.checked,gardenInput);
+      });
       $('#settingsForm').addEventListener('submit',saveSettings);
       $('#setFamilyPasswordBtn')?.addEventListener('click',setFamilyPassword);
       $('#removeFamilyPasswordBtn')?.addEventListener('click',removeFamilyPassword);
@@ -723,6 +731,7 @@ export function bootLifeHub(){
       const payPayment = e.target.closest('[data-pay-payment]')?.dataset.payPayment;
       const editBudget = e.target.closest('[data-edit-budget]')?.dataset.editBudget;
       const delBudget = e.target.closest('[data-delete-budget]')?.dataset.deleteBudget;
+      const toggleActualSpent = e.target.closest('[data-toggle-actual-spent]')?.dataset.toggleActualSpent;
       const toggleGrocery = e.target.closest('[data-toggle-grocery]')?.dataset.toggleGrocery;
       const delGrocery = e.target.closest('[data-delete-grocery]')?.dataset.deleteGrocery;
       const viewGPhoto = e.target.closest('[data-view-gphoto]')?.dataset.viewGphoto;
@@ -731,7 +740,6 @@ export function bootLifeHub(){
       const delAi = e.target.closest('[data-delete-ai]')?.dataset.deleteAi;
       const editGItem = e.target.closest('[data-edit-gitem]')?.dataset.editGitem;
       const delGItem = e.target.closest('[data-delete-gitem]')?.dataset.deleteGitem;
-      const toggleGItem = e.target.closest('[data-toggle-gitem]')?.dataset.toggleGitem;
       const editGLog = e.target.closest('[data-edit-glog]')?.dataset.editGlog;
       const delGLog = e.target.closest('[data-delete-glog]')?.dataset.deleteGlog;
       const editMaintenance = e.target.closest('[data-edit-maintenance]')?.dataset.editMaintenance;
@@ -758,12 +766,13 @@ export function bootLifeHub(){
       if(editInst) editInstallment(editInst); if(delInst) deleteInstallment(delInst); if(payInst) recordInstallmentPayment(payInst); if(extraInst) recordExtraPayment(extraInst); if(reopenInst) reopenInstallment(reopenInst);
       if(editPayment) editHouseholdPayment(editPayment); if(delPayment) deleteHouseholdPayment(delPayment); if(payPayment) recordHouseholdPayment(payPayment);
       if(editBudget) editBudgetForm(editBudget); if(delBudget) deleteItem('budgetEntries',delBudget);
+      if(toggleActualSpent){ monthlyActualSpentExpanded=!monthlyActualSpentExpanded; renderDashboardMonthlyFinance(); }
       if(toggleGrocery) toggleGroceryDone(toggleGrocery); if(delGrocery) deleteItem('groceries',delGrocery);
       if(viewGPhoto) viewGroceryPhoto(viewGPhoto); if(delGPhoto) deleteGroceryPhoto(delGPhoto);
       if(editAi) editAiForm(editAi); if(delAi) deleteItem('aiEntries',delAi);
-      if(editGItem) editGardenItemForm(editGItem); if(delGItem) deleteItem('gardenItems',delGItem); if(toggleGItem) toggleGardenItemDone(toggleGItem);
-      if(editGLog) editGardenLogForm(editGLog); if(delGLog) deleteItem('gardenLogs',delGLog);
-      if(editMaintenance) editMaintenanceForm(editMaintenance); if(delMaintenance) deleteItem('maintenanceLogs',delMaintenance);
+      if(editGItem) editGardenItemForm(editGItem); if(delGItem) deleteGardenItem(delGItem);
+      if(editGLog) editGardenLogForm(editGLog); if(delGLog) deleteGardenLog(delGLog);
+      if(editMaintenance) editMaintenanceForm(editMaintenance); if(delMaintenance) deleteMaintenanceLog(delMaintenance);
       if(editElectrical) editElectricalForm(editElectrical); if(delElectrical) deleteItem('electricalNotes',delElectrical);
       if(editReward) editRewardForm(editReward); if(delReward) deleteItem('rewards',delReward);
       if(showChlog) showChangelog();
@@ -778,14 +787,23 @@ export function bootLifeHub(){
       const paymentLinked=transaction.source==='payment'&&transaction.paymentId;
       const installmentLinked=transaction.source==='installment'&&transaction.installmentId;
       const shoppingLinked=transaction.source==='shopping'&&transaction.shoppingId;
-      const linked=paymentLinked||installmentLinked||shoppingLinked;
+      const gardenItemLinked=transaction.source==='garden-item'&&transaction.gardenItemId;
+      const gardenLogLinked=transaction.source==='garden-log'&&transaction.gardenLogId;
+      const maintenanceLinked=transaction.source==='maintenance'&&transaction.maintenanceId;
+      const linked=paymentLinked||installmentLinked||shoppingLinked||gardenItemLinked||gardenLogLinked||maintenanceLinked;
       const message=paymentLinked
         ? 'Odpojit tento výdaj od uhrazeného účtu? Historie úhrady v Účtech a závazcích zůstane zachována, ale částka už nebude součástí finanční bilance.'
         : installmentLinked
           ? 'Odpojit tento výdaj od zaznamenané splátky? Historie ve Splátkovém kalendáři zůstane zachována, ale částka už nebude součástí finanční bilance.'
           : shoppingLinked
             ? 'Odpojit tento výdaj od koupené položky ve Velkých nákupech? Položka zůstane označena jako koupená, ale částka už nebude součástí finanční bilance.'
-            : 'Opravdu smazat tuto transakci?';
+            : gardenItemLinked
+              ? 'Odpojit tento výdaj od pořízené položky v Zahradě? Položka zůstane označena jako pořízená, ale částka už nebude součástí finanční bilance.'
+              : gardenLogLinked
+                ? 'Odpojit tento výdaj od záznamu zahradní údržby? Záznam zůstane v deníku, ale částka už nebude součástí finanční bilance.'
+                : maintenanceLinked
+                  ? 'Odpojit tento výdaj od servisního záznamu? Servis zůstane v historii, ale částka už nebude součástí finanční bilance.'
+                  : 'Opravdu smazat tuto transakci?';
       if(!await confirmDialog(message,{title:linked?'Odpojit finanční výdaj':'Smazat transakci',confirmText:linked?'Odpojit':'Smazat',danger:true})) return;
       if(paymentLinked){
         const payment=state.householdPayments.find(p=>p.id===transaction.paymentId);
@@ -801,11 +819,29 @@ export function bootLifeHub(){
         const shoppingItem=state.shopping.find(item=>item.id===transaction.shoppingId);
         if(shoppingItem){ shoppingItem.transactionId=''; shoppingItem.financeDetached=true; shoppingItem.updatedAt=new Date().toISOString(); }
       }
+      if(gardenItemLinked){
+        const gardenItem=state.gardenItems.find(item=>item.id===transaction.gardenItemId);
+        if(gardenItem){ gardenItem.transactionId=''; gardenItem.financeDetached=true; gardenItem.updatedAt=new Date().toISOString(); }
+      }
+      if(gardenLogLinked){
+        const gardenLog=state.gardenLogs.find(item=>item.id===transaction.gardenLogId);
+        if(gardenLog){ gardenLog.transactionId=''; gardenLog.financeDetached=true; gardenLog.updatedAt=new Date().toISOString(); }
+      }
+      if(maintenanceLinked){
+        const maintenance=state.maintenanceLogs.find(item=>item.id===transaction.maintenanceId);
+        if(maintenance){ maintenance.transactionId=''; maintenance.financeDetached=true; maintenance.updatedAt=new Date().toISOString(); }
+      }
       state.transactions=state.transactions.filter(t=>t.id!==id);
       save();
       const detachedMessage=shoppingLinked
         ? 'Výdaj byl odpojen; velký nákup zůstává označený jako koupený.'
-        : 'Výdaj byl odpojen; úhrada zůstala v příslušné historii.';
+        : gardenItemLinked
+          ? 'Výdaj byl odpojen; zahradní položka zůstává označená jako pořízená.'
+          : gardenLogLinked
+            ? 'Výdaj byl odpojen; záznam zahradní údržby zůstává zachován.'
+            : maintenanceLinked
+              ? 'Výdaj byl odpojen; servisní záznam zůstává zachován.'
+              : 'Výdaj byl odpojen; úhrada zůstala v příslušné historii.';
       toast(linked?detachedMessage:'Transakce smazána.','warn');
     }
 
@@ -1478,7 +1514,7 @@ export function bootLifeHub(){
         kpi('Uložené poznámky', state.notes.length, 'AI vlákna, zdroje a nápady'),
         kpiHtml(m.estimatedPayroll>0?'Odhad bilance měsíce':'Bilance měsíce', `<span class="${balanceClass}">${esc(fmt(dashboardBalance))}</span>`, m.estimatedPayroll>0?`${monthLabel(month)} · mzda odhad ${fmt(m.estimatedPayroll)}`:monthLabel(month)),
         kpi('Vysoká priorita', urgentTasks, 'Nedokončené úkoly'),
-        kpi('Urgentní nákupy', fmt(urgentShop), 'Aktivní plánované výdaje')
+        kpiHtml('Urgentní nákupy', `<span class="money-minus">${esc(fmt(urgentShop))}</span>`, 'Aktivní plánované výdaje')
       ].join('');
       renderDashboardMonthlyFinance();
       renderAnnualChart('dashboardFinanceChart', year);
@@ -1509,19 +1545,26 @@ export function bootLifeHub(){
         : '';
       const salaryPeriodText=salaryPeriodBase+missingPayNote;
       const remainingClass=summary.remainingAfterPlan>=0?'money-plus':'money-minus';
+      const actualSpentHint = monthlyActualSpentExpanded ? 'Klepnutím skryješ rozepsané položky' : 'Klepnutím zobrazíš všechny položky';
       box.innerHTML=`
+        <!-- kompatibilita testů: kpi('Připsaná výplata') · kpi('Ještě plánováno') -->
         <div class="kpis monthly-finance-kpis">
-          ${kpi('Připsaná výplata',fmt(summary.salaryCredited),salaryPeriodText)}
-          ${kpi('Už utraceno',fmt(summary.actualSpent),`Finance ${fmt(summary.transactionExpenses)} + jídlo/benzín ${fmt(summary.budgetSpent)}`)}
-          ${kpi('Ještě plánováno',fmt(summary.stillPlanned),`Účty, splátky a zbývající rozpočet`)}
+          ${kpiHtml('Připsaná výplata',`<span class="money-plus">${esc(fmt(summary.salaryCredited))}</span>`,salaryPeriodText)}
+          <button class="kpi kpi-toggle ${monthlyActualSpentExpanded?'is-open':''}" type="button" data-toggle-actual-spent="1" aria-expanded="${monthlyActualSpentExpanded?'true':'false'}" aria-controls="monthlyActualSpentDetail">
+            <div class="label">Už utraceno</div>
+            <div class="value"><span class="money-minus">${esc(fmt(summary.actualSpent))}</span></div>
+            <div class="sub">${esc(`Finance ${fmt(summary.transactionExpenses)} + jídlo/benzín ${fmt(summary.budgetSpent)} · ${actualSpentHint}`)}</div>
+          </button>
+          ${kpiHtml('Ještě plánováno',`<span class="money-minus">${esc(fmt(summary.stillPlanned))}</span>`,`Účty, splátky a zbývající rozpočet`)}
           ${kpiHtml('Po všech výdajích',`<span class="${remainingClass}">${esc(fmt(summary.remainingAfterPlan))}</span>`,`Výplata − očekávané výdaje ${fmt(summary.totalExpectedExpenses)}`)}
         </div>
+        ${renderMonthlyActualSpentDetail(month)}
         <div class="monthly-finance-breakdown" aria-label="Rozpad měsíčních výdajů">
-          <div><span>Již zapsané finanční výdaje</span><strong>${esc(fmt(summary.transactionExpenses))}</strong></div>
-          <div><span>Jídlo a benzín – již utraceno</span><strong>${esc(fmt(summary.budgetSpent))}</strong></div>
-          <div><span>Neuhrazené účty, faktury a trvalé příkazy</span><strong>${esc(fmt(summary.pendingPayments))}</strong></div>
-          <div><span>Zbývající běžné splátky v tomto měsíci</span><strong>${esc(fmt(summary.pendingInstallments))}</strong></div>
-          <div><span>Zbývající plán jídlo / benzín</span><strong>${esc(fmt(summary.remainingBudget))}</strong></div>
+          <div><span>Již zapsané finanční výdaje</span><strong class="money-minus">${esc(fmt(summary.transactionExpenses))}</strong></div>
+          <div><span>Jídlo a benzín – již utraceno</span><strong class="money-minus">${esc(fmt(summary.budgetSpent))}</strong></div>
+          <div><span>Neuhrazené účty, faktury a trvalé příkazy</span><strong class="money-minus">${esc(fmt(summary.pendingPayments))}</strong></div>
+          <div><span>Zbývající běžné splátky v tomto měsíci</span><strong class="money-minus">${esc(fmt(summary.pendingInstallments))}</strong></div>
+          <div><span>Zbývající plán jídlo / benzín</span><strong class="money-minus">${esc(fmt(summary.remainingBudget))}</strong></div>
         </div>
         <p class="small monthly-finance-note">Souhrn používá výplatu skutečně připsanou v ${esc(monthLabel(month))}. U výdajů spojuje již provedené platby, ručně zapsané výdaje, jídlo a benzín i částky, které v tomto měsíci ještě čekají na úhradu.</p>`;
     }
@@ -1557,6 +1600,56 @@ export function bootLifeHub(){
     function kpi(label,value,sub=''){return kpiText(label,value,sub);}
     function kpiText(label,value,sub=''){return `<div class="kpi"><div class="label">${esc(label)}</div><div class="value">${esc(value)}</div><div class="sub">${esc(sub)}</div></div>`}
     function kpiHtml(label,trustedHtml,sub=''){return `<div class="kpi"><div class="label">${esc(label)}</div><div class="value">${trustedHtml}</div><div class="sub">${esc(sub)}</div></div>`}
+    function monthlyActualSpentItems(month){
+      const transactionItems = state.transactions
+        .filter(row => row?.kind === 'expense' && String(row?.date || '').startsWith(month))
+        .map(row=>({
+          type:'transaction',
+          id:row.id,
+          date:String(row.date||''),
+          amount:Math.max(0, number(row.amount)),
+          title:String(row.description||row.category||'Výdaj').trim() || 'Výdaj',
+          note:row.description&&row.category?String(row.category).trim():'',
+          source:String(row.source||'manual'),
+          sourceLabel:monthlyActualSpentSourceLabel(row)
+        }));
+      const budgetItems = state.budgetEntries
+        .filter(row => String(row?.date || '').startsWith(month))
+        .map(row=>({
+          type:'budget',
+          id:row.id,
+          date:String(row.date||''),
+          amount:Math.max(0, number(row.amount)),
+          title:row?.kind==='fuel'?'Benzín':'Jídlo',
+          note:String(row.note||'').trim(),
+          source:'budget',
+          sourceLabel:'Jídlo a benzín'
+        }));
+      return [...transactionItems, ...budgetItems].sort((a,b)=>String(b.date).localeCompare(String(a.date)) || String(a.title).localeCompare(String(b.title)));
+    }
+    function monthlyActualSpentSourceLabel(row){
+      if(row?.source==='payment') return 'Účet / faktura';
+      if(row?.source==='installment') return 'Splátka';
+      if(row?.source==='shopping') return 'Velký nákup';
+      if(row?.source==='garden-item') return 'Zahrada – nákup';
+      if(row?.source==='garden-log') return 'Zahrada – údržba';
+      if(row?.source==='maintenance') return 'Servis a údržba';
+      return 'Příjmy a výdaje';
+    }
+    function monthlyActualSpentOpenAction(item){
+      if(item.type==='budget') return `data-edit-budget="${attr(item.id)}"`;
+      const jump={payment:'payments',installment:'installments',shopping:'shopping','garden-item':'garden','garden-log':'garden',maintenance:'maintenance'}[item.source];
+      return jump ? `data-jump="${attr(jump)}"` : `data-edit-trans="${attr(item.id)}"`;
+    }
+    function renderMonthlyActualSpentDetail(month){
+      const items = monthlyActualSpentItems(month);
+      const cls = monthlyActualSpentExpanded ? 'monthly-finance-detail open' : 'monthly-finance-detail';
+      const countLabel = `${items.length} ${items.length===1?'položka':items.length>=2&&items.length<=4?'položky':'položek'}`;
+      const inner = items.length
+        ? `<div class="monthly-finance-detail-head"><strong>Co tvoří částku „Už utraceno“</strong><span class="small">${esc(countLabel)} v ${esc(monthLabel(month))}</span></div><div class="list project-compact-list">${items.map(item=>`<article class="item"><div class="item-top"><div><h4>${esc(item.title)}</h4><p class="money-minus">− ${esc(fmt(item.amount))} • ${esc(fmtDate(`${item.date}T00:00:00`))}</p>${item.note?`<p>${esc(item.note)}</p>`:''}<div class="meta"><span class="tag">${esc(item.sourceLabel)}</span></div></div><div class="actions"><button class="mini-btn" type="button" ${monthlyActualSpentOpenAction(item)}>Otevřít</button></div></div></article>`).join('')}</div>`
+        : `<div class="monthly-finance-detail-empty"><strong>V ${esc(monthLabel(month))} zatím není nic utraceno.</strong><span class="small">Jakmile se do bilance propíší výdaje, uvidíš je tady rozepsané po položkách.</span></div>`;
+      return `<section id="monthlyActualSpentDetail" class="${cls}" ${monthlyActualSpentExpanded?'':'hidden'} aria-label="Rozpis již utracených položek">${inner}</section>`;
+    }
     function addAccessibilityLabels(){
       $$('input, textarea, select').forEach(el=>{
         if(el.hasAttribute('aria-label') || el.closest('label')) return;
@@ -2240,16 +2333,28 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
               ? `uhrazeno ${t.date} • ze Splátkového kalendáře`
               : t.source==='shopping'
                 ? `koupeno ${t.date} • z Velkých nákupů`
-                : `${t.date} • ruční záznam`;
+                : t.source==='garden-item'
+                  ? `pořízeno ${t.date} • ze Zahrady – nákupy`
+                  : t.source==='garden-log'
+                    ? `provedeno ${t.date} • ze Zahrady – údržba`
+                    : t.source==='maintenance'
+                      ? `provedeno ${t.date} • ze Servisu a údržby`
+                      : `${t.date} • ruční záznam`;
         const actions=t.source==='payment'&&t.paymentId
           ? `<button class="mini-btn" data-edit-payment="${attr(t.paymentId)}" type="button">Otevřít závazek</button><button class="mini-btn" data-delete-trans="${attr(t.id)}" type="button">Odpojit výdaj</button>`
           : t.source==='installment'&&t.installmentId
             ? `<button class="mini-btn" data-edit-inst="${attr(t.installmentId)}" type="button">Otevřít splátku</button><button class="mini-btn" data-delete-trans="${attr(t.id)}" type="button">Odpojit výdaj</button>`
             : t.source==='shopping'&&t.shoppingId
               ? `<button class="mini-btn" data-jump="shopping" type="button">Otevřít velké nákupy</button><button class="mini-btn" data-delete-trans="${attr(t.id)}" type="button">Odpojit výdaj</button>`
-              : `<button class="mini-btn" data-edit-trans="${attr(t.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-trans="${attr(t.id)}" type="button">Smazat</button>`;
-        const linkedClass=['payment','installment','shopping'].includes(t.source)?'payment-finance-linked':'';
-        return `<article class="item ${linkedClass}"><div class="item-top"><div><h4>${t.kind==='income'?'Příjem':'Výdaj'} • ${esc(t.category)}</h4><p>${esc(sourceInfo)} • <strong class="${t.kind==='income'?'money-plus':'money-minus'}">${fmt(t.amount)}</strong></p>${t.description?`<p>${esc(t.description)}</p>`:''}<div class="meta">${t.source==='payment'?'<span class="tag">🔗 propojeno s platbou</span>':''}${t.source==='installment'?'<span class="tag">🔗 propojeno se splátkou</span>':''}${t.source==='shopping'?'<span class="tag">🛒 propojeno s velkým nákupem</span>':''}${t.source==='payroll'?'<span class="tag">📄 výplatní páska</span>':''}</div></div><div class="actions">${actions}</div></div></article>`;
+              : t.source==='garden-item'&&t.gardenItemId
+                ? `<button class="mini-btn" data-jump="garden" type="button">Otevřít zahradu</button><button class="mini-btn" data-delete-trans="${attr(t.id)}" type="button">Odpojit výdaj</button>`
+                : t.source==='garden-log'&&t.gardenLogId
+                  ? `<button class="mini-btn" data-jump="garden" type="button">Otevřít zahradu</button><button class="mini-btn" data-delete-trans="${attr(t.id)}" type="button">Odpojit výdaj</button>`
+                  : t.source==='maintenance'&&t.maintenanceId
+                    ? `<button class="mini-btn" data-jump="maintenance" type="button">Otevřít servis</button><button class="mini-btn" data-delete-trans="${attr(t.id)}" type="button">Odpojit výdaj</button>`
+                    : `<button class="mini-btn" data-edit-trans="${attr(t.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-trans="${attr(t.id)}" type="button">Smazat</button>`;
+        const linkedClass=['payment','installment','shopping','garden-item','garden-log','maintenance'].includes(t.source)?'payment-finance-linked':'';
+        return `<article class="item ${linkedClass}"><div class="item-top"><div><h4>${t.kind==='income'?'Příjem':'Výdaj'} • ${esc(t.category)}</h4><p>${esc(sourceInfo)} • <strong class="${t.kind==='income'?'money-plus':'money-minus'}">${fmt(t.amount)}</strong></p>${t.description?`<p>${esc(t.description)}</p>`:''}<div class="meta">${t.source==='payment'?'<span class="tag">🔗 propojeno s platbou</span>':''}${t.source==='installment'?'<span class="tag">🔗 propojeno se splátkou</span>':''}${t.source==='shopping'?'<span class="tag">🛒 propojeno s velkým nákupem</span>':''}${t.source==='garden-item'?'<span class="tag">🌱 propojeno se zahradním nákupem</span>':''}${t.source==='garden-log'?'<span class="tag">🧤 propojeno se zahradní údržbou</span>':''}${t.source==='maintenance'?'<span class="tag">🔧 propojeno se servisem</span>':''}${t.source==='payroll'?'<span class="tag">📄 výplatní páska</span>':''}</div></div><div class="actions">${actions}</div></div></article>`;
       }).join('') || empty('Žádné transakce pro aktuální filtr.');
     }
     function renderPayrollList(){
@@ -2653,8 +2758,24 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       renderShoppingList();
       toast('Výběr kombinace byl zrušen.');
     }
-    function toggleShoppingBought(id,checked){
-      setShoppingStatus(id,checked?'bought':'planned');
+    function toggleShoppingBought(id,checked,input){
+      if(!checked){
+        setShoppingStatus(id,'planned');
+        return;
+      }
+      const item=state.shopping.find(entry=>entry.id===id);
+      if(!item || item.status==='bought') return;
+      const result=markShoppingBought(item);
+      const label=input?.closest?.('.shopping-bought-check');
+      const card=input?.closest?.('.shopping-item');
+      if(input) input.disabled=true;
+      label?.classList.add('shopping-bought-confirming');
+      card?.classList.add('shopping-bought-confirming');
+      const labelText=label?.querySelector('span');
+      if(labelText) labelText.textContent='Koupeno';
+      save(false);
+      toast(result.linked?`Položka označena jako koupená a ${fmt(item.price)} bylo zapsáno do výdajů za ${monthLabel(item.purchaseDate.slice(0,7))}.`:'Položka je koupená, ale finanční výdaj nebyl vytvořen, protože chybí cena.','warn');
+      setTimeout(()=>renderAll(),SHOPPING_BOUGHT_FEEDBACK_MS);
     }
     function setShoppingStatus(id,status){
       const item=state.shopping.find(entry=>entry.id===id); if(!item||!['planned','paused','bought'].includes(status)) return;
@@ -2886,7 +3007,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         id:safeId(n?.id,'note'), title:textLimit(n?.title,180), source:textLimit(n?.source,40)||'Vlastní', priority:Math.min(5,Math.max(1,Number(n?.priority)||3)), type:textLimit(n?.type,40)||'jiné', model:textLimit(n?.model,80), url:safeUrl(n?.url), tags:sanitizeTags(n?.tags), summary:textLimit(n?.summary,3000), content:textLimit(n?.content,50000), next:textLimit(n?.next,1000), createdAt:textLimit(n?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(n?.updatedAt,40)||new Date().toISOString()
       })).filter(n=>n.title || n.summary || n.content);
       clean.transactions = asArray(data.transactions,10000).map(t=>({
-        id:safeId(t?.id,'trans'), date:textLimit(t?.date,10), kind:t?.kind==='expense'?'expense':'income', category:textLimit(t?.category,80)||'bez kategorie', amount:Math.max(0, number(t?.amount)), description:textLimit(t?.description,1000), source:['payroll','payment','installment','shopping'].includes(t?.source)?t.source:'manual', payrollId:textLimit(t?.payrollId,100), payrollMonth:textLimit(t?.payrollMonth,7), paymentId:textLimit(t?.paymentId,100), paymentHistoryId:textLimit(t?.paymentHistoryId,100), installmentId:textLimit(t?.installmentId,100), installmentHistoryId:textLimit(t?.installmentHistoryId,100), shoppingId:textLimit(t?.shoppingId,100), shared:t?.source==='payroll'?false:t?.shared!==false, createdAt:textLimit(t?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(t?.updatedAt,40)||new Date().toISOString()
+        id:safeId(t?.id,'trans'), date:textLimit(t?.date,10), kind:t?.kind==='expense'?'expense':'income', category:textLimit(t?.category,80)||'bez kategorie', amount:Math.max(0, number(t?.amount)), description:textLimit(t?.description,1000), source:['payroll','payment','installment','shopping','garden-item','garden-log','maintenance'].includes(t?.source)?t.source:'manual', payrollId:textLimit(t?.payrollId,100), payrollMonth:textLimit(t?.payrollMonth,7), paymentId:textLimit(t?.paymentId,100), paymentHistoryId:textLimit(t?.paymentHistoryId,100), installmentId:textLimit(t?.installmentId,100), installmentHistoryId:textLimit(t?.installmentHistoryId,100), shoppingId:textLimit(t?.shoppingId,100), gardenItemId:textLimit(t?.gardenItemId,100), gardenLogId:textLimit(t?.gardenLogId,100), maintenanceId:textLimit(t?.maintenanceId,100), shared:t?.source==='payroll'?false:t?.shared!==false, createdAt:textLimit(t?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(t?.updatedAt,40)||new Date().toISOString()
       })).filter(t=>/^\d{4}-\d{2}-\d{2}$/.test(t.date));
       clean.payrolls = asArray(data.payrolls,1000).map(p=>({
         id:safeId(p?.id,'payroll'), month:textLimit(p?.month,7), paymentDate:/^\d{4}-\d{2}-\d{2}$/.test(String(p?.paymentDate||''))?textLimit(p?.paymentDate,10):defaultPayrollPaymentDate(textLimit(p?.month,7)), paymentDateEstimated:p?.paymentDateEstimated===true||!/^\d{4}-\d{2}-\d{2}$/.test(String(p?.paymentDate||'')), employer:textLimit(p?.employer,160), note:textLimit(p?.note,1000), fileName:textLimit(p?.fileName,220), fileSize:Math.max(0, number(p?.fileSize)), fields:sanitizePayrollFields(p?.fields||{}), evidence:sanitizeEvidence(p?.evidence), rawText:textLimit(p?.rawText,200000), storedPdf:preserveStoredFiles ? !!p?.storedPdf : false, createdAt:textLimit(p?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(p?.updatedAt,40)||''
@@ -2938,16 +3059,16 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         id:safeId(r?.id,'rew'), period:normalizeRewardPeriod(textLimit(r?.period,11)), hours:Math.max(0,number(r?.hours)), title:textLimit(r?.title,300), note:textLimit(r?.note,500), createdAt:textLimit(r?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(r?.updatedAt,40)||new Date().toISOString()
       })).filter(r=>/^\d{4}-\d{4}-(A|B)$/.test(r.period)&&r.title);
       clean.gardenItems = asArray(data.gardenItems,3000).map(g=>({
-        id:safeId(g?.id,'gitem'), name:textLimit(g?.name,160), price:Math.max(0,number(g?.price)), horizon:['now','season','year','someday'].includes(g?.horizon)?g.horizon:'season', url:safeUrl(g?.url), note:textLimit(g?.note,500), done:!!g?.done, shared:g?.shared!==false, createdAt:textLimit(g?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(g?.updatedAt,40)||new Date().toISOString()
+        id:safeId(g?.id,'gitem'), name:textLimit(g?.name,160), price:Math.max(0,number(g?.price)), horizon:['now','season','year','someday'].includes(g?.horizon)?g.horizon:'season', url:safeUrl(g?.url), note:textLimit(g?.note,500), done:!!g?.done, shared:g?.shared!==false, purchaseDate:/^\d{4}-\d{2}-\d{2}$/.test(String(g?.purchaseDate||''))?textLimit(g.purchaseDate,10):'', transactionId:textLimit(g?.transactionId,100), financeDetached:g?.financeDetached===true, createdAt:textLimit(g?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(g?.updatedAt,40)||new Date().toISOString()
       })).filter(g=>g.name);
       clean.gardenLogs = asArray(data.gardenLogs,10000).map(g=>({
-        id:safeId(g?.id,'glog'), date:textLimit(g?.date,10), type:['hnojeni','vertikutace','aerifikace','dosev','postrik','sekani','zavlaha','servis','jine'].includes(g?.type)?g.type:'jine', area:textLimit(g?.area,120), price:Math.max(0,number(g?.price)), note:textLimit(g?.note,500), shared:g?.shared!==false, createdAt:textLimit(g?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(g?.updatedAt,40)||new Date().toISOString()
+        id:safeId(g?.id,'glog'), date:textLimit(g?.date,10), type:['hnojeni','vertikutace','aerifikace','dosev','postrik','sekani','zavlaha','servis','jine'].includes(g?.type)?g.type:'jine', area:textLimit(g?.area,120), price:Math.max(0,number(g?.price)), note:textLimit(g?.note,500), shared:g?.shared!==false, transactionId:textLimit(g?.transactionId,100), financeDetached:g?.financeDetached===true, createdAt:textLimit(g?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(g?.updatedAt,40)||new Date().toISOString()
       })).filter(g=>/^\d{4}-\d{2}-\d{2}$/.test(g.date));
       clean.electricalNotes = asArray(data.electricalNotes,10000).map(n=>({
         id:safeId(n?.id,'elect'), date:textLimit(n?.date,10), type:['note','idea','material'].includes(n?.type)?n.type:'note', title:textLimit(n?.title,180), description:textLimit(n?.description,10000), price:Math.max(0,number(n?.price)), url:safeUrl(n?.url), createdAt:textLimit(n?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(n?.updatedAt,40)||new Date().toISOString()
       })).filter(n=>/^\d{4}-\d{2}-\d{2}$/.test(n.date)&&n.title);
       clean.maintenanceLogs = asArray(data.maintenanceLogs,10000).map(m=>({
-        id:safeId(m?.id,'maint'), date:textLimit(m?.date,10), category:['boiler','appliance','water','septic','inspection','chimney','climate','other'].includes(m?.category)?m.category:'other', title:textLimit(m?.title,180), provider:textLimit(m?.provider,160), price:Math.max(0,number(m?.price)), nextDate:/^\d{4}-\d{2}-\d{2}$/.test(String(m?.nextDate||''))?textLimit(m?.nextDate,10):'', note:textLimit(m?.note,3000), shared:m?.shared!==false, createdAt:textLimit(m?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(m?.updatedAt,40)||new Date().toISOString()
+        id:safeId(m?.id,'maint'), date:textLimit(m?.date,10), category:['boiler','appliance','water','septic','inspection','chimney','climate','other'].includes(m?.category)?m.category:'other', title:textLimit(m?.title,180), provider:textLimit(m?.provider,160), price:Math.max(0,number(m?.price)), nextDate:/^\d{4}-\d{2}-\d{2}$/.test(String(m?.nextDate||''))?textLimit(m?.nextDate,10):'', note:textLimit(m?.note,3000), shared:m?.shared!==false, transactionId:textLimit(m?.transactionId,100), financeDetached:m?.financeDetached===true, createdAt:textLimit(m?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(m?.updatedAt,40)||new Date().toISOString()
       })).filter(m=>/^\d{4}-\d{2}-\d{2}$/.test(m.date)&&m.title);
       clean.partner = sanitizePartnerBlock(data.partner);
       clean.createdAt = textLimit(data.createdAt,40) || clean.createdAt;
@@ -2968,7 +3089,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       if(!await confirmPrivateExport(`CSV export: ${kind}`)) return;
       const maps={
         notes:[['id','title','source','type','priority','model','url','tags','summary','content','next','createdAt','updatedAt'], ...state.notes.map(n=>[n.id,n.title,n.source,n.type,n.priority,n.model,n.url,(n.tags||[]).join('; '),n.summary,n.content,n.next,n.createdAt,n.updatedAt])],
-        transactions:[['id','date','accountingMonth','kind','category','amount','description','source','payrollMonth','paymentId','shoppingId'], ...state.transactions.map(t=>[t.id,t.date,transactionAccountingMonth(t),t.kind,t.category,t.amount,t.description,t.source,t.payrollMonth||'',t.paymentId||'',t.shoppingId||''])],
+        transactions:[['id','date','accountingMonth','kind','category','amount','description','source','payrollMonth','paymentId','shoppingId','gardenItemId','gardenLogId','maintenanceId'], ...state.transactions.map(t=>[t.id,t.date,transactionAccountingMonth(t),t.kind,t.category,t.amount,t.description,t.source,t.payrollMonth||'',t.paymentId||'',t.shoppingId||'',t.gardenItemId||'',t.gardenLogId||'',t.maintenanceId||''])],
         payrolls:[['id','month','paymentDate','employer','fileName','cleanPay','netPay','grossPay','taxBase','incomeTax','taxpayerDiscount','childDiscount','socialInsurance','healthInsurance','deductions','bonus','note','storedPdf'], ...state.payrolls.map(p=>[p.id,p.month,p.paymentDate||'',p.employer,p.fileName,p.fields?.cleanPay||p.fields?.netPay,p.fields?.netPay||p.fields?.cleanPay,p.fields?.grossPay,p.fields?.taxBase,p.fields?.incomeTax,p.fields?.taxpayerDiscount,p.fields?.childDiscount,p.fields?.socialInsurance,p.fields?.healthInsurance,p.fields?.deductions,p.fields?.bonus,p.note,p.storedPdf])],
         tasks:[['id','title','priority','horizon','due','area','note','done','createdAt'], ...state.tasks.map(t=>[t.id,t.title,t.priority,t.horizon,t.due,t.area,t.note,t.done,t.createdAt])],
         shopping:[['id','name','segment','store','priority','status','category','price','month','url','note','createdAt'], ...state.shopping.map(s=>[s.id,s.name,s.segment,s.store,s.priority,s.status,s.category,s.price,s.month,s.url,s.note,s.createdAt])],
@@ -2978,7 +3099,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         groceries:[['id','name','store','done','note','createdAt'], ...state.groceries.map(g=>[g.id,g.name,g.store,g.done,g.note,g.createdAt])],
         ailog:[['id','date','minutes','activity','note','createdAt'], ...state.aiEntries.map(a=>[a.id,a.date,a.minutes,a.activity,a.note,a.createdAt])],
         rewards:[['id','period','periodLabel','hours','title','note','createdAt'], ...state.rewards.map(r=>[r.id,r.period,rewardPeriodLabel(r.period),r.hours,r.title,r.note,r.createdAt])],
-        garden:[['id','name','price','horizon','url','note','done','createdAt'], ...state.gardenItems.map(g=>[g.id,g.name,g.price,g.horizon,g.url,g.note,g.done,g.createdAt])],
+        garden:[['id','name','price','horizon','url','note','done','purchaseDate','transactionId','createdAt'], ...state.gardenItems.map(g=>[g.id,g.name,g.price,g.horizon,g.url,g.note,g.done,g.purchaseDate||'',g.transactionId||'',g.createdAt])],
         gardenlog:[['id','date','type','typeLabel','area','price','note','createdAt'], ...state.gardenLogs.map(g=>[g.id,g.date,g.type,gardenTypeLabel(g.type),g.area,g.price,g.note,g.createdAt])],
         maintenance:[['id','date','category','categoryLabel','title','provider','price','nextDate','note','shared','createdAt','updatedAt'], ...state.maintenanceLogs.map(m=>[m.id,m.date,m.category,maintenanceCategoryLabel(m.category),m.title,m.provider,m.price,m.nextDate,m.note,m.shared,m.createdAt,m.updatedAt])],
         electricity:[['id','date','type','typeLabel','title','description','price','url','createdAt','updatedAt'], ...state.electricalNotes.map(n=>[n.id,n.date,n.type,electricalTypeLabel(n.type),n.title,n.description,n.price,n.url,n.createdAt,n.updatedAt])]
@@ -3383,6 +3504,9 @@ Poslední pojistka: pro potvrzení importu napiš ${word}.`,
     function saveSettings(e){e.preventDefault(); state.settings.greetName=$('#greetName').value.trim(); state.settings.familyDisplayName=$('#familyDisplayName')?.value.trim()||''; state.settings.deviceName=$('#deviceName').value.trim(); state.settings.ownerName=$('#ownerName').value.trim(); state.settings.ownerFooter=$('#ownerFooter').value.trim(); state.settings.currency=sanitizeCurrency($('#currency').value); state.settings.savingGoal=number($('#savingGoal').value); state.settings.privateNotifications=$('#privateNotifications')?.checked!==false; state.settings.familySettingsUpdatedAt=new Date().toISOString(); save(); toast('Nastavení uloženo.');}
     // Krátký changelog (nejnovější nahoře, drž ~5 položek). Zobrazí se klepnutím na verzi v patičce.
     const CHANGELOG = [
+      'v5.0.6 · Karta Už utraceno na Přehledu je klikací a zobrazí úplný rozpis měsíčních výdajů včetně účtů, splátek, Velkých nákupů, zahrady, servisu, ručních výdajů a jídla s benzínem. Příjmy jsou zelené, výdaje červené.',
+      'v5.0.4 · Zahradní nákupy fungují stejně jako Velké nákupy: po zaškrtnutí je vidět fajfka, položka se přesune do archivu Pořízeno a cena se zapíše do výdajů daného měsíce. Do financí se nově automaticky propisují také ceny zahradní údržby a domácího servisu.',
+      'v5.0.3 · Po označení velkého nákupu jako koupeného zůstane položka krátce na místě: políčko zobrazí fajfku, karta zezelená a teprve potom se přesune mezi koupené. Finanční výdaj se přitom uloží okamžitě.',
       'v5.0.2 · Velké nákupy lze přímo odškrtnout jako koupené. Cena se ke dni označení automaticky zapíše jako propojený výdaj do aktuálního měsíce. Vrácení položky do plánu odstraní automatický výdaj; odpojení ve financích ponechá nákup koupený.',
       'v5.0.1 · Velké nákupy mají kalkulačku kombinace. Libovolné aktivní nebo odložené položky lze zaškrtnout, okamžitě se zobrazí jejich společná cena, počet vybraných věcí a upozornění na položky bez ceny. Výběr lze doplňovat napříč filtry, hromadně označit právě zobrazené položky a jedním tlačítkem vyčistit.',
       'v5.0.0 · Nová záložka Projekty domu: samostatné projektové karty, stav a termíny, cílový i položkový rozpočet, materiály, nabídky, poznámky, odkazy na ChatGPT a Claude, šifrované obrázky, PDF a tabulky, vlastní kreslené náčrty a export projektu do Markdownu či CSV. Projektové přílohy jsou součástí kompletní šifrované zálohy.',
@@ -4589,18 +4713,54 @@ Co chceš udělat teď?`,
     // ===== Servis domácnosti =====
     const MAINTENANCE_CATEGORIES={boiler:'🔥 Kotle a topení',appliance:'🔌 Spotřebiče',water:'💧 Voda a filtry',septic:'🚛 Žumpa a odpady',inspection:'📋 Revize',chimney:'🧱 Komín',climate:'🌬️ Klimatizace / rekuperace',other:'📌 Jiné'};
     function maintenanceCategoryLabel(value){ return MAINTENANCE_CATEGORIES[value]||MAINTENANCE_CATEGORIES.other; }
+    function maintenanceTransactionDescription(item){ return `${item.title}${item.provider?` • ${item.provider}`:''}`; }
+    function findMaintenanceTransaction(item){
+      return state.transactions.find(t=>t.id===item?.transactionId) || state.transactions.find(t=>t.source==='maintenance'&&t.maintenanceId===item?.id);
+    }
+    function upsertMaintenanceTransaction(item){
+      if(!item || item.financeDetached===true || !(number(item.price)>0) || !/^\d{4}-\d{2}-\d{2}$/.test(String(item.date||''))) return '';
+      let transaction=findMaintenanceTransaction(item);
+      const values={date:item.date,kind:'expense',category:'servis a údržba',amount:Math.max(0,number(item.price)),description:maintenanceTransactionDescription(item),source:'maintenance',maintenanceId:item.id,shared:item.shared!==false,updatedAt:new Date().toISOString()};
+      if(transaction) Object.assign(transaction,values);
+      else{ transaction={id:uid('trans'),...values,createdAt:new Date().toISOString()}; state.transactions.unshift(transaction); }
+      item.transactionId=transaction.id;
+      return transaction.id;
+    }
+    function removeMaintenanceTransaction(item){
+      if(!item) return false;
+      const before=state.transactions.length;
+      state.transactions=state.transactions.filter(t=>!(t.id===item.transactionId || (t.source==='maintenance'&&t.maintenanceId===item.id)));
+      item.transactionId='';
+      return state.transactions.length<before;
+    }
     function saveMaintenanceLog(e){
       e.preventDefault();
       const id=$('#maintenanceId').value||uid('maint');
       const existing=state.maintenanceLogs.find(x=>x.id===id);
-      const item={id,date:$('#maintenanceDate').value,category:Object.prototype.hasOwnProperty.call(MAINTENANCE_CATEGORIES,$('#maintenanceCategory').value)?$('#maintenanceCategory').value:'other',title:$('#maintenanceTitle').value.trim(),provider:$('#maintenanceProvider').value.trim(),price:Math.max(0,number($('#maintenancePrice').value)),nextDate:$('#maintenanceNextDate').value,note:$('#maintenanceNote').value.trim(),shared:!!$('#maintenanceShared')?.checked,createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+      const item={id,date:$('#maintenanceDate').value,category:Object.prototype.hasOwnProperty.call(MAINTENANCE_CATEGORIES,$('#maintenanceCategory').value)?$('#maintenanceCategory').value:'other',title:$('#maintenanceTitle').value.trim(),provider:$('#maintenanceProvider').value.trim(),price:Math.max(0,number($('#maintenancePrice').value)),nextDate:$('#maintenanceNextDate').value,note:$('#maintenanceNote').value.trim(),shared:!!$('#maintenanceShared')?.checked,transactionId:existing?.transactionId||'',financeDetached:existing?.financeDetached===true,createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
       if(!/^\d{4}-\d{2}-\d{2}$/.test(item.date)||!item.title){ toast('Vyplňte datum a název servisního zásahu.','warn'); return; }
       if(item.nextDate&&!/^\d{4}-\d{2}-\d{2}$/.test(item.nextDate)) item.nextDate='';
       if(existing) Object.assign(existing,item); else state.maintenanceLogs.unshift(item);
-      save(); resetMaintenanceForm(); toast('Servisní záznam uložen.');
+      const saved=existing||item;
+      let financeMessage='';
+      if(saved.financeDetached!==true){
+        if(number(saved.price)>0){ upsertMaintenanceTransaction(saved); financeMessage=' Výdaj byl automaticky zapsán do příslušného měsíce.'; }
+        else if(removeMaintenanceTransaction(saved)) financeMessage=' Propojený výdaj byl odstraněn, protože záznam už nemá cenu.';
+      }
+      save(); resetMaintenanceForm(); toast(`Servisní záznam uložen.${financeMessage}`);
     }
     function resetMaintenanceForm(){ $('#maintenanceForm')?.reset(); if($('#maintenanceId')) $('#maintenanceId').value=''; if($('#maintenanceDate')) $('#maintenanceDate').value=today(); if($('#maintenanceShared')) $('#maintenanceShared').checked=true; }
     function editMaintenanceForm(id){ const item=state.maintenanceLogs.find(x=>x.id===id); if(!item) return; showTab('maintenance'); toggleAddCard('maintenanceAddCard',true); $('#maintenanceId').value=item.id; $('#maintenanceDate').value=item.date; $('#maintenanceCategory').value=item.category||'other'; $('#maintenanceTitle').value=item.title; $('#maintenanceProvider').value=item.provider||''; $('#maintenancePrice').value=item.price||''; $('#maintenanceNextDate').value=item.nextDate||''; $('#maintenanceNote').value=item.note||''; if($('#maintenanceShared')) $('#maintenanceShared').checked=item.shared!==false; }
+    async function deleteMaintenanceLog(id){
+      const item=state.maintenanceLogs.find(entry=>entry.id===id); if(!item) return;
+      const linked=!!findMaintenanceTransaction(item);
+      const message=linked?'Smazat tento servisní záznam i jeho automaticky propojený výdaj v Příjmech a výdajích?':'Opravdu smazat tento servisní záznam?';
+      if(!await confirmDialog(message,{title:'Smazat servisní záznam',confirmText:'Smazat',danger:true})) return;
+      removeMaintenanceTransaction(item);
+      state.maintenanceLogs=state.maintenanceLogs.filter(entry=>entry.id!==id);
+      save();
+      toast(linked?'Servisní záznam i propojený výdaj byly smazány.':'Servisní záznam byl smazán.','warn');
+    }
     function renderMaintenance(){
       if(!$('#maintenanceKpis')) return;
       const items=[...state.maintenanceLogs].sort((a,b)=>String(b.date).localeCompare(String(a.date)));
@@ -4610,9 +4770,11 @@ Co chceš udělat teď?`,
       $('#maintenanceKpis').innerHTML=[kpi('Záznamů',items.length,'Kompletní servisní historie'),kpi('Náklady celkem',fmt(total),'Součet zapsaných cen'),kpi('Poslední servis',last?fmtDate(`${last.date}T00:00:00`):'—',last?.title||'Bez záznamu'),kpi('Další termín',upcoming?fmtDate(`${upcoming.nextDate}T00:00:00`):'—',upcoming?.title||'Není naplánován')].join('');
       const filter=$('#maintenanceFilter')?.value||'all';
       const visible=items.filter(item=>filter==='all'||item.category===filter);
-      $('#maintenanceList').innerHTML=visible.map(item=>`<article class="item"><div class="item-top"><div><h4>${maintenanceCategoryLabel(item.category)} • ${esc(item.title)}</h4><p>${esc(fmtDate(`${item.date}T00:00:00`))}${item.provider?' • '+esc(item.provider):''}${item.price?` • <strong>${fmt(item.price)}</strong>`:''}</p>${item.note?`<p>${esc(item.note)}</p>`:''}<div class="meta">${item.nextDate?`<span class="tag">další termín ${esc(fmtDate(`${item.nextDate}T00:00:00`))}</span>`:''}${item.shared!==false?'<span class="tag">👥 sdílené</span>':'<span class="tag">🔒 soukromé</span>'}</div></div><div class="actions"><button class="mini-btn" data-edit-maintenance="${attr(item.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-maintenance="${attr(item.id)}" type="button">Smazat</button></div></div></article>`).join('')||empty('Zatím nejsou zapsané žádné servisní zásahy.');
+      $('#maintenanceList').innerHTML=visible.map(item=>{
+        const financeTag=item.transactionId?'<span class="tag shopping-finance-linked">💸 zapsáno ve výdajích</span>':item.financeDetached?'<span class="tag shopping-finance-detached">výdaj odpojen</span>':number(item.price)>0?'<span class="tag shopping-finance-missing">výdaj zatím není propojen</span>':'';
+        return `<article class="item"><div class="item-top"><div><h4>${maintenanceCategoryLabel(item.category)} • ${esc(item.title)}</h4><p>${esc(fmtDate(`${item.date}T00:00:00`))}${item.provider?' • '+esc(item.provider):''}${item.price?` • <strong>${fmt(item.price)}</strong>`:''}</p>${item.note?`<p>${esc(item.note)}</p>`:''}<div class="meta">${item.nextDate?`<span class="tag">další termín ${esc(fmtDate(`${item.nextDate}T00:00:00`))}</span>`:''}${item.shared!==false?'<span class="tag">👥 sdílené</span>':'<span class="tag">🔒 soukromé</span>'}${financeTag}</div></div><div class="actions"><button class="mini-btn" data-edit-maintenance="${attr(item.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-maintenance="${attr(item.id)}" type="button">Smazat</button></div></div></article>`;
+      }).join('')||empty('Zatím nejsou zapsané žádné servisní zásahy.');
     }
-
     // ===== Elektřina – Marek =====
     const ELECTRICAL_TYPES={note:'📝 Poznámka',idea:'💡 Nápad',material:'📦 Materiál'};
     function electricalTypeLabel(value){ return ELECTRICAL_TYPES[value]||ELECTRICAL_TYPES.note; }
@@ -4649,29 +4811,139 @@ Co chceš udělat teď?`,
     const GARDEN_TYPES = {hnojeni:'🌿 Hnojení', vertikutace:'🪒 Vertikutace', aerifikace:'🕳️ Aerifikace', dosev:'🌾 Dosev', postrik:'💧 Postřik', sekani:'✂️ Sekání', zavlaha:'🚿 Závlaha', servis:'🔧 Servis techniky', jine:'📌 Jiné'};
     function gardenTypeLabel(t){ return GARDEN_TYPES[t] || GARDEN_TYPES.jine; }
     function gardenHorizonLabel(h){ return {now:'Co nejdřív', season:'Tuto sezónu', year:'Do roka', someday:'Někdy'}[h] || 'Někdy'; }
+    function gardenItemTransactionDescription(item){ return item.name; }
+    function findGardenItemTransaction(item){
+      return state.transactions.find(t=>t.id===item?.transactionId) || state.transactions.find(t=>t.source==='garden-item'&&t.gardenItemId===item?.id);
+    }
+    function upsertGardenItemTransaction(item){
+      if(!item || !item.done || item.financeDetached===true || !(number(item.price)>0)) return '';
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(String(item.purchaseDate||''))) item.purchaseDate=today();
+      let transaction=findGardenItemTransaction(item);
+      const values={date:item.purchaseDate,kind:'expense',category:'zahrada – nákupy',amount:Math.max(0,number(item.price)),description:gardenItemTransactionDescription(item),source:'garden-item',gardenItemId:item.id,shared:item.shared!==false,updatedAt:new Date().toISOString()};
+      if(transaction) Object.assign(transaction,values);
+      else{ transaction={id:uid('trans'),...values,createdAt:new Date().toISOString()}; state.transactions.unshift(transaction); }
+      item.transactionId=transaction.id;
+      return transaction.id;
+    }
+    function removeGardenItemTransaction(item){
+      if(!item) return false;
+      const before=state.transactions.length;
+      state.transactions=state.transactions.filter(t=>!(t.id===item.transactionId || (t.source==='garden-item'&&t.gardenItemId===item.id)));
+      item.transactionId='';
+      return state.transactions.length<before;
+    }
+    function markGardenItemBought(item){
+      if(!item) return {linked:false};
+      item.done=true;
+      item.purchaseDate=today();
+      item.financeDetached=false;
+      item.updatedAt=new Date().toISOString();
+      return {linked:!!upsertGardenItemTransaction(item)};
+    }
+    function restoreGardenItemPlan(item){
+      if(!item) return {removed:false};
+      const removed=removeGardenItemTransaction(item);
+      item.done=false;
+      item.purchaseDate='';
+      item.financeDetached=false;
+      item.updatedAt=new Date().toISOString();
+      return {removed};
+    }
     function saveGardenItem(e){
       e.preventDefault();
       const id=$('#gardenItemId').value||uid('gitem');
       const existing=state.gardenItems.find(x=>x.id===id);
-      const g={id, name:$('#gardenItemName').value.trim(), price:Math.max(0,number($('#gardenItemPrice').value)), horizon:['now','season','year','someday'].includes($('#gardenItemHorizon').value)?$('#gardenItemHorizon').value:'season', url:safeUrl($('#gardenItemUrl').value), note:$('#gardenItemNote').value.trim(), done:existing?.done||false, shared:!!$('#gardenItemShared')?.checked, createdAt:existing?.createdAt||new Date().toISOString(), updatedAt:new Date().toISOString()};
+      const g={id,name:$('#gardenItemName').value.trim(),price:Math.max(0,number($('#gardenItemPrice').value)),horizon:['now','season','year','someday'].includes($('#gardenItemHorizon').value)?$('#gardenItemHorizon').value:'season',url:safeUrl($('#gardenItemUrl').value),note:$('#gardenItemNote').value.trim(),done:existing?.done||false,shared:!!$('#gardenItemShared')?.checked,purchaseDate:existing?.purchaseDate||'',transactionId:existing?.transactionId||'',financeDetached:existing?.financeDetached===true,createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
       if(!g.name){ toast('Zadejte, co je potřeba pořídit.','warn'); return; }
-      if(existing)Object.assign(existing,g); else state.gardenItems.unshift(g);
-      save(); resetGardenItemForm(); toast('Položka na zahradu uložena.');
+      if(existing) Object.assign(existing,g); else state.gardenItems.unshift(g);
+      const saved=existing||g;
+      let financeMessage='';
+      if(saved.done&&saved.financeDetached!==true){
+        if(number(saved.price)>0){ upsertGardenItemTransaction(saved); financeMessage=' Propojený výdaj byl aktualizován.'; }
+        else if(removeGardenItemTransaction(saved)) financeMessage=' Propojený výdaj byl odstraněn, protože položka už nemá cenu.';
+      }
+      save(); resetGardenItemForm(); toast(`Položka na zahradu uložena.${financeMessage}`);
     }
     function resetGardenItemForm(){ $('#gardenItemForm').reset(); $('#gardenItemId').value=''; if($('#gardenItemShared')) $('#gardenItemShared').checked=true; }
     function editGardenItemForm(id){const g=state.gardenItems.find(x=>x.id===id); if(!g)return; showTab('garden'); toggleAddCard('gardenItemAddCard',true); $('#gardenItemId').value=g.id; $('#gardenItemName').value=g.name; $('#gardenItemPrice').value=g.price||''; $('#gardenItemHorizon').value=g.horizon||'season'; $('#gardenItemUrl').value=g.url||''; $('#gardenItemNote').value=g.note||''; if($('#gardenItemShared')) $('#gardenItemShared').checked=g.shared!==false;}
-    function toggleGardenItemDone(id){ const g=state.gardenItems.find(x=>x.id===id); if(g){ g.done=!g.done; g.updatedAt=new Date().toISOString(); save(); toast(g.done?'Označeno jako pořízené. 🌱':'Vráceno mezi plánované.'); } }
+    function toggleGardenItemDone(id,checked,input){
+      const g=state.gardenItems.find(x=>x.id===id); if(!g) return;
+      if(!checked){
+        const result=restoreGardenItemPlan(g);
+        save();
+        toast(result.removed?'Položka vrácena mezi plánované a propojený výdaj odstraněn.':'Položka vrácena mezi plánované.');
+        return;
+      }
+      if(g.done) return;
+      const result=markGardenItemBought(g);
+      const label=input?.closest?.('.garden-bought-check');
+      const card=input?.closest?.('.garden-purchase-item');
+      if(input) input.disabled=true;
+      label?.classList.add('garden-bought-confirming');
+      card?.classList.add('garden-bought-confirming');
+      const labelText=label?.querySelector('span');
+      if(labelText) labelText.textContent='Pořízeno';
+      save(false);
+      toast(result.linked?`Položka označena jako pořízená a ${fmt(g.price)} bylo zapsáno do výdajů za ${monthLabel(g.purchaseDate.slice(0,7))}.`:'Položka je pořízená, ale finanční výdaj nebyl vytvořen, protože chybí cena.','warn');
+      setTimeout(()=>renderAll(),GARDEN_BOUGHT_FEEDBACK_MS);
+    }
+    async function deleteGardenItem(id){
+      const item=state.gardenItems.find(entry=>entry.id===id); if(!item) return;
+      const linked=!!findGardenItemTransaction(item);
+      const message=linked?'Smazat tuto zahradní položku i její automaticky propojený výdaj v Příjmech a výdajích?':'Opravdu smazat tuto zahradní položku?';
+      if(!await confirmDialog(message,{title:'Smazat zahradní nákup',confirmText:'Smazat',danger:true})) return;
+      removeGardenItemTransaction(item);
+      state.gardenItems=state.gardenItems.filter(entry=>entry.id!==id);
+      save();
+      toast(linked?'Zahradní položka i propojený výdaj byly smazány.':'Položka byla smazána.','warn');
+    }
+    function gardenLogTransactionDescription(item){ return `${gardenTypeLabel(item.type)}${item.area?` • ${item.area}`:''}`; }
+    function findGardenLogTransaction(item){
+      return state.transactions.find(t=>t.id===item?.transactionId) || state.transactions.find(t=>t.source==='garden-log'&&t.gardenLogId===item?.id);
+    }
+    function upsertGardenLogTransaction(item){
+      if(!item || item.financeDetached===true || !(number(item.price)>0) || !/^\d{4}-\d{2}-\d{2}$/.test(String(item.date||''))) return '';
+      let transaction=findGardenLogTransaction(item);
+      const values={date:item.date,kind:'expense',category:'zahrada – údržba',amount:Math.max(0,number(item.price)),description:gardenLogTransactionDescription(item),source:'garden-log',gardenLogId:item.id,shared:item.shared!==false,updatedAt:new Date().toISOString()};
+      if(transaction) Object.assign(transaction,values);
+      else{ transaction={id:uid('trans'),...values,createdAt:new Date().toISOString()}; state.transactions.unshift(transaction); }
+      item.transactionId=transaction.id;
+      return transaction.id;
+    }
+    function removeGardenLogTransaction(item){
+      if(!item) return false;
+      const before=state.transactions.length;
+      state.transactions=state.transactions.filter(t=>!(t.id===item.transactionId || (t.source==='garden-log'&&t.gardenLogId===item.id)));
+      item.transactionId='';
+      return state.transactions.length<before;
+    }
     function saveGardenLog(e){
       e.preventDefault();
       const id=$('#gardenLogId').value||uid('glog');
       const existing=state.gardenLogs.find(x=>x.id===id);
-      const g={id, date:$('#gardenLogDate').value, type:Object.prototype.hasOwnProperty.call(GARDEN_TYPES,$('#gardenLogType').value)?$('#gardenLogType').value:'jine', area:$('#gardenLogArea').value.trim(), price:Math.max(0,number($('#gardenLogPrice').value)), note:$('#gardenLogNote').value.trim(), shared:!!$('#gardenLogShared')?.checked, createdAt:existing?.createdAt||new Date().toISOString(), updatedAt:new Date().toISOString()};
+      const g={id,date:$('#gardenLogDate').value,type:Object.prototype.hasOwnProperty.call(GARDEN_TYPES,$('#gardenLogType').value)?$('#gardenLogType').value:'jine',area:$('#gardenLogArea').value.trim(),price:Math.max(0,number($('#gardenLogPrice').value)),note:$('#gardenLogNote').value.trim(),shared:!!$('#gardenLogShared')?.checked,transactionId:existing?.transactionId||'',financeDetached:existing?.financeDetached===true,createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
       if(!/^\d{4}-\d{2}-\d{2}$/.test(g.date)){ toast('Zadejte platné datum údržby.','warn'); return; }
-      if(existing)Object.assign(existing,g); else state.gardenLogs.unshift(g);
-      save(); resetGardenLogForm(); toast('Záznam údržby uložen.');
+      if(existing) Object.assign(existing,g); else state.gardenLogs.unshift(g);
+      const saved=existing||g;
+      let financeMessage='';
+      if(saved.financeDetached!==true){
+        if(number(saved.price)>0){ upsertGardenLogTransaction(saved); financeMessage=' Výdaj byl automaticky zapsán do příslušného měsíce.'; }
+        else if(removeGardenLogTransaction(saved)) financeMessage=' Propojený výdaj byl odstraněn, protože záznam už nemá cenu.';
+      }
+      save(); resetGardenLogForm(); toast(`Záznam údržby uložen.${financeMessage}`);
     }
     function resetGardenLogForm(){ $('#gardenLogForm').reset(); $('#gardenLogId').value=''; $('#gardenLogDate').value=today(); if($('#gardenLogShared')) $('#gardenLogShared').checked=true; }
     function editGardenLogForm(id){const g=state.gardenLogs.find(x=>x.id===id); if(!g)return; showTab('garden'); toggleAddCard('gardenLogAddCard',true); $('#gardenLogId').value=g.id; $('#gardenLogDate').value=g.date; $('#gardenLogType').value=g.type||'jine'; $('#gardenLogArea').value=g.area||''; $('#gardenLogPrice').value=g.price||''; $('#gardenLogNote').value=g.note||''; if($('#gardenLogShared')) $('#gardenLogShared').checked=g.shared!==false;}
+    async function deleteGardenLog(id){
+      const item=state.gardenLogs.find(entry=>entry.id===id); if(!item) return;
+      const linked=!!findGardenLogTransaction(item);
+      const message=linked?'Smazat tento záznam zahradní údržby i jeho automaticky propojený výdaj v Příjmech a výdajích?':'Opravdu smazat tento záznam zahradní údržby?';
+      if(!await confirmDialog(message,{title:'Smazat zahradní údržbu',confirmText:'Smazat',danger:true})) return;
+      removeGardenLogTransaction(item);
+      state.gardenLogs=state.gardenLogs.filter(entry=>entry.id!==id);
+      save();
+      toast(linked?'Záznam zahradní údržby i propojený výdaj byly smazány.':'Záznam údržby byl smazán.','warn');
+    }
     function lastGardenLogOfType(type){ return state.gardenLogs.filter(g=>g.type===type).sort((a,b)=>String(b.date).localeCompare(String(a.date)))[0]||null; }
     function renderGarden(){
       if(!$('#gardenKpis')) return;
@@ -4688,7 +4960,6 @@ Co chceš udělat teď?`,
         kpi('Poslední hnojení',lastFert?fmtDate(`${lastFert.date}T00:00:00`):'—',lastFert?.area||'Zatím bez záznamu'),
         kpi('Poslední servis',lastServis?fmtDate(`${lastServis.date}T00:00:00`):'—',lastServis?.area||'Zatím bez záznamu')
       ].join('');
-      // Přehled „kdy naposledy" podle typu údržby
       const careTypes=['hnojeni','vertikutace','aerifikace','dosev','postrik','sekani','zavlaha','servis'];
       $('#gardenCare').innerHTML=careTypes.map(t=>{
         const last=lastGardenLogOfType(t);
@@ -4697,19 +4968,29 @@ Co chceš udělat teď?`,
         const fresh=Math.max(4,100-days*100/180);
         return barRow(gardenTypeLabel(t), `${fmtDate(`${last.date}T00:00:00`)} • před ${days} dny${last.area?' • '+esc(last.area):''}`, fresh);
       }).join('');
-      // Aktivní položky zůstávají viditelné, pořízené se přesouvají do rozbalovacího archivu.
       const horizonOrder={now:0,season:1,year:2,someday:3};
       const openItems=state.gardenItems.filter(g=>!g.done).sort((a,b)=>horizonOrder[a.horizon]-horizonOrder[b.horizon] || String(b.createdAt).localeCompare(String(a.createdAt)));
-      const completedItems=state.gardenItems.filter(g=>g.done).sort((a,b)=>String(b.updatedAt||b.createdAt).localeCompare(String(a.updatedAt||a.createdAt)));
-      const gardenItemCard=(g,completed=false)=>`<article class="task ${completed?'done':''}"><div class="checkline"><input type="checkbox" data-toggle-gitem="${attr(g.id)}" ${completed?'checked':''} aria-label="Označit ${attr(g.name)} jako pořízené"><div><h4>${esc(g.name)}</h4><p>${g.price?`<strong>${fmt(g.price)}</strong> • `:''}${gardenHorizonLabel(g.horizon)}</p>${g.note?`<p>${esc(g.note)}</p>`:''}<div class="meta">${g.url?`<a class="tag" href="${attr(safeUrl(g.url))}" target="_blank" rel="noopener">odkaz ↗</a>`:''}${completed?'<span class="tag">✅ pořízeno</span>':''}</div></div></div><div class="actions"><button class="mini-btn" data-edit-gitem="${attr(g.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-gitem="${attr(g.id)}" type="button">Smazat</button></div></div></article>`;
+      const completedItems=state.gardenItems.filter(g=>g.done).sort((a,b)=>String(b.purchaseDate||b.updatedAt||b.createdAt).localeCompare(String(a.purchaseDate||a.updatedAt||a.createdAt)));
+      const gardenItemCard=(g,completed=false)=>{
+        const financeTag=completed
+          ? g.transactionId?'<span class="tag shopping-finance-linked">💸 zapsáno ve výdajích</span>'
+            : g.financeDetached?'<span class="tag shopping-finance-detached">výdaj odpojen</span>'
+              : number(g.price)>0?'<span class="tag shopping-finance-missing">výdaj zatím není propojen</span>':'<span class="tag shopping-finance-missing">chybí cena pro výdaj</span>'
+          : '';
+        const boughtToggle=`<label class="garden-bought-check"><input type="checkbox" data-toggle-gitem="${attr(g.id)}" ${completed?'checked':''}><span>${completed?'Pořízeno':'Označit jako pořízené'}</span></label>`;
+        const dateTag=completed&&g.purchaseDate?`<span class="tag">pořízeno ${esc(g.purchaseDate)}</span>`:'';
+        return `<article class="task garden-purchase-item ${completed?'done':''}"><div class="checkline"><div><h4>${esc(g.name)}</h4><p>${g.price?`<strong>${fmt(g.price)}</strong> • `:''}${gardenHorizonLabel(g.horizon)}</p>${g.note?`<p>${esc(g.note)}</p>`:''}<div class="meta">${g.url?`<a class="tag" href="${attr(safeUrl(g.url))}" target="_blank" rel="noopener">odkaz ↗</a>`:''}${dateTag}${financeTag}</div></div></div><div class="actions">${boughtToggle}<button class="mini-btn" data-edit-gitem="${attr(g.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-gitem="${attr(g.id)}" type="button">Smazat</button></div></article>`;
+      };
       $('#gardenItemsList').innerHTML=openItems.map(g=>gardenItemCard(g,false)).join('')||empty('Všechny položky jsou pořízené. Novou věc přidáte plovoucím tlačítkem +.');
       const completedCount=$('#gardenCompletedCount'); if(completedCount) completedCount.textContent=String(completedItems.length);
       const completedList=$('#gardenCompletedList'); if(completedList) completedList.innerHTML=completedItems.map(g=>gardenItemCard(g,true)).join('')||empty('Archiv pořízených položek je prázdný.');
       const completedArchive=$('#gardenCompletedArchive'); if(completedArchive) completedArchive.hidden=!completedItems.length;
-      // Deník údržby
       const filter=$('#gardenLogFilter')?.value||'all';
       const logs=[...state.gardenLogs].filter(g=>filter==='all'||g.type===filter).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
-      $('#gardenLogList').innerHTML=logs.map(g=>`<article class="item"><div class="item-top"><div><h4>${gardenTypeLabel(g.type)}${g.area?` • ${esc(g.area)}`:''}</h4><p>${esc(fmtDate(`${g.date}T00:00:00`))}${g.price?` • <strong>${fmt(g.price)}</strong>`:''}</p>${g.note?`<p>${esc(g.note)}</p>`:''}</div><div class="actions"><button class="mini-btn" data-edit-glog="${attr(g.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-glog="${attr(g.id)}" type="button">Smazat</button></div></div></article>`).join('')||empty(filter==='all'?'Deník je prázdný. Zapište první hnojení, vertikutaci nebo servis.':'Pro tento typ zatím nejsou záznamy.');
+      $('#gardenLogList').innerHTML=logs.map(g=>{
+        const financeTag=g.transactionId?'<span class="tag shopping-finance-linked">💸 zapsáno ve výdajích</span>':g.financeDetached?'<span class="tag shopping-finance-detached">výdaj odpojen</span>':number(g.price)>0?'<span class="tag shopping-finance-missing">výdaj zatím není propojen</span>':'';
+        return `<article class="item"><div class="item-top"><div><h4>${gardenTypeLabel(g.type)}${g.area?` • ${esc(g.area)}`:''}</h4><p>${esc(fmtDate(`${g.date}T00:00:00`))}${g.price?` • <strong>${fmt(g.price)}</strong>`:''}</p>${g.note?`<p>${esc(g.note)}</p>`:''}<div class="meta">${financeTag}</div></div><div class="actions"><button class="mini-btn" data-edit-glog="${attr(g.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-glog="${attr(g.id)}" type="button">Smazat</button></div></div></article>`;
+      }).join('')||empty(filter==='all'?'Deník je prázdný. Zapište první hnojení, vertikutaci nebo servis.':'Pro tento typ zatím nejsou záznamy.');
     }
 
     // ===== Rodina (šifrovaný náhled partnerových sdílených dat) =====

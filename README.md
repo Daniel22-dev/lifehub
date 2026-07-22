@@ -1,6 +1,16 @@
-# LifeHub 5.0.2
+# LifeHub 5.0.4
 
 Lokální šifrované osobní centrum pro poznámky, finance, dokumenty, úkoly, domácnost, zahradu, pracovní výkazy a větší projekty domu.
+
+## Novinky 5.0.4
+
+- Zahradní nákupy se po označení jako pořízené automaticky zapíší do měsíčních výdajů a přesunou do archivu Pořízeno.
+- Ceny zahradní údržby a domácího servisu se zapisují do financí podle data záznamu.
+- Všechny propojené výdaje lze ve financích odpojit; úprava nebo smazání zdrojového záznamu finanční položku bezpečně aktualizuje.
+
+- Po zaškrtnutí velkého nákupu se nejprve viditelně zobrazí fajfka a zelené potvrzení.
+- Položka se mezi koupené přesune až po krátké prodlevě 650 ms.
+- Data i propojený výdaj se ukládají okamžitě; prodleva je pouze vizuální.
 
 ## Novinky 5.0.2
 

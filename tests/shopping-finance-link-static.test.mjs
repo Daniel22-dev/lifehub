@@ -28,7 +28,7 @@ test('vrácení nákupu do plánu odstraní propojený výdaj',()=>{
 
 test('finance umí zdroj Velké nákupy',()=>{
   assert.ok(html.includes('<option value="shopping">Velké nákupy</option>'));
-  assert.ok(app.includes("['payroll','payment','installment','shopping']"));
+  assert.ok(app.includes("['payroll','payment','installment','shopping','garden-item','garden-log','maintenance']"));
   assert.ok(app.includes('shoppingId:textLimit'));
 });
 
