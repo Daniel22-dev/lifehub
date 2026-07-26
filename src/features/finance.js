@@ -19,6 +19,7 @@ export function buildTransactionRecord(input, existing = null, now = new Date().
     gardenItemId: existing?.gardenItemId || '',
     gardenLogId: existing?.gardenLogId || '',
     maintenanceId: existing?.maintenanceId || '',
+    paidBy: input.kind === 'expense' ? (input.paidBy === 'wife' ? 'wife' : 'me') : '',
     createdAt: existing?.createdAt || now,
     updatedAt: now
   };
@@ -60,14 +61,13 @@ export function summarizeMonthlyFinancialPlan({
       salaryCredited:0,
       salaryPeriods:[],
       payrollsMissingNetPay:0,
-      transactionExpenses:0,
-      budgetSpent:0,
-      actualSpent:0,
-      pendingPayments:0,
-      pendingInstallments:0,
-      remainingBudget:0,
-      stillPlanned:0,
-      totalExpectedExpenses:0,
+      transactionExpenses:0,myTransactionExpenses:0,wifeTransactionExpenses:0,
+      budgetSpent:0,myBudgetSpent:0,wifeBudgetSpent:0,
+      actualSpent:0,myActualSpent:0,wifeActualSpent:0,
+      pendingPayments:0,myPendingPayments:0,wifePendingPayments:0,
+      pendingInstallments:0,myPendingInstallments:0,wifePendingInstallments:0,
+      remainingBudget:0,stillPlanned:0,myStillPlanned:0,wifeStillPlanned:0,
+      totalExpectedExpenses:0,myTotalExpectedExpenses:0,wifeTotalExpectedExpenses:0,
       remainingAfterPlan:0
     };
   }
@@ -114,36 +114,53 @@ export function summarizeMonthlyFinancialPlan({
     ...salaryTransactions.map(row=>String(row?.payrollMonth || ''))
   ].filter(value=>/^\d{4}-\d{2}$/.test(value)))].sort();
 
-  const transactionExpenses = transactions
-    .filter(row => row?.kind === 'expense' && String(row?.date || '').startsWith(selectedMonth))
-    .reduce((sum,row)=>sum+amount(row?.amount),0);
-  const budgetSpent = budgetEntries
-    .filter(row => String(row?.date || '').startsWith(selectedMonth))
-    .reduce((sum,row)=>sum+amount(row?.amount),0);
+  const expenseRows = transactions.filter(row => row?.kind === 'expense' && String(row?.date || '').startsWith(selectedMonth));
+  const transactionExpenses = expenseRows.reduce((sum,row)=>sum+amount(row?.amount),0);
+  const myTransactionExpenses = expenseRows.filter(row=>row?.paidBy!=='wife').reduce((sum,row)=>sum+amount(row?.amount),0);
+  const wifeTransactionExpenses = expenseRows.filter(row=>row?.paidBy==='wife').reduce((sum,row)=>sum+amount(row?.amount),0);
+  const budgetRows = budgetEntries.filter(row => String(row?.date || '').startsWith(selectedMonth));
+  const budgetSpent = budgetRows.reduce((sum,row)=>sum+amount(row?.amount),0);
+  const myBudgetSpent = budgetRows.filter(row=>row?.paidBy!=='wife').reduce((sum,row)=>sum+amount(row?.amount),0);
+  const wifeBudgetSpent = budgetRows.filter(row=>row?.paidBy==='wife').reduce((sum,row)=>sum+amount(row?.amount),0);
   const actualSpent = transactionExpenses + budgetSpent;
+  const myActualSpent = myTransactionExpenses + myBudgetSpent;
+  const wifeActualSpent = wifeTransactionExpenses + wifeBudgetSpent;
 
-  const pendingPayments = householdPayments
-    .filter(row => row?.status !== 'paid' && amount(row?.amount) > 0 && /^\d{4}-\d{2}-\d{2}$/.test(String(row?.dueDate || '')) && String(row.dueDate) <= end)
-    .reduce((sum,row)=>sum+amount(row?.amount),0);
+  const pendingPaymentRows = householdPayments
+    .filter(row => row?.status !== 'paid' && amount(row?.amount) > 0 && /^\d{4}-\d{2}-\d{2}$/.test(String(row?.dueDate || '')) && String(row.dueDate) <= end);
+  const pendingPayments = pendingPaymentRows.reduce((sum,row)=>sum+amount(row?.amount),0);
+  const myPendingPayments = pendingPaymentRows.filter(row=>row?.defaultPaidBy!=='wife').reduce((sum,row)=>sum+amount(row?.amount),0);
+  const wifePendingPayments = pendingPaymentRows.filter(row=>row?.defaultPaidBy==='wife').reduce((sum,row)=>sum+amount(row?.amount),0);
 
-  const pendingInstallments = installments.reduce((sum,installment)=>{
+  const pendingInstallmentTotals = installments.reduce((totals,installment)=>{
     const startMonth = String(installment?.startMonth || '');
-    if(/^\d{4}-\d{2}$/.test(startMonth) && startMonth > selectedMonth) return sum;
+    if(/^\d{4}-\d{2}$/.test(startMonth) && startMonth > selectedMonth) return totals;
     const total = amount(installment?.total);
     const paid = Math.min(total, amount(installment?.paid));
     const remaining = Math.max(0, total-paid);
     const regularPlan = Math.min(remaining, amount(installment?.monthly));
-    if(!(regularPlan > 0)) return sum;
+    if(!(regularPlan > 0)) return totals;
     const regularPaidThisMonth = (Array.isArray(installment?.paymentHistory) ? installment.paymentHistory : [])
       .filter(row => row?.type === 'regular' && String(row?.date || '').startsWith(selectedMonth))
       .reduce((subtotal,row)=>subtotal+amount(row?.amount),0);
-    return sum + Math.max(0, regularPlan-regularPaidThisMonth);
-  },0);
+    const pending = Math.max(0, regularPlan-regularPaidThisMonth);
+    totals.total += pending;
+    if(installment?.defaultPaidBy==='wife') totals.wife += pending;
+    else totals.me += pending;
+    return totals;
+  },{total:0,me:0,wife:0});
+  const pendingInstallments = pendingInstallmentTotals.total;
+  const myPendingInstallments = pendingInstallmentTotals.me;
+  const wifePendingInstallments = pendingInstallmentTotals.wife;
 
   const plannedBudget = amount(foodBudget) + amount(fuelBudget);
   const remainingBudget = Math.max(0, plannedBudget-budgetSpent);
   const stillPlanned = pendingPayments + pendingInstallments + remainingBudget;
+  const myStillPlanned = myPendingPayments + myPendingInstallments + remainingBudget;
+  const wifeStillPlanned = wifePendingPayments + wifePendingInstallments;
   const totalExpectedExpenses = actualSpent + stillPlanned;
+  const myTotalExpectedExpenses = myActualSpent + myStillPlanned;
+  const wifeTotalExpectedExpenses = wifeActualSpent + wifeStillPlanned;
 
   return {
     month:selectedMonth,
@@ -151,13 +168,27 @@ export function summarizeMonthlyFinancialPlan({
     salaryPeriods,
     payrollsMissingNetPay,
     transactionExpenses,
+    myTransactionExpenses,
+    wifeTransactionExpenses,
     budgetSpent,
+    myBudgetSpent,
+    wifeBudgetSpent,
     actualSpent,
+    myActualSpent,
+    wifeActualSpent,
     pendingPayments,
+    myPendingPayments,
+    wifePendingPayments,
     pendingInstallments,
+    myPendingInstallments,
+    wifePendingInstallments,
     remainingBudget,
     stillPlanned,
+    myStillPlanned,
+    wifeStillPlanned,
     totalExpectedExpenses,
-    remainingAfterPlan:salaryCredited-totalExpectedExpenses
+    myTotalExpectedExpenses,
+    wifeTotalExpectedExpenses,
+    remainingAfterPlan:salaryCredited-myTotalExpectedExpenses
   };
 }

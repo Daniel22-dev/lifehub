@@ -1,4 +1,4 @@
-export const APP_VERSION = '5.0.7';
+export const APP_VERSION = '5.1.0';
 const runtimeBase = import.meta.env?.BASE_URL || './';
 const documentBase = globalThis.document?.baseURI || 'http://localhost/';
 export const PUBLIC_BASE_URL = new URL(runtimeBase, documentBase);
@@ -9,6 +9,7 @@ export const MAX_KDF_ITERATIONS = 2000000;
 export const MIN_PASSWORD_LENGTH = 14;
 export const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024;
 export const MAX_PDF_PAGES = 5;
+export const MAX_HTML_PLAN_SIZE_BYTES = 12 * 1024 * 1024;
 export const LEGACY_STORE = 'lifehub.v2.state';
 export const ENC_STORE = 'lifehub.v3.encrypted.state';
 export const AUTO_LOCK_MINUTES = 15;

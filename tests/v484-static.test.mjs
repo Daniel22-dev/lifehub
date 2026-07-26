@@ -10,9 +10,11 @@ test('Přehled obsahuje souhrn výplaty proti skutečným i plánovaným výdaj�
   assert.ok(html.includes('id="dashboardMonthlyFinance"'));
   assert.ok(html.includes('Výplata vs. všechny aktuální a plánované výdaje'));
   assert.ok(app.includes('summarizeMonthlyFinancialPlan'));
-  assert.ok(app.includes("kpi('Připsaná výplata'"));
-  assert.ok(app.includes("kpi('Ještě plánováno'"));
-  assert.ok(app.includes("kpiHtml('Po všech výdajích'"));
+  assert.ok(app.includes("kpiHtml('Připsaná výplata'"));
+  assert.ok(app.includes('Zaplatil jsem'));
+  assert.ok(app.includes("kpiHtml('Zaplatila manželka'"));
+  assert.ok(app.includes("kpiHtml('Můj zůstatek'"));
+  assert.ok(app.includes("kpiHtml('Náklady domácnosti'"));
 });
 
 

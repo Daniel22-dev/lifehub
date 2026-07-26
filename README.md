@@ -1,31 +1,17 @@
-# LifeHub 5.0.4
+# LifeHub 5.1.0
 
-Lokální šifrované osobní centrum pro poznámky, finance, dokumenty, úkoly, domácnost, zahradu, pracovní výkazy a větší projekty domu.
+Lokální šifrované osobní centrum pro poznámky, finance, dokumenty, úkoly, domácnost, zahradu, pracovní výkazy, interaktivní postupy a větší projekty domu.
 
-## Novinky 5.0.4
+## Novinky 5.1.0
 
-- Zahradní nákupy se po označení jako pořízené automaticky zapíší do měsíčních výdajů a přesunou do archivu Pořízeno.
-- Ceny zahradní údržby a domácího servisu se zapisují do financí podle data záznamu.
-- Všechny propojené výdaje lze ve financích odpojit; úprava nebo smazání zdrojového záznamu finanční položku bezpečně aktualizuje.
-
-- Po zaškrtnutí velkého nákupu se nejprve viditelně zobrazí fajfka a zelené potvrzení.
-- Položka se mezi koupené přesune až po krátké prodlevě 650 ms.
-- Data i propojený výdaj se ukládají okamžitě; prodleva je pouze vizuální.
-
-## Novinky 5.0.2
-
-- Velký nákup lze přímo označit jako koupený.
-- Cena se automaticky zapíše jako propojený výdaj ke dni označení.
-- Vrácení nákupu do plánu odstraní automatický výdaj; výdaj lze také samostatně odpojit.
-
-## Novinky 5.0.1
-
-- ve **Velkých nákupech** lze zaškrtnout libovolnou kombinaci aktivních i odložených položek,
-- společná cena se přepočítává okamžitě a výběr zůstává zachován při změně filtrů,
-- souhrn upozorní na vybrané položky bez zadané ceny,
-- právě zobrazené položky lze označit hromadně a celý výběr jedním tlačítkem vyčistit,
-- kalkulačka je dočasná a po zamknutí aplikace se z bezpečnostních důvodů vymaže,
-- projektové centrum domu, šifrované přílohy a všechny funkce verze 5.0.0 zůstávají zachovány.
+- samostatná záložka **Plány a postupy** v části Dům a technika,
+- šifrované ukládání interaktivních HTML plánů a jejich bezpečné spuštění v sandboxu,
+- zachovaný samostatný modul **Projekty domu**,
+- plátce **Já / Manželka** u všech relevantních skutečných výdajů,
+- osobní bilance odečítá pouze výdaje zaplacené uživatelem,
+- celkové náklady domácnosti nadále zahrnují výdaje obou osob,
+- filtrování měsíčních a ročních výdajů podle plátce,
+- kompletní záloha přenáší také HTML plány.
 
 ## Kontrola před vydáním
 
@@ -41,9 +27,10 @@ npm run check
 - lokální trezor AES-GCM 256,
 - odvození klíče PBKDF2-SHA256,
 - přísná CSP bez síťových spojení aplikace,
+- izolovaný prohlížeč nahraných HTML plánů bez přístupu k datům LifeHubu,
 - whitelistová sanitizace importovaného stavu,
 - nouzová šifrovaná záloha při selhání ukládání,
-- kompletní šifrovaná záloha včetně dokumentů, PDF a projektových příloh,
+- kompletní šifrovaná záloha včetně dokumentů, PDF, projektových příloh a HTML plánů,
 - automatický zámek a podpora WebAuthn PRF na kompatibilních zařízeních.
 
 Podrobný přehled změn je v `CHANGELOG.md`. Interaktivní uživatelský návod je v `public/manual.html`.

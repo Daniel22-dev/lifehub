@@ -4,10 +4,10 @@ import fs from 'node:fs';
 
 const manual = fs.readFileSync(new URL('../public/manual.html', import.meta.url), 'utf8');
 
-test('interaktivní manuál odpovídá funkcím LifeHubu 5.0.4', () => {
+test('interaktivní manuál odpovídá funkcím LifeHubu 5.1.0', () => {
   for (const text of [
-    'LifeHub 5.0.4',
-    'automaticky zapíše jako propojený výdaj',
+    'LifeHub 5.1.0',
+    'automaticky vytvoří propojený výdaj',
     'Zahradní nákupy',
     'Zahradní údržba a servis domácnosti',
     'Označit jako pořízené',
@@ -16,8 +16,13 @@ test('interaktivní manuál odpovídá funkcím LifeHubu 5.0.4', () => {
     'Do kombinace',
     'Součet vybraných položek',
     'Projekty domu',
+    'Plány a postupy',
+    'Kdo zaplatil',
+    'Zaplatila manželka',
+    'Náklady domácnosti',
+    'bezpečně odděleném sandboxu',
     'GPT / Claude vlákna',
-    'kreslené náčrty',
+    'kreslených náčrtů',
     'Elektřina – Marek',
     'Servis domácnosti',
     'Uložit jako PDF',
@@ -31,7 +36,7 @@ test('interaktivní manuál odpovídá funkcím LifeHubu 5.0.4', () => {
     'Dokončené úkoly',
     'Doplacené splátky',
     'Měsíční závazky včetně splátek',
-    'Výplata proti celému měsíci',
+    'Výplata proti mým výdajům',
     'současně vytvoří propojený výdaj v Příjmech a výdajích',
     'Živý náhled v aplikaci byl kvůli výkonu telefonu odstraněn'
   ]) assert.ok(manual.includes(text), `V manuálu chybí: ${text}`);

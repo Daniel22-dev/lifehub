@@ -2,10 +2,10 @@ import { uid } from './utils.js';
 
 export const STATE_COLLECTIONS_WITH_IDS = Object.freeze([
   'notes','transactions','payrolls','documents','tasks','shopping','apps','installments',
-  'projects','householdPayments','budgetEntries','groceries','aiEntries','rewards','gardenItems','gardenLogs','electricalNotes','maintenanceLogs'
+  'projects','htmlPlans','householdPayments','budgetEntries','groceries','aiEntries','rewards','gardenItems','gardenLogs','electricalNotes','maintenanceLogs'
 ]);
 
-export function migrateStateSchema(input, targetSchema = 11){
+export function migrateStateSchema(input, targetSchema = 13){
   const migrated = JSON.parse(JSON.stringify(input || {}));
   const current = Math.max(1, Math.round(Number(migrated.schemaVersion) || 1));
   if(current < 6 && Array.isArray(migrated.payrolls)){
@@ -79,6 +79,43 @@ export function migrateStateSchema(input, targetSchema = 11){
         if(item.transactionId===undefined) item.transactionId='';
         if(item.financeDetached===undefined) item.financeDetached=false;
       }
+    }
+  }
+
+  if(current < 13){
+    if(!Array.isArray(migrated.htmlPlans)) migrated.htmlPlans=[];
+    const normalizePayer = value => value === 'wife' ? 'wife' : 'me';
+    if(Array.isArray(migrated.transactions)){
+      for(const row of migrated.transactions){
+        if(row && row.kind === 'expense') row.paidBy=normalizePayer(row.paidBy);
+      }
+    }
+    if(Array.isArray(migrated.budgetEntries)){
+      for(const row of migrated.budgetEntries){ if(row) row.paidBy=normalizePayer(row.paidBy); }
+    }
+    for(const collection of ['shopping','gardenItems','gardenLogs','maintenanceLogs']){
+      if(!Array.isArray(migrated[collection])) migrated[collection]=[];
+      for(const row of migrated[collection]){ if(row) row.paidBy=normalizePayer(row.paidBy); }
+    }
+    if(Array.isArray(migrated.installments)){
+      for(const row of migrated.installments){
+        if(!row) continue;
+        row.defaultPaidBy=normalizePayer(row.defaultPaidBy);
+        if(Array.isArray(row.paymentHistory)) for(const history of row.paymentHistory){ if(history) history.paidBy=normalizePayer(history.paidBy || row.defaultPaidBy); }
+      }
+    }
+    if(Array.isArray(migrated.householdPayments)){
+      for(const row of migrated.householdPayments){
+        if(!row) continue;
+        row.defaultPaidBy=normalizePayer(row.defaultPaidBy);
+        if(Array.isArray(row.paymentHistory)) for(const history of row.paymentHistory){ if(history) history.paidBy=normalizePayer(history.paidBy || row.defaultPaidBy); }
+      }
+    }
+    for(const plan of migrated.htmlPlans){
+      if(!plan || typeof plan !== 'object') continue;
+      if(plan.storedFile===undefined) plan.storedFile=true;
+      if(plan.pinned===undefined) plan.pinned=false;
+      if(plan.category===undefined) plan.category='other';
     }
   }
   if(current < targetSchema) migrated.schemaVersion = targetSchema;

@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#11152f">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'none'; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
-  <title>LifeHub 5.0.7 | osobní digitální centrum</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'none'; worker-src 'self' blob:; child-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
+  <title>LifeHub 5.1.0 | osobní digitální centrum</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./lifehub-icon-v2.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./lifehub-icon-192-v2.png">
@@ -16,7 +16,7 @@
       <div class="brand">
         <div class="brand-mark" aria-hidden="true"><span>LH</span></div>
         <div class="brand-copy">
-          <h1>LifeHub <span id="appTitleVersion">5.0.7</span></h1>
+          <h1>LifeHub <span id="appTitleVersion">5.1.0</span></h1>
           <p>Soukromé centrum · offline · šifrované</p>
         </div>
       </div>
@@ -56,6 +56,7 @@
           <button data-tab="garden" type="button"><span class="emoji">🌱</span><span class="label">Zahrada</span></button>
           <div class="nav-group-label">Dům a technika</div>
           <button data-tab="projects" type="button"><span class="emoji">🏗️</span><span class="label">Projekty domu</span></button>
+          <button data-tab="plans" type="button"><span class="emoji">📋</span><span class="label">Plány a postupy</span></button>
           <button data-tab="maintenance" type="button"><span class="emoji">🛠️</span><span class="label">Servis domácnosti</span></button>
           <button data-tab="electricity" type="button"><span class="emoji">⚡</span><span class="label">Elektřina – Marek</span></button>
           <div class="nav-group-label">Práce a AI</div>
@@ -214,6 +215,7 @@
             <div class="actions">
               <input id="financeMonth" type="month" class="control-w-170" title="Měsíc">
               <input id="financeYear" type="number" min="2000" max="2100" class="control-w-130" title="Rok">
+              <select id="financePayerView" class="control-w-170" title="Zobrazený plátce"><option value="me">Moje výdaje</option><option value="wife">Výdaje manželky</option><option value="all">Celá domácnost</option></select>
             </div>
           </div>
 
@@ -247,6 +249,7 @@
               <input id="transSearch" type="search" placeholder="Hledat v transakcích…">
               <select id="transKindFilter" title="Typ"><option value="all">Vše</option><option value="income">Příjmy</option><option value="expense">Výdaje</option></select>
               <select id="transSourceFilter" title="Zdroj"><option value="all">Všechny zdroje</option><option value="manual">Ruční</option><option value="payroll">Výplatní pásky</option><option value="payment">Účty a závazky</option><option value="installment">Splátkový kalendář</option><option value="shopping">Velké nákupy</option><option value="garden-item">Zahrada – nákupy</option><option value="garden-log">Zahrada – údržba</option><option value="maintenance">Servis a údržba</option></select>
+              <select id="transPayerFilter" title="Plátce"><option value="all">Všichni plátci</option><option value="me">Zaplatil jsem</option><option value="wife">Zaplatila manželka</option></select>
               <select id="transPeriodFilter" title="Období"><option value="selected">Vybraný měsíc</option><option value="year">Celý rok</option><option value="all">Vše</option></select>
             </div>
             <div class="list" id="transactionsList"></div>
@@ -323,6 +326,7 @@
                 <label>Kategorie<input id="transCategory" required placeholder="mzda, bydlení, jídlo…"></label>
                 <label>Částka<input id="transAmount" type="number" min="0" step="0.01" required placeholder="0"></label>
                 <label class="wide">Popis<input id="transDescription" placeholder="Volitelné"></label>
+                <label id="transPaidByLabel">Kdo výdaj zaplatil<select id="transPaidBy"><option value="me">Já</option><option value="wife">Manželka</option></select></label>
                 <label class="check-label wide"><input id="transShared" type="checkbox" checked> Zobrazit tuto transakci v rodinném náhledu partnera</label>
                 <div class="actions wide">
                   <button class="btn primary" type="submit">Uložit transakci</button>
@@ -387,6 +391,7 @@
                 <label>Druh<select id="budgetKind"><option value="food">🍞 Jídlo</option><option value="fuel">⛽ Benzín</option></select></label>
                 <label>Částka<input id="budgetAmount" type="number" min="0" step="0.01" required placeholder="0"></label>
                 <label>Poznámka<input id="budgetNote" placeholder="Např. Lidl, tankování Shell…"></label>
+                <label>Kdo zaplatil<select id="budgetPaidBy"><option value="me">Já</option><option value="wife">Manželka</option></select></label>
                 <div class="actions wide">
                   <button class="btn primary" type="submit">Uložit útratu</button>
                   <button class="btn" id="resetBudget" type="button">Vyčistit</button>
@@ -431,6 +436,7 @@
                 <label>Už splaceno<input id="instPaid" type="number" min="0" step="0.01" placeholder="0"></label>
                 <label>Den automatické splátky<input id="instDueDay" type="number" min="1" max="31" placeholder="15"></label>
                 <label>Kdo řeší<select id="instAssignedTo"><option value="both">Oba</option><option value="me">Já</option><option value="partner">Partner</option></select></label>
+                <label>Výchozí plátce<select id="instDefaultPaidBy"><option value="me">Já</option><option value="wife">Manželka</option></select></label>
                 <label class="check-label"><input id="instShared" type="checkbox" checked> Sdílet v rodině</label>
                 <label class="wide">Poznámka<input id="instNote" placeholder="Číslo smlouvy, úrok, poznámka…"></label>
                 <div class="actions wide">
@@ -475,7 +481,8 @@
                 <label>Částka<input id="paymentAmount" type="number" min="0" step="0.01" required placeholder="0"></label>
                 <label>Opakování<select id="paymentFrequency"><option value="once">Jednorázově</option><option value="monthly">Měsíčně</option><option value="quarterly">Čtvrtletně</option><option value="yearly">Ročně</option></select></label>
                 <label>Nejbližší splatnost<input id="paymentDueDate" type="date" required></label>
-                <label>Kdo platí<select id="paymentAssignedTo"><option value="both">Oba / společně</option><option value="me">Já</option><option value="partner">Partner</option></select></label>
+                <label>Kdo řeší<select id="paymentAssignedTo"><option value="both">Oba / společně</option><option value="me">Já</option><option value="partner">Partner</option></select></label>
+                <label>Výchozí plátce<select id="paymentDefaultPaidBy"><option value="me">Já</option><option value="wife">Manželka</option></select></label>
                 <label class="check-label wide"><input id="paymentAutomatic" type="checkbox"> Hrazeno automaticky z účtu (trvalý příkaz / inkaso)</label>
                 <label class="check-label wide"><input id="paymentTrackFinance" type="checkbox" checked> Po úhradě automaticky zapsat jako výdaj v Příjmech a výdajích</label>
                 <label class="check-label"><input id="paymentShared" type="checkbox" checked> Sdílet v rodině</label>
@@ -691,6 +698,7 @@
                 <label>Kategorie<input id="shopCategory" placeholder="elektronika, domácnost…"></label>
                 <label>Cena / odhad ceny<input id="shopPrice" type="number" min="0" step="0.01" placeholder="0"></label>
                 <label>Plánovaný měsíc<input id="shopMonth" type="month"></label>
+                <label>Kdo nákup zaplatil<select id="shopPaidBy"><option value="me">Já</option><option value="wife">Manželka</option></select></label>
                 <label>URL<input id="shopUrl" type="url" placeholder="https://…"></label>
                 <label class="wide">Poznámka<input id="shopNote" placeholder="Proč to chci/potřebuji, alternativa, sleva…"></label>
                 <label class="check-label wide"><input id="shopShared" type="checkbox" checked> Sdílet v rodinném plánu nákupů</label>
@@ -738,6 +746,7 @@
                 <input type="hidden" id="gardenItemId">
                 <label class="wide">Co pořídit<input id="gardenItemName" required placeholder="Např. hnojivo na podzim, nové ostří do sekačky…"></label>
                 <label>Odhad ceny<input id="gardenItemPrice" type="number" min="0" step="0.01" placeholder="0"></label>
+                <label>Kdo nákup zaplatil<select id="gardenItemPaidBy"><option value="me">Já</option><option value="wife">Manželka</option></select></label>
                 <label>Horizont<select id="gardenItemHorizon"><option value="now">Co nejdřív</option><option value="season">Tuto sezónu</option><option value="year">Do roka</option><option value="someday">Někdy / až bude akce</option></select></label>
                 <label class="wide">Odkaz<input id="gardenItemUrl" type="url" placeholder="https://…"></label>
                 <label class="wide">Komentář<input id="gardenItemNote" placeholder="Proč, kde nejlevněji, jaká varianta…"></label>
@@ -756,6 +765,7 @@
                 <label>Typ<select id="gardenLogType"><option value="hnojeni">🌿 Hnojení</option><option value="vertikutace">🪒 Vertikutace</option><option value="aerifikace">🕳️ Aerifikace</option><option value="dosev">🌾 Dosev trávníku</option><option value="postrik">💧 Postřik / ochrana</option><option value="sekani">✂️ Sekání</option><option value="zavlaha">🚿 Zásah na závlaze</option><option value="servis">🔧 Servis techniky</option><option value="jine">📌 Jiné</option></select></label>
                 <label>Část zahrady / stroj<input id="gardenLogArea" placeholder="Např. přední trávník, sad, sekačka…"></label>
                 <label>Cena zásahu<input id="gardenLogPrice" type="number" min="0" step="0.01" placeholder="0"></label>
+                <label>Kdo zaplatil<select id="gardenLogPaidBy"><option value="me">Já</option><option value="wife">Manželka</option></select></label>
                 <label class="wide">Poznámka<input id="gardenLogNote" placeholder="Jaký přípravek, dávkování, co se měnilo…"></label>
                 <label class="check-label wide"><input id="gardenLogShared" type="checkbox" checked> Sdílet záznam s rodinou</label>
                 <div class="actions wide"><button class="btn primary" type="submit">Uložit záznam</button><button class="btn" id="resetGardenLog" type="button">Vyčistit</button></div>
@@ -898,6 +908,58 @@
           </div>
         </section>
 
+
+        <section class="view" id="plans">
+          <div class="section-head">
+            <div class="head-main">
+              <div><h2 class="tab-title">Plány a postupy</h2><p class="tab-sub">Interaktivní HTML návody pro zahradu, topení, dům a pravidelnou údržbu</p></div>
+              <button class="info-dot" type="button" data-tip="Nahrajte hotový interaktivní HTML soubor. LifeHub jej uloží šifrovaně v tomto zařízení a otevře v bezpečně odděleném prohlížeči. Nejlépe fungují soběstačné HTML dokumenty, které mají obrázky, styly i skripty vložené přímo v souboru a nepotřebují internet.">i</button>
+            </div>
+          </div>
+
+          <div id="planLibraryView">
+            <div class="kpis" id="planKpis"></div>
+            <article class="panel">
+              <div class="panel-head"><div><p class="eyebrow">Knihovna</p><h3>Uložené interaktivní plány</h3></div></div>
+              <div class="filters filter-four">
+                <input id="planSearch" type="search" placeholder="Hledat v plánech…">
+                <select id="planCategoryFilter" title="Kategorie"><option value="all">Všechny kategorie</option><option value="garden">Zahrada</option><option value="heating">Topení a energie</option><option value="house">Dům</option><option value="maintenance">Servis a údržba</option><option value="other">Ostatní</option></select>
+                <select id="planSort" title="Řazení"><option value="pinned">Připnuté a nejnovější</option><option value="updated">Naposledy upravené</option><option value="title">Podle názvu</option></select>
+              </div>
+              <div class="list plan-library-list" id="planList"></div>
+            </article>
+
+            <article class="panel add-card" id="planAddCard" data-collapsed="true">
+              <button class="add-card-head" type="button" data-toggle-add="planAddCard"><span>➕ Vložit interaktivní HTML plán</span><span class="chev">▾</span></button>
+              <div class="add-card-body">
+                <form class="form form-two" id="planForm">
+                  <input type="hidden" id="planId">
+                  <label class="wide">Název plánu<input id="planTitle" required maxlength="180" placeholder="Např. Celoroční údržba trávníku 2026"></label>
+                  <label>Kategorie<select id="planCategory"><option value="garden">🌱 Zahrada</option><option value="heating">🔥 Topení a energie</option><option value="house">🏠 Dům</option><option value="maintenance">🛠️ Servis a údržba</option><option value="other">📌 Ostatní</option></select></label>
+                  <label>Rok / sezóna<input id="planSeason" maxlength="80" placeholder="Např. 2026 nebo jaro–podzim"></label>
+                  <label class="wide">Krátký popis<textarea id="planDescription" rows="3" maxlength="1500" placeholder="Co plán řeší a kdy ho použít…"></textarea></label>
+                  <label class="wide">HTML soubor<input id="planFile" type="file" accept="text/html,.html,.htm"></label>
+                  <p class="small wide">Při úpravě existujícího plánu nechte soubor prázdný, pokud chcete změnit jen název nebo popis. Novým souborem se předchozí verze bezpečně nahradí.</p>
+                  <label class="check-label wide"><input id="planPinned" type="checkbox"> Připnout mezi důležité plány</label>
+                  <div class="actions wide"><button class="btn primary" type="submit">Uložit plán</button><button class="btn" id="resetPlan" type="button">Vyčistit</button></div>
+                </form>
+              </div>
+            </article>
+          </div>
+
+          <div id="planViewerView" class="plan-viewer-view" hidden>
+            <article class="panel plan-viewer-panel">
+              <div class="plan-viewer-toolbar">
+                <div><p class="eyebrow" id="planViewerCategory">Plán</p><h3 id="planViewerTitle">Interaktivní plán</h3><p class="small" id="planViewerMeta"></p></div>
+                <div class="actions"><button class="btn" id="closePlanViewer" type="button">← Zpět do knihovny</button><button class="btn secondary" id="downloadOpenPlan" type="button">Stáhnout HTML</button><button class="btn primary" id="fullscreenPlanViewer" type="button">⛶ Celá obrazovka</button></div>
+              </div>
+              <div class="plan-frame-shell" id="planFrameShell">
+                <iframe id="planFrame" title="Interaktivní HTML plán" sandbox="allow-scripts allow-forms allow-modals allow-downloads" referrerpolicy="no-referrer"></iframe>
+              </div>
+            </article>
+          </div>
+        </section>
+
         <section class="view" id="maintenance">
           <div class="section-head">
             <div class="head-main">
@@ -920,6 +982,7 @@
                 <label class="wide">Zařízení / provedená práce<input id="maintenanceTitle" required maxlength="180" placeholder="Např. servis kotle Atmos, výměna vodního filtru…"></label>
                 <label>Firma / technik<input id="maintenanceProvider" maxlength="160" placeholder="Kdo zásah provedl"></label>
                 <label>Cena<input id="maintenancePrice" type="number" min="0" step="0.01" placeholder="0"></label>
+                <label>Kdo zaplatil<select id="maintenancePaidBy"><option value="me">Já</option><option value="wife">Manželka</option></select></label>
                 <label>Další termín<input id="maintenanceNextDate" type="date"></label>
                 <label class="wide">Poznámka<textarea id="maintenanceNote" rows="3" placeholder="Co se měnilo, typ dílu, doporučení technika, číslo zakázky…"></textarea></label>
                 <label class="check-label wide"><input id="maintenanceShared" type="checkbox" checked> Sdílet záznam s rodinou</label>
@@ -1266,7 +1329,7 @@
             </div>
           </article>
           <article class="panel production-panel">
-            <div class="panel-head"><div><p class="eyebrow">Produkční režim</p><h3>Oficiální osobní nástroj</h3></div><span class="status good">LifeHub 4.5</span></div>
+            <div class="panel-head"><div><p class="eyebrow">Produkční režim</p><h3>Oficiální osobní nástroj</h3></div><span class="status good">LifeHub 5.1.0</span></div>
             <p>Data zůstávají v tomto zařízení a po odemčení se ukládají šifrovaně. Přenos mezi telefonem a počítačem je záměrně ruční přes kompletní šifrovanou zálohu; automatická cloudová synchronizace není součástí aplikace.</p>
           </article>
           <article class="panel">
@@ -1292,12 +1355,12 @@
           </div>
           <article class="panel manual-intro-panel">
             <div>
-              <p class="eyebrow">LifeHub 4.5.4</p>
+              <p class="eyebrow">LifeHub 5.1.0</p>
               <h3>Celá aplikace vysvětlená na jednom místě</h3>
               <p class="small">Manuál je součástí instalačního balíčku, funguje i offline a nečte žádná osobní data z tvého trezoru. Níže ho můžeš používat přímo uvnitř LifeHubu.</p>
             </div>
             <div class="manual-feature-chips" aria-label="Funkce manuálu">
-              <span>⌕ Vyhledávání</span><span>🧭 18 částí</span><span>🪄 Postupy krok za krokem</span><span>👥 Rodinné sdílení</span><span>🛡️ Zálohy</span>
+              <span>⌕ Vyhledávání</span><span>🧭 21 částí</span><span>🪄 Postupy krok za krokem</span><span>👥 Rodinné sdílení</span><span>🛡️ Zálohy</span>
             </div>
           </article>
           <div class="manual-frame-shell">
@@ -1340,7 +1403,7 @@
         </div>
       </div>
       <div class="lock-content">
-        <p class="eyebrow">LifeHub <span id="lockVersion">5.0.7</span></p>
+        <p class="eyebrow">LifeHub <span id="lockVersion">5.1.0</span></p>
         <h2 id="lockTitle">Odemknout LifeHub</h2>
         <p id="lockIntro">Zadej své heslo. Poznámky, finance ani dokumenty se před odemčením nenačtou.</p>
         <div class="lock-note" id="lockNote">Při prvním spuštění si nastavíš bezpečné heslo. Starší data lze jednorázově převést do šifrovaného úložiště.</div>

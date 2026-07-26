@@ -91,6 +91,32 @@ test('měsíční plán nepočítá stejnou výplatu dvakrát z pásky i transak
   assert.equal(summary.salaryCredited,40000);
 });
 
+test('výdaj zaplacený manželkou zůstane nákladem domácnosti, ale nesníží můj zůstatek', () => {
+  const summary=summarizeMonthlyFinancialPlan({
+    month:'2026-07',
+    transactions:[
+      {date:'2026-07-10',kind:'income',source:'payroll',amount:40000,payrollMonth:'2026-06'},
+      {date:'2026-07-12',kind:'expense',source:'maintenance',amount:2700,paidBy:'wife'},
+      {date:'2026-07-14',kind:'expense',source:'payment',amount:3000,paidBy:'me'}
+    ]
+  });
+  assert.equal(summary.myActualSpent,3000);
+  assert.equal(summary.wifeActualSpent,2700);
+  assert.equal(summary.actualSpent,5700);
+  assert.equal(summary.totalExpectedExpenses,5700);
+  assert.equal(summary.myTotalExpectedExpenses,3000);
+  assert.equal(summary.remainingAfterPlan,37000);
+});
+
+test('nový výdaj si ukládá plátce a starší výdaj bezpečně připadne mně', () => {
+  const wife=buildTransactionRecord({date:'2026-07-12',kind:'expense',category:'servis',amount:2700,description:'Servis kotle',paidBy:'wife'});
+  const legacy=buildTransactionRecord({date:'2026-07-13',kind:'expense',category:'dům',amount:500,description:'Materiál'});
+  const income=buildTransactionRecord({date:'2026-07-10',kind:'income',category:'mzda',amount:40000,paidBy:'wife'});
+  assert.equal(wife.paidBy,'wife');
+  assert.equal(legacy.paidBy,'me');
+  assert.equal(income.paidBy,'');
+});
+
 
 test('úprava výdaje z velkého nákupu zachová vazbu na položku', () => {
   const existing={id:'trans_4',source:'shopping',shoppingId:'shop_1',createdAt:'2026-07-22T09:00:00.000Z'};
