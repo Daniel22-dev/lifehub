@@ -12,6 +12,7 @@ test('rodinný snapshot zahrne jen povolené sdílené kolekce a vynechá mzdu',
       {id:'salary',shared:true,source:'payroll',amount:30000}
     ],
     tasks:[{id:'task1',shared:true},{id:'task2',shared:false}],
+    vehicleLogs:[{id:'vehicle1',description:'Garanční servis',shared:false},{id:'vehicle2',description:'STK + emise'}],
     payrolls:[{id:'payroll1',storedPdf:true}],
     documents:[{id:'doc1'}],
     notes:[{id:'note1'}]
@@ -20,6 +21,8 @@ test('rodinný snapshot zahrne jen povolené sdílené kolekce a vynechá mzdu',
   assert.deepEqual(Object.keys(snapshot.data), [...FAMILY_COLLECTIONS]);
   assert.deepEqual(snapshot.data.transactions.map(item=>item.id), ['shared']);
   assert.deepEqual(snapshot.data.tasks.map(item=>item.id), ['task1']);
+  assert.deepEqual(snapshot.data.vehicleLogs.map(item=>item.id), ['vehicle1','vehicle2']);
+  assert.equal(snapshot.schema,4);
   assert.equal('payrolls' in snapshot.data, false);
   assert.equal('documents' in snapshot.data, false);
   assert.equal('notes' in snapshot.data, false);

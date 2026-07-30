@@ -8,7 +8,8 @@ export const FAMILY_COLLECTIONS = Object.freeze([
   'householdPayments',
   'gardenItems',
   'gardenLogs',
-  'maintenanceLogs'
+  'maintenanceLogs',
+  'vehicleLogs'
 ]);
 
 export const FAMILY_EXCLUDED_DESCRIPTION = 'Výplatní pásky, mzdové transakce, dokumenty, poznámky, AI výkaz, odměny a seznam aplikací se do rodinného souboru nezahrnují.';
@@ -23,16 +24,16 @@ export function buildFamilySnapshot({state, version, ownerId, ownerName, exporte
   for(const collection of FAMILY_COLLECTIONS){
     const source = Array.isArray(sourceState[collection]) ? sourceState[collection] : [];
     data[collection] = source
-      .filter(item => item?.shared !== false && !(collection === 'transactions' && item?.source === 'payroll'))
+      .filter(item => (collection === 'vehicleLogs' || item?.shared !== false) && !(collection === 'transactions' && item?.source === 'payroll'))
       .map(clone);
   }
   return {
     kind:'LifeHub family snapshot',
-    schema:3,
+    schema:4,
     version:String(version || ''),
     exportedAt,
     owner:{id:String(ownerId || ''), name:String(ownerName || 'Partner')},
-    note:`Šifrovaný náhled sdílených financí, rozpočtů, nákupů, úkolů, splátek, plateb, zahrady a servisu domácnosti pro partnera. Importovaný obsah je pouze ke čtení. ${FAMILY_EXCLUDED_DESCRIPTION}`,
+    note:`Šifrovaný náhled sdílených financí, rozpočtů, nákupů, úkolů, splátek, plateb, zahrady, servisu domácnosti a kompletní historie společného vozu pro partnera. Importovaný obsah je pouze ke čtení. ${FAMILY_EXCLUDED_DESCRIPTION}`,
     householdSettings:{
       foodBudget:Math.max(0, Number(sourceState.settings?.foodBudget) || 0),
       fuelBudget:Math.max(0, Number(sourceState.settings?.fuelBudget) || 0),

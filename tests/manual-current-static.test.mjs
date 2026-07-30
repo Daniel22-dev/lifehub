@@ -4,42 +4,33 @@ import fs from 'node:fs';
 
 const manual = fs.readFileSync(new URL('../public/manual.html', import.meta.url), 'utf8');
 
-test('interaktivní manuál odpovídá funkcím LifeHubu 5.1.0', () => {
+test('interaktivní manuál odpovídá funkcím LifeHubu 5.2.1', () => {
   for (const text of [
-    'LifeHub 5.1.0',
-    'automaticky vytvoří propojený výdaj',
-    'Zahradní nákupy',
-    'Zahradní údržba a servis domácnosti',
-    'Označit jako pořízené',
-    'Servis a údržba',
-    'Kalkulačka kombinace',
-    'Do kombinace',
-    'Součet vybraných položek',
-    'Projekty domu',
-    'Plány a postupy',
-    'Kdo zaplatil',
+    'LifeHub 5.2.1',
+    'Moje Fabia',
+    'Škodu Fabia I 1.2 HTP',
+    'Garanční servis',
+    'STK + emise',
+    'Započítat do finanční evidence',
+    'Z poslední výplaty zbývá',
+    'skutečným připsáním mzdy',
+    'skutečného data pohybu',
+    'bez dvojího zapisování',
+    'Jídlo & benzín',
     'Zaplatila manželka',
     'Náklady domácnosti',
-    'bezpečně odděleném sandboxu',
-    'GPT / Claude vlákna',
-    'kreslených náčrtů',
+    'Plány a postupy',
+    'Projekty domu',
     'Elektřina – Marek',
-    'Servis domácnosti',
-    'Uložit jako PDF',
-    'Aktivuj rychlé odemčení telefonu',
-    'Jméno v rodinném sdílení',
-    'klikatelné odkazy',
-    'Zapsat po úhradě do financí',
-    'Mzdové období',
-    'logo a úplný název školy',
-    'září–prosinec a leden–červen',
-    'Dokončené úkoly',
-    'Doplacené splátky',
-    'Měsíční závazky včetně splátek',
-    'Výplata proti mým výdajům',
-    'současně vytvoří propojený výdaj v Příjmech a výdajích',
-    'Živý náhled v aplikaci byl kvůli výkonu telefonu odstraněn'
+    'Servis a údržba',
+    'bezpečně odděleném sandboxu',
+    'kompletní šifrovanou zálohu',
+    'kompletní historii Fabie',
+    'Uvidí manželka kompletní historii Fabie?'
   ]) assert.ok(manual.includes(text), `V manuálu chybí: ${text}`);
+
+  const modules=manual.split('const modules = [',2)[1]?.split('];',1)[0]||'';
+  assert.equal((modules.match(/\{id:'/g)||[]).length,23);
 });
 
 test('javascript interaktivního manuálu je syntakticky platný', () => {

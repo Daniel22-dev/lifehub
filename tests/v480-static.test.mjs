@@ -46,11 +46,13 @@ test('úhrady účtů mohou automaticky vytvořit propojený výdaj', () => {
   assert.ok(app.includes('additions.forEach(historyEntry=>upsertPaymentTransaction'));
 });
 
-test('mzda rozlišuje mzdové období a datum připsání', () => {
+test('mzda zachovává mzdové období, ale cashflow používá skutečné datum připsání', () => {
   assert.ok(html.includes('id="payPaidDate"'));
   assert.ok(app.includes('function transactionAccountingMonth'));
-  assert.ok(app.includes('function cashflowMonthSummary'));
-  assert.ok(app.includes('function projectedMonthSummary'));
+  assert.ok(app.includes('summarizeSalaryCycle'));
+  assert.ok(app.includes('buildAnnualCashflowData'));
+  assert.ok(app.includes("return String(transaction?.date||'').slice(0,7)"));
+  assert.equal(app.includes('function projectedMonthSummary'),false);
 });
 
 

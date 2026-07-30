@@ -129,7 +129,8 @@ test('vytváření a odhady mzdových příjmů nepoužívají grossPay jako fal
   assert.ok(helper.includes('fields.netPay||fields.cleanPay'));
   assert.equal(helper.includes('grossPay'), false);
   assert.ok(app.includes('removedGrossFallbacks'));
-  assert.ok(app.includes('payrollAccountAmount(p)>0'));
+  assert.ok(app.includes('summarizeSalaryCycle'));
+  assert.equal(app.includes('function estimatedPayrollForMonth'), false);
 });
 
 // Service worker.

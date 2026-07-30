@@ -32,6 +32,7 @@ test('zahradní údržba a servis domácnosti zapisují skutečné ceny do finan
   assert.ok(app.includes('function upsertMaintenanceTransaction('));
   assert.ok(app.includes("source:'maintenance'"));
   assert.ok(app.includes('maintenanceId:item.id'));
+  assert.ok(app.includes("const financeTag=findMaintenanceTransaction(item)?'<span class=\"tag shopping-finance-linked\">💸 zapsáno ve výdajích</span>'"));
 });
 
 test('odpojení ve financích zachová zdrojový záznam',()=>{
@@ -44,7 +45,7 @@ test('odpojení ve financích zachová zdrojový záznam',()=>{
 });
 
 test('finance mají nové zdroje a vazební identifikátory',()=>{
-  for(const value of ['garden-item','garden-log','maintenance']) assert.ok(html.includes(`<option value="${value}">`));
-  for(const field of ['gardenItemId','gardenLogId','maintenanceId']) assert.ok(finance.includes(`${field}: existing?.${field} || ''`));
-  assert.ok(app.includes("['payment','installment','shopping','garden-item','garden-log','maintenance'].includes(t.source)"));
+  for(const value of ['garden-item','garden-log','maintenance','vehicle']) assert.ok(html.includes(`<option value="${value}">`));
+  for(const field of ['gardenItemId','gardenLogId','maintenanceId','vehicleLogId']) assert.ok(finance.includes(`${field}: existing?.${field} || ''`));
+  assert.ok(app.includes("['payment','installment','shopping','garden-item','garden-log','maintenance','vehicle'].includes(t.source)"));
 });

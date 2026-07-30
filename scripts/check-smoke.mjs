@@ -125,7 +125,7 @@ mustContain('parser', payrollParser, "take('cleanPay', 'cleanPay', 'Čistá mzda
 mustContain('manual.html', manual, 'Ukládání a chyby');
 mustContain('manual.html', manual, 'Nouzová šifrovaná záloha');
 mustContain('manual.html', manual, 'Výsledky v celém manuálu');
-mustContain('manual.html', manual, 'Devatenáct částí');
+mustContain('manual.html', manual, 'Třiadvacet částí');
 mustContain('manual.html', manual, 'Projekty domu');
 mustContain('manual.html', manual, 'Hrazeno automaticky z účtu');
 mustContain('manual.html', manual, 'Hromadně uložit vybraná PDF');

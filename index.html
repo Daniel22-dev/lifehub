@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#11152f">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'none'; worker-src 'self' blob:; child-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
-  <title>LifeHub 5.1.0 | osobní digitální centrum</title>
+  <title>LifeHub 5.2.1 | osobní digitální centrum</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./lifehub-icon-v2.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./lifehub-icon-192-v2.png">
@@ -16,7 +16,7 @@
       <div class="brand">
         <div class="brand-mark" aria-hidden="true"><span>LH</span></div>
         <div class="brand-copy">
-          <h1>LifeHub <span id="appTitleVersion">5.1.0</span></h1>
+          <h1>LifeHub <span id="appTitleVersion">5.2.1</span></h1>
           <p>Soukromé centrum · offline · šifrované</p>
         </div>
       </div>
@@ -58,6 +58,7 @@
           <button data-tab="projects" type="button"><span class="emoji">🏗️</span><span class="label">Projekty domu</span></button>
           <button data-tab="plans" type="button"><span class="emoji">📋</span><span class="label">Plány a postupy</span></button>
           <button data-tab="maintenance" type="button"><span class="emoji">🛠️</span><span class="label">Servis domácnosti</span></button>
+          <button data-tab="vehicle" type="button"><span class="emoji">🚗</span><span class="label">Moje Fabia</span></button>
           <button data-tab="electricity" type="button"><span class="emoji">⚡</span><span class="label">Elektřina – Marek</span></button>
           <div class="nav-group-label">Práce a AI</div>
           <button data-tab="ailog" type="button"><span class="emoji">🤖</span><span class="label">AI výkaz</span></button>
@@ -119,7 +120,7 @@
 
           <article class="panel monthly-finance-panel">
             <div class="panel-head">
-              <div><p class="eyebrow">Měsíční finanční plán</p><h3>Výplata vs. všechny aktuální a plánované výdaje</h3></div>
+              <div><p class="eyebrow">Aktuální cashflow</p><h3>Z poslední výplaty zbývá</h3></div>
               <div class="actions">
                 <button class="btn secondary" data-jump="finance" type="button">Příjmy a výdaje</button>
                 <button class="btn" data-jump="payments" type="button">Účty a závazky</button>
@@ -131,7 +132,7 @@
           <div class="grid two dashboard-main-grid">
             <article class="panel chart-panel">
               <div class="panel-head">
-                <div><p class="eyebrow">Příjmy a výdaje</p><h3>Roční bilance</h3></div>
+                <div><p class="eyebrow">Příjmy a výdaje</p><h3>Co skutečně přišlo, odešlo a zůstalo</h3></div>
                 <input id="dashYear" type="number" min="2000" max="2100" class="control-max-130" title="Rok">
               </div>
               <div class="chart" id="dashboardFinanceChart"></div>
@@ -224,15 +225,16 @@
               <div><p class="eyebrow">Jak tuto záložku používat</p><h3>Sem patří skutečně uskutečněné pohyby peněz</h3></div>
               <button class="btn secondary" type="button" data-jump="payments">Přejít na účty a závazky</button>
             </div>
-            <p class="small"><strong>Příklad:</strong> nákup už proběhl nebo účet už byl stržen z účtu. Úhrady z <strong>Účtů a závazků</strong> se sem nově zapisují automaticky. U mzdy LifeHub rozlišuje <strong>mzdové období</strong> a skutečné datum připsání, takže bilance měsíce může počítat výplatu k období, za které náleží, a zároveň ukázat skutečný hotovostní tok.</p>
+            <p class="small"><strong>Příklad:</strong> nákup už proběhl nebo účet už byl stržen z účtu. Úhrady z <strong>Účtů a závazků</strong> se sem nově zapisují automaticky. U mzdy LifeHub rozlišuje <strong>mzdové období</strong> a skutečné datum připsání. Pro cashflow a grafy je rozhodující den, kdy peníze skutečně přišly na účet; následné výdaje se odečítají od této přijaté výplaty.</p>
           </article>
 
           <div class="kpis" id="financeKpis"></div>
 
           <div class="grid two">
             <article class="panel">
-              <div class="panel-head"><div><p class="eyebrow">Roční graf</p><h3>Příjmy, výdaje, bilance</h3></div></div>
+              <div class="panel-head"><div><p class="eyebrow">Roční graf</p><h3 id="annualFinanceTitle">Skutečné příjmy, moje výdaje a bilance</h3></div></div>
               <div class="chart" id="annualFinanceChart"></div>
+              <p class="small" id="annualFinanceNote">Výplata se zobrazí v měsíci, kdy byla skutečně připsána. Výdaje se řadí podle dne zaplacení.</p>
             </article>
             <article class="panel">
               <div class="panel-head"><div><p class="eyebrow">Kategorie</p><h3>Výdaje ve vybraném měsíci</h3></div></div>
@@ -248,7 +250,7 @@
             <div class="filters filter-four">
               <input id="transSearch" type="search" placeholder="Hledat v transakcích…">
               <select id="transKindFilter" title="Typ"><option value="all">Vše</option><option value="income">Příjmy</option><option value="expense">Výdaje</option></select>
-              <select id="transSourceFilter" title="Zdroj"><option value="all">Všechny zdroje</option><option value="manual">Ruční</option><option value="payroll">Výplatní pásky</option><option value="payment">Účty a závazky</option><option value="installment">Splátkový kalendář</option><option value="shopping">Velké nákupy</option><option value="garden-item">Zahrada – nákupy</option><option value="garden-log">Zahrada – údržba</option><option value="maintenance">Servis a údržba</option></select>
+              <select id="transSourceFilter" title="Zdroj"><option value="all">Všechny zdroje</option><option value="manual">Ruční</option><option value="payroll">Výplatní pásky</option><option value="payment">Účty a závazky</option><option value="installment">Splátkový kalendář</option><option value="shopping">Velké nákupy</option><option value="garden-item">Zahrada – nákupy</option><option value="garden-log">Zahrada – údržba</option><option value="maintenance">Servis a údržba</option><option value="vehicle">Moje Fabia</option></select>
               <select id="transPayerFilter" title="Plátce"><option value="all">Všichni plátci</option><option value="me">Zaplatil jsem</option><option value="wife">Zaplatila manželka</option></select>
               <select id="transPeriodFilter" title="Období"><option value="selected">Vybraný měsíc</option><option value="year">Celý rok</option><option value="all">Vše</option></select>
             </div>
@@ -993,6 +995,60 @@
           <div class="section-head-actions"><button class="btn" data-action="export-maintenance-csv" type="button">Export CSV</button></div>
         </section>
 
+
+
+        <section class="view" id="vehicle">
+          <div class="section-head">
+            <div class="head-main">
+              <div><h2 class="tab-title">Moje Fabia</h2><p class="tab-sub">Servisní historie, opravy, STK a skutečné náklady vozu</p></div>
+              <button class="info-dot" type="button" data-tip="Každý zásah může automaticky vytvořit výdaj ve financích. U starších záznamů přepínač vypněte, pokud je chcete uchovat pouze v historii vozu.">i</button>
+            </div>
+          </div>
+
+          <article class="panel vehicle-profile-card">
+            <div class="vehicle-profile-icon" aria-hidden="true">🚗</div>
+            <div class="vehicle-profile-copy">
+              <p class="eyebrow">Vozidlo</p>
+              <h3>Škoda Fabia I</h3>
+              <p>Motor <strong>1.2 HTP</strong> · rok výroby <strong>2004/2005</strong></p>
+            </div>
+            <div class="vehicle-odometer"><span>Aktuální stav tachometru</span><strong id="vehicleCurrentOdometer">—</strong><small>Podle posledního záznamu s uvedenými kilometry</small></div>
+          </article>
+
+          <div class="kpis" id="vehicleKpis"></div>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div><p class="eyebrow">Historie vozu</p><h3>Servisní a technické události</h3></div>
+              <div class="actions"><button class="btn" data-action="export-vehicle-csv" type="button">Export CSV</button></div>
+            </div>
+            <div class="filters filter-three">
+              <input id="vehicleSearch" type="search" placeholder="Hledat v historii Fabie…">
+              <select id="vehicleTypeFilter" title="Typ události"><option value="all">Všechny události</option><option value="service">Garanční servis</option><option value="repair">Oprava</option><option value="inspection">STK + emise</option><option value="other">Ostatní</option></select>
+              <select id="vehicleYearFilter" title="Rok"><option value="all">Všechny roky</option></select>
+            </div>
+            <div class="list vehicle-history-list" id="vehicleList"></div>
+          </article>
+
+          <article class="panel add-card" id="vehicleAddCard" data-collapsed="true">
+            <button class="add-card-head" type="button" data-toggle-add="vehicleAddCard"><span>➕ Přidat záznam o Fabii</span><span class="chev">▾</span></button>
+            <div class="add-card-body">
+              <form class="form form-two" id="vehicleForm">
+                <input type="hidden" id="vehicleId">
+                <label>Datum<input id="vehicleDate" type="date" required></label>
+                <label>Stav tachometru <span class="small">(volitelně)</span><input id="vehicleOdometer" type="number" min="0" step="1" placeholder="např. 168500"></label>
+                <label>Typ události<select id="vehicleType"><option value="service">🔧 Garanční servis</option><option value="repair">🛠️ Oprava</option><option value="inspection">🧾 STK + emise</option><option value="other">📌 Ostatní</option></select></label>
+                <label>Cena<input id="vehiclePrice" type="number" min="0" step="0.01" required placeholder="0"></label>
+                <label class="wide">Co bylo provedeno<input id="vehicleDescription" required maxlength="500" placeholder="Např. výměna oleje a filtrů, oprava EGR ventilu…"></label>
+                <label>Kdo zaplatil<select id="vehiclePaidBy"><option value="me">Já</option><option value="wife">Manželka</option></select></label>
+                <label class="wide">Poznámka <span class="small">(volitelně)</span><textarea id="vehicleNote" rows="3" maxlength="3000" placeholder="Servis, číslo zakázky, použité díly nebo další doporučení…"></textarea></label>
+                <label class="check-label wide vehicle-finance-switch"><input id="vehicleTrackFinance" type="checkbox" checked> <span><strong>Započítat do finanční evidence</strong><small>Vytvoří nebo aktualizuje propojený výdaj. U zpětně doplňovaných záznamů lze vypnout.</small></span></label>
+                <div class="actions wide"><button class="btn primary" type="submit">Uložit záznam</button><button class="btn" id="resetVehicle" type="button">Vyčistit</button></div>
+              </form>
+            </div>
+          </article>
+        </section>
+
         <section class="view" id="electricity">
           <div class="section-head">
             <div class="head-main">
@@ -1329,7 +1385,7 @@
             </div>
           </article>
           <article class="panel production-panel">
-            <div class="panel-head"><div><p class="eyebrow">Produkční režim</p><h3>Oficiální osobní nástroj</h3></div><span class="status good">LifeHub 5.1.0</span></div>
+            <div class="panel-head"><div><p class="eyebrow">Produkční režim</p><h3>Oficiální osobní nástroj</h3></div><span class="status good">LifeHub 5.2.1</span></div>
             <p>Data zůstávají v tomto zařízení a po odemčení se ukládají šifrovaně. Přenos mezi telefonem a počítačem je záměrně ruční přes kompletní šifrovanou zálohu; automatická cloudová synchronizace není součástí aplikace.</p>
           </article>
           <article class="panel">
@@ -1355,12 +1411,12 @@
           </div>
           <article class="panel manual-intro-panel">
             <div>
-              <p class="eyebrow">LifeHub 5.1.0</p>
+              <p class="eyebrow">LifeHub 5.2.1</p>
               <h3>Celá aplikace vysvětlená na jednom místě</h3>
               <p class="small">Manuál je součástí instalačního balíčku, funguje i offline a nečte žádná osobní data z tvého trezoru. Níže ho můžeš používat přímo uvnitř LifeHubu.</p>
             </div>
             <div class="manual-feature-chips" aria-label="Funkce manuálu">
-              <span>⌕ Vyhledávání</span><span>🧭 21 částí</span><span>🪄 Postupy krok za krokem</span><span>👥 Rodinné sdílení</span><span>🛡️ Zálohy</span>
+              <span>⌕ Vyhledávání</span><span>🧭 23 částí</span><span>🪄 Postupy krok za krokem</span><span>👥 Rodinné sdílení</span><span>🛡️ Zálohy</span>
             </div>
           </article>
           <div class="manual-frame-shell">
@@ -1403,7 +1459,7 @@
         </div>
       </div>
       <div class="lock-content">
-        <p class="eyebrow">LifeHub <span id="lockVersion">5.1.0</span></p>
+        <p class="eyebrow">LifeHub <span id="lockVersion">5.2.1</span></p>
         <h2 id="lockTitle">Odemknout LifeHub</h2>
         <p id="lockIntro">Zadej své heslo. Poznámky, finance ani dokumenty se před odemčením nenačtou.</p>
         <div class="lock-note" id="lockNote">Při prvním spuštění si nastavíš bezpečné heslo. Starší data lze jednorázově převést do šifrovaného úložiště.</div>

@@ -19,6 +19,7 @@ export function buildTransactionRecord(input, existing = null, now = new Date().
     gardenItemId: existing?.gardenItemId || '',
     gardenLogId: existing?.gardenLogId || '',
     maintenanceId: existing?.maintenanceId || '',
+    vehicleLogId: existing?.vehicleLogId || '',
     paidBy: input.kind === 'expense' ? (input.paidBy === 'wife' ? 'wife' : 'me') : '',
     createdAt: existing?.createdAt || now,
     updatedAt: now
@@ -191,4 +192,89 @@ export function summarizeMonthlyFinancialPlan({
     wifeTotalExpectedExpenses,
     remainingAfterPlan:salaryCredited-myTotalExpectedExpenses
   };
+}
+
+
+function isoDate(value){
+  const text=String(value||'').slice(0,10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(text)?text:'';
+}
+
+function normalizeLabel(value){
+  return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+}
+
+/**
+ * Returns true only for a real salary income. The exact "plat" check is
+ * intentional: a category such as "platba" must never open a salary cycle.
+ */
+export function isSalaryIncome(row){
+  if(row?.kind!=='income') return false;
+  if(row?.source==='payroll') return true;
+  const category=normalizeLabel(row?.category);
+  const words=category.split(/[^a-z0-9]+/).filter(Boolean);
+  const explicitPayout=category==='vyplata' || category==='cista vyplata' || category.startsWith('vyplata za ');
+  return words.includes('mzda') || words.includes('plat') || explicitPayout || category==='salary';
+}
+
+/**
+ * Summarises the currently active cash-flow cycle. The cycle starts on the
+ * date when the latest salary was actually credited, not in the payroll
+ * period to which the payslip belongs.
+ */
+export function summarizeSalaryCycle({transactions=[],budgetEntries=[],asOf}={}){
+  const end=isoDate(asOf)||new Date().toISOString().slice(0,10);
+  const salaryRows=transactions
+    .filter(row=>isSalaryIncome(row) && amount(row?.amount)>0 && isoDate(row?.date) && isoDate(row.date)<=end)
+    .sort((a,b)=>isoDate(b.date).localeCompare(isoDate(a.date)) || String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
+  if(!salaryRows.length){
+    return {startDate:'',endDate:end,salaryAmount:0,otherIncome:0,totalIncome:0,myTransactionExpenses:0,wifeTransactionExpenses:0,myBudgetExpenses:0,wifeBudgetExpenses:0,myExpenses:0,wifeExpenses:0,householdExpenses:0,balance:0,transactionCount:0,budgetCount:0};
+  }
+  const startDate=isoDate(salaryRows[0].date);
+  const inCycle=row=>{
+    const date=isoDate(row?.date);
+    return !!date && date>=startDate && date<=end;
+  };
+  const cycleTransactions=transactions.filter(inCycle);
+  const cycleBudgets=budgetEntries.filter(inCycle);
+  const salaries=cycleTransactions.filter(isSalaryIncome);
+  const otherIncomeRows=cycleTransactions.filter(row=>row?.kind==='income'&&!isSalaryIncome(row));
+  const expenseRows=cycleTransactions.filter(row=>row?.kind==='expense');
+  const salaryAmount=salaries.reduce((sum,row)=>sum+amount(row?.amount),0);
+  const otherIncome=otherIncomeRows.reduce((sum,row)=>sum+amount(row?.amount),0);
+  const myTransactionExpenses=expenseRows.filter(row=>row?.paidBy!=='wife').reduce((sum,row)=>sum+amount(row?.amount),0);
+  const wifeTransactionExpenses=expenseRows.filter(row=>row?.paidBy==='wife').reduce((sum,row)=>sum+amount(row?.amount),0);
+  const myBudgetExpenses=cycleBudgets.filter(row=>row?.paidBy!=='wife').reduce((sum,row)=>sum+amount(row?.amount),0);
+  const wifeBudgetExpenses=cycleBudgets.filter(row=>row?.paidBy==='wife').reduce((sum,row)=>sum+amount(row?.amount),0);
+  const myExpenses=myTransactionExpenses+myBudgetExpenses;
+  const wifeExpenses=wifeTransactionExpenses+wifeBudgetExpenses;
+  const totalIncome=salaryAmount+otherIncome;
+  return {
+    startDate,endDate:end,salaryAmount,otherIncome,totalIncome,
+    myTransactionExpenses,wifeTransactionExpenses,myBudgetExpenses,wifeBudgetExpenses,
+    myExpenses,wifeExpenses,householdExpenses:myExpenses+wifeExpenses,
+    balance:totalIncome-myExpenses,
+    transactionCount:cycleTransactions.length,budgetCount:cycleBudgets.length
+  };
+}
+
+/**
+ * Builds twelve cash-flow buckets from actual receipt/payment dates. Food and
+ * fuel entries live outside the transaction ledger, therefore they are merged
+ * into the expense totals here.
+ */
+export function buildAnnualCashflowData({year,transactions=[],budgetEntries=[]}={}){
+  const numericYear=Math.max(2000,Math.min(2100,Math.round(Number(year)||new Date().getFullYear())));
+  return Array.from({length:12},(_,index)=>{
+    const month=`${numericYear}-${String(index+1).padStart(2,'0')}`;
+    const rows=transactions.filter(row=>isoDate(row?.date).startsWith(month));
+    const budgets=budgetEntries.filter(row=>isoDate(row?.date).startsWith(month));
+    const income=rows.filter(row=>row?.kind==='income').reduce((sum,row)=>sum+amount(row?.amount),0);
+    const expenseRows=rows.filter(row=>row?.kind==='expense');
+    const myExpense=expenseRows.filter(row=>row?.paidBy!=='wife').reduce((sum,row)=>sum+amount(row?.amount),0)
+      + budgets.filter(row=>row?.paidBy!=='wife').reduce((sum,row)=>sum+amount(row?.amount),0);
+    const wifeExpense=expenseRows.filter(row=>row?.paidBy==='wife').reduce((sum,row)=>sum+amount(row?.amount),0)
+      + budgets.filter(row=>row?.paidBy==='wife').reduce((sum,row)=>sum+amount(row?.amount),0);
+    return {month,income,myExpense,wifeExpense,householdExpense:myExpense+wifeExpense,balance:income-myExpense,transactionCount:rows.length,budgetCount:budgets.length};
+  });
 }

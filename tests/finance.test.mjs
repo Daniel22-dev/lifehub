@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildTransactionRecord, summarizeMonthlyFinancialPlan } from '../src/features/finance.js';
+import { buildAnnualCashflowData, buildTransactionRecord, isSalaryIncome, summarizeMonthlyFinancialPlan, summarizeSalaryCycle } from '../src/features/finance.js';
 
 test('úprava mzdové transakce zachová vazbu na výplatní pásku', () => {
   const existing = {
@@ -123,4 +123,83 @@ test('úprava výdaje z velkého nákupu zachová vazbu na položku', () => {
   const result=buildTransactionRecord({id:'trans_4',date:'2026-07-22',kind:'expense',category:'domácnost',amount:12500,description:'Sekačka'},existing,'2026-07-22T09:30:00.000Z');
   assert.equal(result.source,'shopping');
   assert.equal(result.shoppingId,'shop_1');
+});
+
+
+test('úprava propojeného výdaje z Moje Fabia zachová vazbu na servisní událost', () => {
+  const existing={id:'trans_vehicle',source:'vehicle',vehicleLogId:'vehicle_1',createdAt:'2026-07-30T08:00:00.000Z'};
+  const result=buildTransactionRecord({id:'trans_vehicle',date:'2026-07-29',kind:'expense',category:'auto – servis a opravy',amount:2450,description:'Oprava EGR ventilu',paidBy:'me'},existing,'2026-07-30T09:00:00.000Z');
+  assert.equal(result.source,'vehicle');
+  assert.equal(result.vehicleLogId,'vehicle_1');
+  assert.equal(result.amount,2450);
+});
+
+test('aktivní finanční cyklus začíná poslední skutečně přijatou výplatou', () => {
+  const summary=summarizeSalaryCycle({
+    asOf:'2026-08-15',
+    transactions:[
+      {id:'old-salary',date:'2026-06-30',kind:'income',source:'payroll',category:'mzda',amount:38000},
+      {id:'before',date:'2026-07-29',kind:'expense',amount:9000,paidBy:'me'},
+      {id:'salary',date:'2026-07-31',kind:'income',source:'payroll',category:'mzda',amount:40000},
+      {id:'bonus',date:'2026-08-04',kind:'income',source:'manual',category:'odměna',amount:1200},
+      {id:'mine',date:'2026-08-05',kind:'expense',amount:6500,paidBy:'me'},
+      {id:'wife',date:'2026-08-06',kind:'expense',amount:2100,paidBy:'wife'}
+    ],
+    budgetEntries:[
+      {date:'2026-08-07',kind:'food',amount:1800,paidBy:'me'},
+      {date:'2026-08-08',kind:'fuel',amount:900,paidBy:'wife'}
+    ]
+  });
+  assert.equal(summary.startDate,'2026-07-31');
+  assert.equal(summary.salaryAmount,40000);
+  assert.equal(summary.otherIncome,1200);
+  assert.equal(summary.myExpenses,8300);
+  assert.equal(summary.wifeExpenses,3000);
+  assert.equal(summary.balance,32900);
+});
+
+test('nesouvisející platba ani výplata pojistky neotevřou mzdový cyklus', () => {
+  assert.equal(isSalaryIncome({kind:'income',source:'manual',category:'platba od klienta'}),false);
+  assert.equal(isSalaryIncome({kind:'income',source:'manual',category:'výplata pojistky'}),false);
+  assert.equal(isSalaryIncome({kind:'income',source:'manual',category:'výplata'}),true);
+  assert.equal(isSalaryIncome({kind:'income',source:'manual',category:'výplata za červenec'}),true);
+});
+
+test('ruční příjem čistá mzda nebo základní plat otevře výplatní cyklus', () => {
+  assert.equal(isSalaryIncome({kind:'income',source:'manual',category:'čistá mzda'}),true);
+  assert.equal(isSalaryIncome({kind:'income',source:'manual',category:'základní plat'}),true);
+});
+
+
+test('nulová mzdová položka nepřepíše poslední skutečně přijatou výplatu', () => {
+  const summary=summarizeSalaryCycle({
+    asOf:'2026-08-20',
+    transactions:[
+      {date:'2026-08-10',kind:'income',source:'payroll',category:'mzda',amount:40000},
+      {date:'2026-08-15',kind:'income',source:'manual',category:'mzda',amount:0},
+      {date:'2026-08-16',kind:'expense',paidBy:'me',amount:5000}
+    ]
+  });
+  assert.equal(summary.startDate,'2026-08-10');
+  assert.equal(summary.balance,35000);
+});
+
+test('roční cashflow používá skutečná data a zahrnuje jídlo i benzín', () => {
+  const rows=buildAnnualCashflowData({
+    year:2026,
+    transactions:[
+      {date:'2026-07-31',kind:'income',source:'payroll',payrollMonth:'2026-06',amount:40000},
+      {date:'2026-08-02',kind:'expense',amount:3000,paidBy:'me'},
+      {date:'2026-08-03',kind:'expense',amount:1500,paidBy:'wife'}
+    ],
+    budgetEntries:[
+      {date:'2026-08-04',kind:'food',amount:1200,paidBy:'me'},
+      {date:'2026-08-05',kind:'fuel',amount:700,paidBy:'wife'}
+    ]
+  });
+  assert.equal(rows[6].income,40000);
+  assert.equal(rows[7].income,0);
+  assert.equal(rows[7].myExpense,4200);
+  assert.equal(rows[7].wifeExpense,2200);
+  assert.equal(rows[7].householdExpense,6400);
 });

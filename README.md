@@ -1,17 +1,19 @@
-# LifeHub 5.1.0
+# LifeHub 5.2.1
 
-Lokální šifrované osobní centrum pro poznámky, finance, dokumenty, úkoly, domácnost, zahradu, pracovní výkazy, interaktivní postupy a větší projekty domu.
+Lokální šifrované osobní centrum pro skutečné cashflow, servisní historii vozu, poznámky, dokumenty, úkoly, domácnost, zahradu, pracovní výkazy, interaktivní postupy a větší projekty domu.
 
-## Novinky 5.1.0
+## Novinky 5.2.1
 
-- samostatná záložka **Plány a postupy** v části Dům a technika,
-- šifrované ukládání interaktivních HTML plánů a jejich bezpečné spuštění v sandboxu,
-- zachovaný samostatný modul **Projekty domu**,
-- plátce **Já / Manželka** u všech relevantních skutečných výdajů,
-- osobní bilance odečítá pouze výdaje zaplacené uživatelem,
-- celkové náklady domácnosti nadále zahrnují výdaje obou osob,
-- filtrování měsíčních a ročních výdajů podle plátce,
-- kompletní záloha přenáší také HTML plány.
+- kompletní historie z **Moje Fabia** se automaticky přenáší v šifrovaném rodinném souboru,
+- manželka po načtení uvidí samostatný panel s celou servisní historií pouze ke čtení,
+- nová záložka **Moje Fabia** pro Škodu Fabia I 1.2 HTP, rok výroby 2004/2005,
+- evidence data, tachometru, typu události, popisu, ceny, plátce a poznámky,
+- čtyři pevné typy: Garanční servis, Oprava, STK + emise a Ostatní,
+- volitelné automatické propojení každého záznamu s finanční evidencí bez duplicit,
+- karta **Z poslední výplaty zbývá** založená na skutečném datu připsání mzdy,
+- měsíční i roční přehledy používají skutečná data příjmů a plateb,
+- jídlo a benzín jsou zahrnuty do skutečných výdajů i ročního grafu,
+- datové schéma zvýšeno na verzi 14 s bezpečnou migrací historie vozu.
 
 ## Kontrola před vydáním
 

@@ -1095,3 +1095,19 @@ html:fullscreen body,html:-webkit-full-screen body{min-height:100%;padding-botto
   .plan-viewer-toolbar .actions{width:100%}
   .plan-frame-shell{height:68vh;min-height:460px}
 }
+
+/* LifeHub 5.2.1 – Moje Fabia, rodinné sdílení a skutečné cashflow */
+.vehicle-profile-card{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(220px,auto);align-items:center;gap:18px;overflow:hidden;background:linear-gradient(135deg,color-mix(in srgb,var(--surface) 92%,var(--primary) 8%),color-mix(in srgb,var(--surface) 94%,var(--cyan) 6%));border-color:color-mix(in srgb,var(--primary) 26%,var(--line))}
+.vehicle-profile-icon{width:72px;height:72px;display:grid;place-items:center;border-radius:24px;font-size:2.1rem;background:linear-gradient(135deg,rgba(139,92,246,.25),rgba(6,182,212,.17));border:1px solid rgba(110,231,255,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.vehicle-profile-copy h3,.vehicle-profile-copy p{margin:0}.vehicle-profile-copy h3{font-size:1.55rem;letter-spacing:-.035em}.vehicle-profile-copy p:last-child{margin-top:6px;color:var(--muted)}
+.vehicle-odometer{display:grid;gap:4px;text-align:right;padding:12px 14px;border:1px solid var(--line);border-radius:17px;background:var(--surface-soft)}
+.vehicle-odometer span,.vehicle-odometer small{color:var(--muted)}.vehicle-odometer strong{font-size:1.45rem;color:var(--cyan);letter-spacing:-.03em}
+.vehicle-finance-switch{align-items:flex-start}.vehicle-finance-switch>span{display:grid;gap:4px}.vehicle-finance-switch small{display:block;color:var(--muted);font-weight:500;line-height:1.45}
+.vehicle-history-list .item{position:relative;overflow:hidden;border-left:4px solid transparent}.vehicle-history-list .item:before{content:"";position:absolute;right:-38px;top:-48px;width:125px;height:125px;border-radius:50%;background:radial-gradient(circle,rgba(110,231,255,.09),transparent 68%);pointer-events:none}
+.vehicle-history-list .vehicle-service{border-left-color:#33d69f}.vehicle-history-list .vehicle-repair{border-left-color:#f97316}.vehicle-history-list .vehicle-inspection{border-left-color:#8b5cf6}.vehicle-history-list .vehicle-other{border-left-color:#06b6d4}
+.vehicle-history-title{display:flex;align-items:center;gap:8px}.vehicle-km{font-weight:800;color:var(--cyan)}
+.salary-cycle-card{display:grid;gap:14px}.salary-cycle-hero{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:18px;border-radius:20px;border:1px solid rgba(110,231,255,.26);background:linear-gradient(135deg,rgba(139,92,246,.13),rgba(6,182,212,.08))}.salary-cycle-hero span,.salary-cycle-hero small{display:block;color:var(--muted)}.salary-cycle-hero h4{margin:4px 0;font-size:1.08rem}.salary-cycle-hero>strong{font-size:clamp(1.65rem,4vw,2.7rem);letter-spacing:-.055em;white-space:nowrap}
+.salary-cycle-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.salary-cycle-stat{display:grid;gap:6px;min-width:0;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--surface-soft);text-align:left}.salary-cycle-stat span{color:var(--muted);font-size:.78rem;font-weight:780}.salary-cycle-stat strong{font-size:1.12rem}.salary-cycle-stat small{color:var(--muted)}button.salary-cycle-stat{font:inherit;color:inherit;cursor:pointer}button.salary-cycle-stat:hover{border-color:var(--primary)}
+.monthly-finance-note{margin:0;color:var(--muted)}
+@media(max-width:860px){.vehicle-profile-card{grid-template-columns:auto 1fr}.vehicle-odometer{grid-column:1/-1;text-align:left}.salary-cycle-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.vehicle-profile-card{grid-template-columns:1fr;text-align:center}.vehicle-profile-icon{margin:auto}.vehicle-odometer{text-align:center}.salary-cycle-hero{display:grid}.salary-cycle-hero>strong{white-space:normal}.salary-cycle-grid{grid-template-columns:1fr}}

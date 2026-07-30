@@ -5,7 +5,7 @@ import { ensureUniqueIds, migrateStateSchema } from '../src/core/state-integrity
 test('migrace doplní aktuální schemaVersion bez změny vstupu', () => {
   const original={schemaVersion:2,notes:[{id:'a'}]};
   const migrated=migrateStateSchema(original);
-  assert.equal(migrated.schemaVersion,13);
+  assert.equal(migrated.schemaVersion,14);
   assert.equal(original.schemaVersion,2);
 });
 
@@ -38,7 +38,7 @@ test('migrace převádí stará odměnová období a zapíná propojení plateb'
   assert.equal(out.rewards[0].period,'2026-2027-A');
   assert.equal(out.rewards[1].period,'2025-2026-B');
   assert.equal(out.householdPayments[0].trackFinance,true);
-  assert.equal(out.schemaVersion,13);
+  assert.equal(out.schemaVersion,14);
 });
 
 
@@ -48,14 +48,14 @@ test('migrace doplní nové servisní a elektro kolekce a cenu zahradní údržb
   assert.deepEqual(out.electricalNotes,[]);
   assert.deepEqual(out.maintenanceLogs,[]);
   assert.equal(out.gardenLogs[0].price,0);
-  assert.equal(out.schemaVersion,13);
+  assert.equal(out.schemaVersion,14);
 });
 
 
 test('migrace doplní projekty domu a vnořené kolekce', () => {
   const input={schemaVersion:9,projects:[{id:'p1',title:'Bazén'}]};
   const out=migrateStateSchema(input);
-  assert.equal(out.schemaVersion,13);
+  assert.equal(out.schemaVersion,14);
   assert.deepEqual(out.projects[0].notes,[]);
   assert.deepEqual(out.projects[0].links,[]);
   assert.deepEqual(out.projects[0].costs,[]);
@@ -74,8 +74,30 @@ test('duplicitní ID uvnitř projektu se nahradí', () => {
 test('migrace doplní vazbu velkých nákupů na finance', () => {
   const input={schemaVersion:10,shopping:[{id:'s1',name:'Sekačka',status:'planned'}]};
   const out=migrateStateSchema(input);
-  assert.equal(out.schemaVersion,13);
+  assert.equal(out.schemaVersion,14);
   assert.equal(out.shopping[0].purchaseDate,'');
   assert.equal(out.shopping[0].transactionId,'');
   assert.equal(out.shopping[0].financeDetached,false);
+});
+
+
+test('migrace schématu 14 doplní historii vozu a bezpečné výchozí hodnoty', () => {
+  const empty=migrateStateSchema({schemaVersion:13});
+  assert.equal(empty.schemaVersion,14);
+  assert.deepEqual(empty.vehicleLogs,[]);
+  const filled=migrateStateSchema({schemaVersion:13,vehicleLogs:[{id:'v1',date:'2026-07-29',description:'Oprava'}]});
+  assert.equal(filled.vehicleLogs[0].type,'other');
+  assert.equal(filled.vehicleLogs[0].odometer,0);
+  assert.equal(filled.vehicleLogs[0].price,0);
+  assert.equal(filled.vehicleLogs[0].paidBy,'me');
+  assert.equal(filled.vehicleLogs[0].trackFinance,true);
+  assert.equal(filled.vehicleLogs[0].transactionId,'');
+  assert.equal(filled.vehicleLogs[0].financeDetached,false);
+});
+
+test('kontrola unikátních ID zahrnuje záznamy Moje Fabia', () => {
+  let seq=0;
+  const state={vehicleLogs:[{id:'v'},{id:'v'},{id:''}]};
+  ensureUniqueIds(state,prefix=>`${prefix}_${++seq}`);
+  assert.equal(new Set(state.vehicleLogs.map(item=>item.id)).size,3);
 });

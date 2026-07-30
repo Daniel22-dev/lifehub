@@ -23,3 +23,12 @@ test('zamykací obrazovka a nastavení obsahují ovládání biometrie', () => {
   assert.match(html, /id="enableBiometricBtn"/);
   assert.match(html, /id="removeBiometricBtn"/);
 });
+
+
+test('rodinný náhled zobrazuje kompletní historii Fabie', () => {
+  assert.match(app, /vehicleLogs:d\.vehicleLogs/);
+  assert.match(app, /vehicleLogs:'kompletní historie Fabie'/);
+  assert.match(app, /Moje Fabia – kompletní historie/);
+  assert.match(app, /Zobrazuje se celá historie vozu z posledního načteného šifrovaného rodinného souboru/);
+  assert.match(app, /encrypted\.familySchema=4/);
+});

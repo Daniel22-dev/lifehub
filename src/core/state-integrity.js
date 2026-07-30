@@ -2,10 +2,10 @@ import { uid } from './utils.js';
 
 export const STATE_COLLECTIONS_WITH_IDS = Object.freeze([
   'notes','transactions','payrolls','documents','tasks','shopping','apps','installments',
-  'projects','htmlPlans','householdPayments','budgetEntries','groceries','aiEntries','rewards','gardenItems','gardenLogs','electricalNotes','maintenanceLogs'
+  'projects','htmlPlans','householdPayments','budgetEntries','groceries','aiEntries','rewards','gardenItems','gardenLogs','electricalNotes','maintenanceLogs','vehicleLogs'
 ]);
 
-export function migrateStateSchema(input, targetSchema = 13){
+export function migrateStateSchema(input, targetSchema = 14){
   const migrated = JSON.parse(JSON.stringify(input || {}));
   const current = Math.max(1, Math.round(Number(migrated.schemaVersion) || 1));
   if(current < 6 && Array.isArray(migrated.payrolls)){
@@ -116,6 +116,19 @@ export function migrateStateSchema(input, targetSchema = 13){
       if(plan.storedFile===undefined) plan.storedFile=true;
       if(plan.pinned===undefined) plan.pinned=false;
       if(plan.category===undefined) plan.category='other';
+    }
+  }
+  if(current < 14){
+    if(!Array.isArray(migrated.vehicleLogs)) migrated.vehicleLogs=[];
+    for(const row of migrated.vehicleLogs){
+      if(!row || typeof row!=='object') continue;
+      if(row.type===undefined) row.type='other';
+      if(row.odometer===undefined) row.odometer=0;
+      if(row.price===undefined) row.price=0;
+      if(row.paidBy===undefined) row.paidBy='me';
+      if(row.trackFinance===undefined) row.trackFinance=true;
+      if(row.transactionId===undefined) row.transactionId='';
+      if(row.financeDetached===undefined) row.financeDetached=false;
     }
   }
   if(current < targetSchema) migrated.schemaVersion = targetSchema;

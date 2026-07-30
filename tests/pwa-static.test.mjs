@@ -17,7 +17,7 @@ test('integrovaný manuál hlásí aktivitu a iframe je sandboxovaný', async ()
   ]);
   assert.match(manual,/lifehub-manual-activity/);
   assert.match(index,/sandbox="allow-scripts allow-same-origin allow-popups allow-modals"/);
-  assert.match(index,/21 částí/);
+  assert.match(index,/23 částí/);
 });
 
 test('PWA nabídne čekající aktualizaci a aktivuje ji až po potvrzení', async () => {

@@ -2,7 +2,7 @@
   "id": "./",
   "name": "LifeHub",
   "short_name": "LifeHub",
-  "description": "Prémiové lokální osobní centrum pro finance, úkoly, poznámky, rodinu, zálohy a šifrované dokumenty.",
+  "description": "Prémiové lokální osobní centrum pro skutečné cashflow, servisní historii vozu, úkoly, poznámky, rodinu, zálohy a šifrované dokumenty.",
   "lang": "cs",
   "start_url": "./index.html",
   "scope": "./",
