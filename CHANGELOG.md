@@ -1,3 +1,13 @@
+## 5.2.2
+
+## Přímé PDF pro elektrikáře
+
+- Záložka **Elektřina – Marek** má jediné tlačítko **Stáhnout PDF pro Honzu Marka**.
+- PDF se vytváří lokálně a stahuje přímo bez náhledu celé aplikace a bez systémového tiskového dialogu.
+- Export zahrnuje všechny položky, souhrn materiálu, ceny a odkazy a automaticky se stránkuje na A4.
+- Odstraněn nepotřebný CSV export a zastaralá instrukce k ukládání přes tisk.
+- Přidán samostatný PDF generátor a regresní testy proti návratu tiskové vrstvy.
+
 ## 5.2.1
 
 ## Kompletní historie Fabie v rodinném souboru

@@ -62,6 +62,7 @@ import {
 import { backupRecordToFile, fileToBackupRecord } from '../features/backup.js';
 import { assertBackupFileSize, validateBackupFileSet } from '../features/backup-validation.js';
 import { buildAnnualCashflowData, buildTransactionRecord, summarizeSalaryCycle } from '../features/finance.js';
+import { buildElectricityPdfBlob } from '../features/electricity-pdf.js';
 import { isElanorPayslip, parseElanorPayslip } from '../features/payroll-elanor.js';
 import {
   DEFAULT_FOOD_BUDGET,
@@ -639,7 +640,7 @@ export function bootLifeHub(){
       $('#electricityForm')?.addEventListener('submit',saveElectricalNote);
       $('#resetElectricity')?.addEventListener('click',resetElectricalForm);
       $('#electricityFilter')?.addEventListener('input',renderElectricity);
-      $('#electricityPdfBtn')?.addEventListener('click',()=>printReport(buildElectricityReportHtml()));
+      $('#electricityPdfBtn')?.addEventListener('click',downloadElectricityReportPdf);
       $('#partnerImportBtn')?.addEventListener('click',()=>$('#partnerImportFile')?.click());
       $('#partnerImportFile')?.addEventListener('change',importPartnerShare);
       $('#partnerDeleteBtn')?.addEventListener('click',deletePartnerData);
@@ -716,7 +717,7 @@ export function bootLifeHub(){
           'export-budget-csv':()=>exportCsv('budget'), 'export-groceries-csv':()=>exportCsv('groceries'),
           'export-ailog-csv':()=>exportCsv('ailog'), 'export-rewards-csv':()=>exportCsv('rewards'),
           'export-garden-csv':()=>exportCsv('garden'), 'export-gardenlog-csv':()=>exportCsv('gardenlog'),
-          'export-maintenance-csv':()=>exportCsv('maintenance'), 'export-vehicle-csv':()=>exportCsv('vehicle'), 'export-electricity-csv':()=>exportCsv('electricity'),
+          'export-maintenance-csv':()=>exportCsv('maintenance'), 'export-vehicle-csv':()=>exportCsv('vehicle'),
           'export-payments-csv':()=>exportCsv('payments'),
           'export-project-md':exportSelectedProjectMarkdown, 'export-project-csv':exportSelectedProjectCsv,
           'export-partner-share':exportPartnerShare
@@ -3596,6 +3597,7 @@ Poslední pojistka: pro potvrzení importu napiš ${word}.`,
     function saveSettings(e){e.preventDefault(); state.settings.greetName=$('#greetName').value.trim(); state.settings.familyDisplayName=$('#familyDisplayName')?.value.trim()||''; state.settings.deviceName=$('#deviceName').value.trim(); state.settings.ownerName=$('#ownerName').value.trim(); state.settings.ownerFooter=$('#ownerFooter').value.trim(); state.settings.currency=sanitizeCurrency($('#currency').value); state.settings.savingGoal=number($('#savingGoal').value); state.settings.privateNotifications=$('#privateNotifications')?.checked!==false; state.settings.familySettingsUpdatedAt=new Date().toISOString(); save(); toast('Nastavení uloženo.');}
     // Krátký changelog (nejnovější nahoře, drž ~5 položek). Zobrazí se klepnutím na verzi v patičce.
     const CHANGELOG = [
+      'v5.2.2 · V Elektřině – Marek je nyní jediné tlačítko Stáhnout PDF pro Honzu Marka. Dokument se vytvoří lokálně a stáhne přímo bez náhledu celé aplikace, bez tiskového dialogu a bez nepotřebného CSV exportu; delší podklady se automaticky rozdělí na více A4 stran.',
       'v5.2.1 · Rodinný šifrovaný soubor nyní vždy přenáší kompletní historii vozu z Moje Fabia. Manželka ji po načtení uvidí v rodinném náhledu včetně data, typu události, tachometru, popisu, ceny, plátce a poznámky; náhled zůstává pouze ke čtení.',
       'v5.2.0 · Přidána záložka Moje Fabia s historií garančních servisů, oprav, STK + emisí a ostatních událostí. Servisní náklady lze jedním přepínačem automaticky propojit s financemi. Přehled i roční graf nově vycházejí ze skutečného data připsání výplaty a skutečných dat zaplacení; karta Z poslední výplaty zbývá ukazuje aktuální osobní cashflow.',
       'v5.1.0 · Nová samostatná záložka Plány a postupy ukládá interaktivní HTML návody šifrovaně a otevírá je v odděleném bezpečném prohlížeči. U všech relevantních výdajů lze určit plátce Já / Manželka; náklad zůstává v domácnosti, ale osobní bilance odečítá jen skutečně vlastní platby.',
@@ -5189,13 +5191,29 @@ Co chceš udělat teď?`,
       const visible=items.filter(item=>filter==='all'||item.type===filter);
       $('#electricityList').innerHTML=visible.map(item=>`<article class="item"><div class="item-top"><div><h4>${electricalTypeLabel(item.type)} • ${esc(item.title)}</h4><p>${esc(fmtDate(`${item.date}T00:00:00`))}${item.price?` • <strong>${fmt(item.price)}</strong>`:''}</p>${item.description?`<p>${esc(item.description)}</p>`:''}<div class="meta">${item.url?`<a class="tag" href="${attr(safeUrl(item.url))}" target="_blank" rel="noopener">odkaz ↗</a>`:''}</div></div><div class="actions"><button class="mini-btn" data-edit-electrical="${attr(item.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-electrical="${attr(item.id)}" type="button">Smazat</button></div></div></article>`).join('')||empty('Zatím nejsou zapsané žádné podklady pro elektrikáře.');
     }
-    function buildElectricityReportHtml(){
-      const items=[...state.electricalNotes].sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-      const total=items.filter(item=>item.type==='material').reduce((sum,item)=>sum+number(item.price),0);
-      const rows=items.map((item,index)=>`<tr><td>${index+1}</td><td>${esc(fmtDate(`${item.date}T00:00:00`))}</td><td><strong>${esc(item.title)}</strong><div class="report-note">${esc(item.description||'')}</div>${item.url?`<div class="report-note">${esc(item.url)}</div>`:''}</td><td>${esc(electricalTypeLabel(item.type))}</td><td class="report-time">${item.price?esc(fmt(item.price)):'—'}</td></tr>`).join('')||'<tr><td colspan="5" class="report-empty">Zatím nejsou vložené žádné podklady.</td></tr>';
-      return `<main class="lh-report"><header class="report-header"><div class="report-school"><img src="${SCHOOL_LOGO_DATA_URI}" alt="Logo"><div><strong>Podklady pro elektroinstalaci</strong><span>Daniel Baláž · pro elektrikáře Marka</span></div></div><div class="report-heading"><p>LifeHub · pracovní podklad</p><h1>Elektřina – Marek</h1></div></header><section class="report-meta-grid"><article><span>Vygenerováno</span><strong>${esc(fmtDate(new Date().toISOString()))}</strong></article><article><span>Počet položek</span><strong>${items.length}</strong></article><article><span>Materiál</span><strong>${materialCount(items)}</strong></article><article class="report-status ready"><span>Odhad materiálu</span><strong>${esc(fmt(total))}</strong></article></section><section class="report-section"><div class="report-section-title"><div><span>Poznámky, nápady a materiál</span><h2>Podklady k projednání a realizaci</h2></div></div><div class="report-table-wrap"><table class="report-table"><thead><tr><th>#</th><th>Datum</th><th>Položka a popis</th><th>Typ</th><th>Cena</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="4">Celkem uvedený materiál / odhad</td><td class="report-time">${esc(fmt(total))}</td></tr></tfoot></table></div></section><section class="report-signatures"><div><span>Připravil</span><strong>${esc(reportOwner().name)}</strong><i>datum a podpis</i></div><div><span>Projednáno s</span><strong>Marek – elektrikář</strong><i>datum a podpis</i></div></section><footer class="report-footer"><span>Pracovní podklad z aplikace LifeHub</span><span>Verze ${esc(VERSION)}</span></footer></main>`;
+    async function downloadElectricityReportPdf(){
+      const button=$('#electricityPdfBtn');
+      if(!button) return;
+      const originalText=button.textContent;
+      button.disabled=true;
+      button.textContent='Vytvářím PDF…';
+      try{
+        const blob=await buildElectricityPdfBlob(state.electricalNotes,{
+          logoDataUrl:SCHOOL_LOGO_DATA_URI,
+          ownerName:reportOwner().name,
+          recipientName:'Honza Marek',
+          generatedAt:new Date()
+        });
+        download(`lifehub-podklady-elektrikar-honza-marek-${today()}.pdf`,blob,'application/pdf');
+        toast('PDF pro elektrikáře bylo staženo.','good');
+      }catch(error){
+        console.error(error);
+        toast('PDF se nepodařilo vytvořit. Zkuste akci zopakovat.','bad');
+      }finally{
+        button.disabled=false;
+        button.textContent=originalText;
+      }
     }
-    function materialCount(items){ return items.filter(item=>item.type==='material').length; }
 
     // ===== Zahrada (pořízení + deník údržby) =====
     const GARDEN_TYPES = {hnojeni:'🌿 Hnojení', vertikutace:'🪒 Vertikutace', aerifikace:'🕳️ Aerifikace', dosev:'🌾 Dosev', postrik:'💧 Postřik', sekani:'✂️ Sekání', zavlaha:'🚿 Závlaha', servis:'🔧 Servis techniky', jine:'📌 Jiné'};

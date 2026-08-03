@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#11152f">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'none'; worker-src 'self' blob:; child-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
-  <title>LifeHub 5.2.1 | osobní digitální centrum</title>
+  <title>LifeHub 5.2.2 | osobní digitální centrum</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./lifehub-icon-v2.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./lifehub-icon-192-v2.png">
@@ -16,7 +16,7 @@
       <div class="brand">
         <div class="brand-mark" aria-hidden="true"><span>LH</span></div>
         <div class="brand-copy">
-          <h1>LifeHub <span id="appTitleVersion">5.2.1</span></h1>
+          <h1>LifeHub <span id="appTitleVersion">5.2.2</span></h1>
           <p>Soukromé centrum · offline · šifrované</p>
         </div>
       </div>
@@ -1053,7 +1053,7 @@
           <div class="section-head">
             <div class="head-main">
               <div><h2 class="tab-title">Elektřina – Marek</h2><p class="tab-sub">Poznámky, nápady a materiál připravený pro elektrikáře</p></div>
-              <button class="info-dot" type="button" data-tip="Každou položku označte jako poznámku, nápad nebo materiál. U materiálu můžete uvést cenu. Tlačítko PDF vytvoří čistý podklad vhodný k odeslání elektrikáři.">i</button>
+              <button class="info-dot" type="button" data-tip="Každou položku označte jako poznámku, nápad nebo materiál. U materiálu můžete uvést cenu. Tlačítko Stáhnout PDF vytvoří a rovnou stáhne jediný čistý dokument vhodný k odeslání elektrikáři. Neotevírá náhled ani tiskový dialog.">i</button>
             </div>
           </div>
           <div class="kpis" id="electricityKpis"></div>
@@ -1077,9 +1077,7 @@
             </div>
           </article>
           <div class="section-head-actions">
-            <button class="btn primary" id="electricityPdfBtn" type="button">PDF pro elektrikáře</button>
-            <button class="btn" data-action="export-electricity-csv" type="button">Export CSV</button>
-            <span class="small">V tiskovém dialogu zvolte „Uložit jako PDF“.</span>
+            <button class="btn primary" id="electricityPdfBtn" type="button">⬇️ Stáhnout PDF pro Honzu Marka</button>
           </div>
         </section>
 
@@ -1385,7 +1383,7 @@
             </div>
           </article>
           <article class="panel production-panel">
-            <div class="panel-head"><div><p class="eyebrow">Produkční režim</p><h3>Oficiální osobní nástroj</h3></div><span class="status good">LifeHub 5.2.1</span></div>
+            <div class="panel-head"><div><p class="eyebrow">Produkční režim</p><h3>Oficiální osobní nástroj</h3></div><span class="status good">LifeHub 5.2.2</span></div>
             <p>Data zůstávají v tomto zařízení a po odemčení se ukládají šifrovaně. Přenos mezi telefonem a počítačem je záměrně ruční přes kompletní šifrovanou zálohu; automatická cloudová synchronizace není součástí aplikace.</p>
           </article>
           <article class="panel">
@@ -1411,7 +1409,7 @@
           </div>
           <article class="panel manual-intro-panel">
             <div>
-              <p class="eyebrow">LifeHub 5.2.1</p>
+              <p class="eyebrow">LifeHub 5.2.2</p>
               <h3>Celá aplikace vysvětlená na jednom místě</h3>
               <p class="small">Manuál je součástí instalačního balíčku, funguje i offline a nečte žádná osobní data z tvého trezoru. Níže ho můžeš používat přímo uvnitř LifeHubu.</p>
             </div>
@@ -1459,7 +1457,7 @@
         </div>
       </div>
       <div class="lock-content">
-        <p class="eyebrow">LifeHub <span id="lockVersion">5.2.1</span></p>
+        <p class="eyebrow">LifeHub <span id="lockVersion">5.2.2</span></p>
         <h2 id="lockTitle">Odemknout LifeHub</h2>
         <p id="lockIntro">Zadej své heslo. Poznámky, finance ani dokumenty se před odemčením nenačtou.</p>
         <div class="lock-note" id="lockNote">Při prvním spuštění si nastavíš bezpečné heslo. Starší data lze jednorázově převést do šifrovaného úložiště.</div>
