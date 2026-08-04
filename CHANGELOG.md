@@ -1,3 +1,10 @@
+## 5.3.0
+- AI výkaz přepracován na soukromou sekci AI odměňování pro ekosystém AI Studio GHRAB.
+- Záznamy obsahují kategorii, aplikaci/oblast, typ práce, výsledek a neveřejnou soukromou poznámku.
+- Přidán měsíční manažerský souhrn: výsledky, rizika, potřebná rozhodnutí a priority.
+- Report pro vedení neobsahuje název LifeHub ani soukromé poznámky a používá pracovní zařazení Pedagog.
+- Modul Odměny zůstává funkčně oddělený a beze změny.
+
 ## 5.2.2
 
 ## Přímé PDF pro elektrikáře

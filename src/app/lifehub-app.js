@@ -110,7 +110,7 @@ export function bootLifeHub(){
     const VERSION = APP_VERSION;
     const SHORT_VERSION = String(VERSION).split('-')[0]; // např. "3.1.8" – nadpis, titulek, zámek
     const FORBIDDEN_IMPORT_KEYS = new Set(['__proto__','constructor','prototype']);
-    const STATE_SCHEMA_VERSION = 14;
+    const STATE_SCHEMA_VERSION = 15;
     const SHOPPING_BOUGHT_FEEDBACK_MS = 650;
     const GARDEN_BOUGHT_FEEDBACK_MS = 650;
     const BIOMETRIC_META_KEY = 'biometricUnlock';
@@ -122,6 +122,20 @@ export function bootLifeHub(){
     const fmt = n => `${(Number(n)||0).toLocaleString('cs-CZ',{maximumFractionDigits:0})} ${sanitizeCurrency(state.settings.currency)}`;
     const monthLabel = m => m ? new Date(`${m}-01T00:00:00`).toLocaleDateString('cs-CZ',{month:'long',year:'numeric'}) : 'bez měsíce';
     const normalizePaidBy = value => value === 'wife' ? 'wife' : 'me';
+    const AI_WORK_CATEGORIES = Object.freeze({
+      operations:'Provoz a správa', support:'Podpora uživatelů', training:'Školení a metodika',
+      security:'Bezpečnost, GDPR a spolupráce s IT', documentation:'Dokumentace a reporting',
+      development:'Rozvoj existující aplikace', new_project:'Nová aplikace / mimořádný projekt',
+      representation:'Prezentace a reprezentace školy'
+    });
+    const AI_WORK_TYPES = Object.freeze({regular:'Pravidelná agenda', exceptional:'Mimořádný úkol'});
+    const AI_CORE_AREAS = Object.freeze([
+      'Obecná agenda AI','AI Studio GHRAB','Generátor interaktivních testů','Diferenciátor pracovních listů a testů',
+      'Korespondenční asistent','Hodnotitel maturitních slohů','Lesson Hub','SORTIO – Organizátor třídy',
+      'Sestavovač aktivit (ACTIVA)','LUDUS'
+    ]);
+    const aiCategoryLabel = value => AI_WORK_CATEGORIES[value] || AI_WORK_CATEGORIES.operations;
+    const aiWorkTypeLabel = value => AI_WORK_TYPES[value] || AI_WORK_TYPES.regular;
     const payerLabel = value => normalizePaidBy(value) === 'wife' ? 'Zaplatila manželka' : 'Zaplatil jsem';
     const payerShortLabel = value => normalizePaidBy(value) === 'wife' ? 'Manželka' : 'Já';
     const payerTag = value => `<span class="tag payer-tag ${normalizePaidBy(value)==='wife'?'wife':'me'}">${esc(payerLabel(value))}</span>`;
@@ -135,7 +149,7 @@ export function bootLifeHub(){
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       settings:{theme:'dark', greetName:'Dane', familyDisplayName:'', deviceName:'', ownerName:'Vlastník aplikace: Daniel Baláž · Gymnázium, Ostrava-Hrabůvka', ownerFooter:'© 2026 Daniel Baláž. Všechna práva vyhrazena.', currency:'Kč', savingGoal:0, foodBudget:DEFAULT_FOOD_BUDGET, fuelBudget:DEFAULT_FUEL_BUDGET, familyMemberId:'', familyPassword:'', familySettingsUpdatedAt:'', privateNotifications:true, lastDataBackupAt:'', lastCompleteBackupAt:'', lastVerifiedBackupAt:'', lastRestoreAt:''},
-      notes:[], transactions:[], payrolls:[], documents:[], tasks:[], shopping:[], apps:[], projects:[], htmlPlans:[], installments:[], householdPayments:[], budgetEntries:[], groceries:[], aiEntries:[], aiClosedMonths:[], rewards:[], gardenItems:[], gardenLogs:[], electricalNotes:[], maintenanceLogs:[], vehicleLogs:[], partner:null
+      notes:[], transactions:[], payrolls:[], documents:[], tasks:[], shopping:[], apps:[], projects:[], htmlPlans:[], installments:[], householdPayments:[], budgetEntries:[], groceries:[], aiEntries:[], aiClosedMonths:[], aiMonthSummaries:[], rewards:[], gardenItems:[], gardenLogs:[], electricalNotes:[], maintenanceLogs:[], vehicleLogs:[], partner:null
     });
     let state = defaultState();
     let vaultKey = null;
@@ -619,6 +633,7 @@ export function bootLifeHub(){
       $('#groceryPhotoInput')?.addEventListener('change',addGroceryPhoto);
       $('#clearBoughtBtn')?.addEventListener('click',clearBoughtGroceries);
       $('#aiForm')?.addEventListener('submit',saveAiEntry);
+      $('#aiSummaryForm')?.addEventListener('submit',saveAiMonthSummary);
       $('#resetAi')?.addEventListener('click',resetAiForm);
       $('#aiMonth')?.addEventListener('input',renderAiLog);
       $('#aiCloseBtn')?.addEventListener('click',toggleAiMonthClosed);
@@ -1759,7 +1774,7 @@ export function bootLifeHub(){
       state.householdPayments.forEach(p=>{const text=strip([p.title,p.category,p.note,p.amount,p.dueDate,assignedToLabel(p.assignedTo)].join(' ')); if(text.includes(q)) res.push(['Platba domácnosti',p.title,`${fmt(p.amount)} • ${paymentFrequencyLabel(p.frequency)} • ${p.dueDate||'bez data'}`,'payments']);});
       state.groceries.forEach(g=>{const text=strip([g.name,g.store,g.note].join(' ')); if(text.includes(q)) res.push(['Nákupní seznam',g.name,`${g.store||'bez obchodu'}${g.done?' • koupeno':''}`,'groceries']);});
       state.budgetEntries.forEach(b=>{const text=strip([b.note,b.kind==='fuel'?'benzin':'jidlo',b.date].join(' ')); if(text.includes(q)) res.push(['Jídlo & benzín',`${b.kind==='fuel'?'Benzín':'Jídlo'}: ${fmt(b.amount)}`,`${b.date} • ${b.note||''}`,'budget']);});
-      state.aiEntries.forEach(a=>{const text=strip([a.activity,a.note,a.date].join(' ')); if(text.includes(q)) res.push(['AI výkaz',a.activity,`${a.date} • ${minutesLabel(a.minutes)}`,'ailog']);});
+      state.aiEntries.forEach(a=>{const text=strip([a.activity,a.note,a.privateNote,a.app,a.category,a.date].join(' ')); if(text.includes(q)) res.push(['AI odměňování',a.activity,`${a.date} • ${minutesLabel(a.minutes)} • ${aiCategoryLabel(a.category)}`,'ailog']);});
       state.rewards.forEach(r=>{const text=strip([r.title,r.note].join(' ')); if(text.includes(q)) res.push(['Odměny',r.title,`${rewardPeriodLabel(r.period)} • ${fmtHours(r.hours)}`,'rewards']);});
       state.gardenItems.forEach(g=>{const text=strip([g.name,g.note].join(' ')); if(text.includes(q)) res.push(['Zahrada',g.name,`${gardenHorizonLabel(g.horizon)} • ${fmt(g.price)}${g.done?' • pořízeno':''}`,'garden']);});
       state.gardenLogs.forEach(g=>{const text=strip([g.area,g.note,gardenTypeLabel(g.type),g.price].join(' ')); if(text.includes(q)) res.push(['Zahrada – údržba',gardenTypeLabel(g.type),`${g.date}${g.area?' • '+g.area:''}${g.price?' • '+fmt(g.price):''}`,'garden']);});
@@ -3136,11 +3151,18 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         id:safeId(g?.id,'groc'), name:textLimit(g?.name,160), store:textLimit(g?.store,60), note:textLimit(g?.note,300), done:!!g?.done, shared:g?.shared!==false, createdAt:textLimit(g?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(g?.updatedAt,40)||new Date().toISOString()
       })).filter(g=>g.name);
       clean.aiEntries = asArray(data.aiEntries,20000).map(a=>({
-        id:safeId(a?.id,'ai'), date:textLimit(a?.date,10), minutes:Math.min(1440,Math.max(0,Math.round(number(a?.minutes)))), activity:textLimit(a?.activity,300), note:textLimit(a?.note,500), createdAt:textLimit(a?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(a?.updatedAt,40)||new Date().toISOString()
+        id:safeId(a?.id,'ai'), date:textLimit(a?.date,10), minutes:Math.min(1440,Math.max(1,Math.round(number(a?.minutes)))),
+        category:Object.prototype.hasOwnProperty.call(AI_WORK_CATEGORIES,a?.category)?a.category:'operations', app:textLimit(a?.app,180)||'Obecná agenda AI',
+        workType:Object.prototype.hasOwnProperty.call(AI_WORK_TYPES,a?.workType)?a.workType:'regular', activity:textLimit(a?.activity,300), note:textLimit(a?.note,3000),
+        privateNote:textLimit(a?.privateNote,3000), createdAt:textLimit(a?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(a?.updatedAt,40)||new Date().toISOString()
       })).filter(a=>/^\d{4}-\d{2}-\d{2}$/.test(a.date)&&a.activity);
       clean.aiClosedMonths = asArray(data.aiClosedMonths,600).map(c=>({
         month:textLimit(c?.month,7), closedAt:textLimit(c?.closedAt,40)||new Date().toISOString()
       })).filter(c=>/^\d{4}-\d{2}$/.test(c.month));
+      clean.aiMonthSummaries = asArray(data.aiMonthSummaries,600).map(row=>({
+        month:textLimit(row?.month,7), keyResults:textLimit(row?.keyResults,5000), risks:textLimit(row?.risks,4000),
+        decisions:textLimit(row?.decisions,4000), priorities:textLimit(row?.priorities,4000), updatedAt:textLimit(row?.updatedAt,40)||new Date().toISOString()
+      })).filter(row=>/^\d{4}-\d{2}$/.test(row.month));
       clean.rewards = asArray(data.rewards,5000).map(r=>({
         id:safeId(r?.id,'rew'), period:normalizeRewardPeriod(textLimit(r?.period,11)), hours:Math.max(0,number(r?.hours)), title:textLimit(r?.title,300), note:textLimit(r?.note,500), createdAt:textLimit(r?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(r?.updatedAt,40)||new Date().toISOString()
       })).filter(r=>/^\d{4}-\d{4}-(A|B)$/.test(r.period)&&r.title);
@@ -3186,7 +3208,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
         budget:[['id','date','kind','amount','paidBy','note','createdAt'], ...state.budgetEntries.map(b=>[b.id,b.date,b.kind,b.amount,b.paidBy||'me',b.note,b.createdAt])],
         payments:[['id','title','category','amount','frequency','dueDate','assignedTo','defaultPaidBy','automatic','trackFinance','status','lastPaidAt','note','shared','createdAt','updatedAt'], ...state.householdPayments.map(p=>[p.id,p.title,p.category,p.amount,p.frequency,p.dueDate,p.assignedTo,p.defaultPaidBy||'me',p.automatic===true,p.trackFinance!==false,p.status,p.lastPaidAt,p.note,p.shared,p.createdAt,p.updatedAt])],
         groceries:[['id','name','store','done','note','createdAt'], ...state.groceries.map(g=>[g.id,g.name,g.store,g.done,g.note,g.createdAt])],
-        ailog:[['id','date','minutes','activity','note','createdAt'], ...state.aiEntries.map(a=>[a.id,a.date,a.minutes,a.activity,a.note,a.createdAt])],
+        ailog:[['id','date','minutes','category','app','workType','activity','result','privateNote','createdAt'], ...state.aiEntries.map(a=>[a.id,a.date,a.minutes,a.category,a.app,a.workType,a.activity,a.note,a.privateNote,a.createdAt])],
         rewards:[['id','period','periodLabel','hours','title','note','createdAt'], ...state.rewards.map(r=>[r.id,r.period,rewardPeriodLabel(r.period),r.hours,r.title,r.note,r.createdAt])],
         garden:[['id','name','price','paidBy','horizon','url','note','done','purchaseDate','transactionId','createdAt'], ...state.gardenItems.map(g=>[g.id,g.name,g.price,g.paidBy||'me',g.horizon,g.url,g.note,g.done,g.purchaseDate||'',g.transactionId||'',g.createdAt])],
         gardenlog:[['id','date','type','typeLabel','area','price','paidBy','note','createdAt'], ...state.gardenLogs.map(g=>[g.id,g.date,g.type,gardenTypeLabel(g.type),g.area,g.price,g.paidBy||'me',g.note,g.createdAt])],
@@ -3242,7 +3264,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
     function paymentsMarkdown(){return ['# Účty a závazky',...state.householdPayments.map(p=>`\n- [${p.status==='paid'?'x':' '}] **${p.title}** — ${fmt(p.amount)}, ${paymentFrequencyLabel(p.frequency)}, ${p.automatic?'automaticky hrazeno, další termín':'splatnost'} ${p.dueDate||'neuveden'} • ${assignedToLabel(p.assignedTo)} • ${p.trackFinance!==false?'propojeno s financemi':'bez finančního zápisu'}${p.note?'\n  '+p.note:''}`)].join('\n');}
     function groceriesMarkdown(){return ['# Nákupní seznam',...state.groceries.map(g=>`- [${g.done?'x':' '}] **${g.name}**${g.store?' — '+g.store:''}${g.note?' ('+g.note+')':''}`)].join('\n');}
     function budgetMarkdown(){return ['# Jídlo & benzín',...state.budgetEntries.map(b=>`- ${b.date} | ${b.kind==='fuel'?'Benzín':'Jídlo'} | ${fmt(b.amount)}${b.note?' | '+b.note:''}`)].join('\n');}
-    function aiMarkdown(){return ['# AI výkaz',...state.aiEntries.map(a=>`- ${a.date} | ${minutesLabel(a.minutes)} | ${a.activity}${a.note?' | '+a.note:''}`)].join('\n');}
+    function aiMarkdown(){return ['# AI odměňování – soukromá evidence',...state.aiEntries.map(a=>`- ${a.date} | ${minutesLabel(a.minutes)} | ${aiCategoryLabel(a.category)} | ${a.app||'Obecná agenda AI'} | ${aiWorkTypeLabel(a.workType)} | ${a.activity}${a.note?' | výsledek: '+a.note:''}${a.privateNote?' | soukromě: '+a.privateNote:''}`)].join('\n');}
     function gardenMarkdown(){return ['# Zahrada','','## K pořízení',...state.gardenItems.map(g=>`- [${g.done?'x':' '}] **${g.name}** — ${fmt(g.price)}, ${gardenHorizonLabel(g.horizon)}${g.note?' ('+g.note+')':''}${g.url?'\n  '+g.url:''}`),'','## Deník údržby',...state.gardenLogs.map(g=>`- ${g.date} | ${gardenTypeLabel(g.type)}${g.area?' | '+g.area:''}${g.price?' | '+fmt(g.price):''}${g.note?' | '+g.note:''}`)].join('\n');}
     function maintenanceMarkdown(){return ['# Servis domácnosti',...state.maintenanceLogs.map(m=>`- ${m.date} | ${maintenanceCategoryLabel(m.category)} | **${m.title}**${m.provider?' | '+m.provider:''}${m.price?' | '+fmt(m.price):''}${m.nextDate?' | další termín '+m.nextDate:''}${m.note?' | '+m.note:''}`)].join('\n');}
     function vehicleMarkdown(){return ['# Moje Fabia','- Škoda Fabia I | 1.2 HTP | rok výroby 2004/2005',...state.vehicleLogs.map(v=>`- ${v.date} | ${vehicleTypeLabel(v.type)}${v.odometer?' | '+Math.round(number(v.odometer)).toLocaleString('cs-CZ')+' km':''} | **${v.description}**${v.price?' | '+fmt(v.price):''}${v.note?' | '+v.note:''}${v.trackFinance!==false?' | finanční evidence':' | pouze historie'}`)].join('\n');}
@@ -3597,6 +3619,7 @@ Poslední pojistka: pro potvrzení importu napiš ${word}.`,
     function saveSettings(e){e.preventDefault(); state.settings.greetName=$('#greetName').value.trim(); state.settings.familyDisplayName=$('#familyDisplayName')?.value.trim()||''; state.settings.deviceName=$('#deviceName').value.trim(); state.settings.ownerName=$('#ownerName').value.trim(); state.settings.ownerFooter=$('#ownerFooter').value.trim(); state.settings.currency=sanitizeCurrency($('#currency').value); state.settings.savingGoal=number($('#savingGoal').value); state.settings.privateNotifications=$('#privateNotifications')?.checked!==false; state.settings.familySettingsUpdatedAt=new Date().toISOString(); save(); toast('Nastavení uloženo.');}
     // Krátký changelog (nejnovější nahoře, drž ~5 položek). Zobrazí se klepnutím na verzi v patičce.
     const CHANGELOG = [
+      'v5.3.0 · AI odměňování je nově soukromou strukturovanou evidencí práce na ekosystému AI Studio GHRAB. Záznamy rozlišují kategorii, aplikaci, pravidelnou a mimořádnou agendu, konkrétní výsledek a soukromou poznámku. Měsíční report pro vedení neobsahuje název LifeHub ani soukromé poznámky a doplňuje manažerský souhrn, rizika, potřebná rozhodnutí a priority.',
       'v5.2.2 · V Elektřině – Marek je nyní jediné tlačítko Stáhnout PDF pro Honzu Marka. Dokument se vytvoří lokálně a stáhne přímo bez náhledu celé aplikace, bez tiskového dialogu a bez nepotřebného CSV exportu; delší podklady se automaticky rozdělí na více A4 stran.',
       'v5.2.1 · Rodinný šifrovaný soubor nyní vždy přenáší kompletní historii vozu z Moje Fabia. Manželka ji po načtení uvidí v rodinném náhledu včetně data, typu události, tachometru, popisu, ceny, plátce a poznámky; náhled zůstává pouze ke čtení.',
       'v5.2.0 · Přidána záložka Moje Fabia s historií garančních servisů, oprav, STK + emisí a ostatních událostí. Servisní náklady lze jedním přepínačem automaticky propojit s financemi. Přehled i roční graf nově vycházejí ze skutečného data připsání výplaty a skutečných dat zaplacení; karta Z poslední výplaty zbývá ukazuje aktuální osobní cashflow.',
@@ -3758,7 +3781,7 @@ Co chceš udělat teď?`,
       state.installments.unshift({id:uid('inst'),creditor:'Ukázková půjčka',total:60000,monthly:5000,startMonth:m,paid:0,dueDay:15,defaultPaidBy:'me',note:'Ukázka splátkového kalendáře',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
       state.budgetEntries.unshift({id:uid('budget'),date:`${m}-03`,kind:'food',amount:850,paidBy:'me',note:'Ukázka: nákup Lidl',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()},{id:uid('budget'),date:`${m}-04`,kind:'fuel',amount:1200,paidBy:'me',note:'Ukázka: tankování',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
       state.groceries.unshift({id:uid('groc'),name:'Mléko (ukázka)',store:'Lidl',note:'',done:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()},{id:uid('groc'),name:'Chleba (ukázka)',store:'Albert',note:'',done:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
-      state.aiEntries.unshift({id:uid('ai'),date:today(),minutes:90,activity:'Ukázka: příprava testu v generátoru',note:'',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
+      state.aiEntries.unshift({id:uid('ai'),date:today(),minutes:90,category:'development',app:'Generátor interaktivních testů',workType:'regular',activity:'Ukázka: úprava generátoru testů',note:'Dokončena ukázková úprava a ověření funkčnosti.',privateNote:'',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
       state.rewards.unshift({id:uid('rew'),period:currentRewardPeriod(),hours:4.5,title:'Ukázka: vývoj školní aplikace',note:'',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
       state.gardenItems.unshift({id:uid('gitem'),name:'Podzimní hnojivo (ukázka)',price:890,paidBy:'me',horizon:'season',url:'',note:'Ukázková položka',done:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
       state.gardenLogs.unshift({id:uid('glog'),date:today(),type:'hnojeni',area:'přední trávník',note:'Ukázkový záznam údržby',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
@@ -4454,20 +4477,60 @@ Co chceš udělat teď?`,
       toast('Fotka seznamu smazána.','warn');
     }
 
-    // ===== AI výkaz (evidence času pro měsíční výkaz) =====
+    // ===== AI odměňování (soukromá evidence a měsíční report) =====
     function isAiMonthClosed(month){ return (state.aiClosedMonths||[]).some(c=>c.month===month); }
+    function aiAppOptions(){
+      const dynamic=(state.apps||[]).map(app=>String(app.name||'').trim()).filter(Boolean);
+      return [...new Set([...AI_CORE_AREAS,...dynamic])].sort((a,b)=>a==='Obecná agenda AI'?-1:b==='Obecná agenda AI'?1:a.localeCompare(b,'cs'));
+    }
+    function populateAiAppSelect(selected=''){
+      const select=$('#aiApp'); if(!select) return;
+      const current=selected||select.value||'Obecná agenda AI';
+      const options=aiAppOptions();
+      if(current && !options.includes(current)) options.push(current);
+      select.innerHTML=options.map(name=>`<option value="${attr(name)}">${esc(name)}</option>`).join('');
+      select.value=options.includes(current)?current:'Obecná agenda AI';
+    }
+    function aiMonthSummary(month){ return (state.aiMonthSummaries||[]).find(row=>row.month===month) || null; }
+    function saveAiMonthSummary(e){
+      e.preventDefault();
+      const month=$('#aiMonth')?.value||monthNow();
+      const values={month,keyResults:$('#aiSummaryResults')?.value.trim()||'',risks:$('#aiSummaryRisks')?.value.trim()||'',decisions:$('#aiSummaryDecisions')?.value.trim()||'',priorities:$('#aiSummaryPriorities')?.value.trim()||'',updatedAt:new Date().toISOString()};
+      state.aiMonthSummaries=Array.isArray(state.aiMonthSummaries)?state.aiMonthSummaries:[];
+      const existing=state.aiMonthSummaries.find(row=>row.month===month);
+      if(existing) Object.assign(existing,values); else state.aiMonthSummaries.unshift(values);
+      save(); toast(`Měsíční souhrn pro ${monthLabel(month)} uložen.`);
+    }
+    function renderAiMonthSummary(month){
+      const row=aiMonthSummary(month)||{};
+      const values={aiSummaryResults:row.keyResults||'',aiSummaryRisks:row.risks||'',aiSummaryDecisions:row.decisions||'',aiSummaryPriorities:row.priorities||''};
+      Object.entries(values).forEach(([id,value])=>{ const el=$('#'+id); if(el && document.activeElement!==el) el.value=value; });
+    }
     function saveAiEntry(e){
       e.preventDefault();
       const id=$('#aiId').value||uid('ai');
       const existing=state.aiEntries.find(x=>x.id===id);
-      const a={id, date:$('#aiDate').value, minutes:Math.min(1440,Math.max(1,Math.round(number($('#aiMinutes').value)))), activity:$('#aiActivity').value.trim(), note:$('#aiNote').value.trim(), createdAt:existing?.createdAt||new Date().toISOString(), updatedAt:new Date().toISOString()};
-      if(!/^\d{4}-\d{2}-\d{2}$/.test(a.date)||!a.activity){ toast('Zadejte datum a popis činnosti.','warn'); return; }
+      const a={id, date:$('#aiDate').value, minutes:Math.min(1440,Math.max(1,Math.round(number($('#aiMinutes').value)))), category:$('#aiCategory').value, app:$('#aiApp').value.trim(), workType:$('#aiWorkType').value, activity:$('#aiActivity').value.trim(), note:$('#aiNote').value.trim(), privateNote:$('#aiPrivateNote').value.trim(), createdAt:existing?.createdAt||new Date().toISOString(), updatedAt:new Date().toISOString()};
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(a.date)||!a.activity||!Object.prototype.hasOwnProperty.call(AI_WORK_CATEGORIES,a.category)||!a.app){ toast('Zadejte datum, kategorii, aplikaci a popis činnosti.','warn'); return; }
+      if(!Object.prototype.hasOwnProperty.call(AI_WORK_TYPES,a.workType)) a.workType='regular';
       if(isAiMonthClosed(a.date.slice(0,7))){ toast(`Měsíc ${monthLabel(a.date.slice(0,7))} je uzavřen. Nejdřív ho znovu otevřete tlačítkem u záznamů.`,'warn'); return; }
       if(existing)Object.assign(existing,a); else state.aiEntries.unshift(a);
-      save(); resetAiForm(); toast('Záznam do AI výkazu uložen.');
+      save(); resetAiForm(); toast('Záznam do soukromé AI evidence uložen.');
     }
-    function resetAiForm(){ $('#aiForm').reset(); $('#aiId').value=''; $('#aiDate').value=today(); }
-    function editAiForm(id){const a=state.aiEntries.find(x=>x.id===id); if(!a)return; if(isAiMonthClosed(String(a.date||'').slice(0,7))){ toast('Měsíc je uzavřen – pro úpravy ho nejdřív znovu otevřete.','warn'); return; } showTab('ailog'); toggleAddCard('aiAddCard',true); $('#aiId').value=a.id; $('#aiDate').value=a.date; $('#aiMinutes').value=a.minutes; $('#aiActivity').value=a.activity; $('#aiNote').value=a.note||'';}
+    function resetAiForm(){
+      $('#aiForm').reset(); $('#aiId').value=''; $('#aiDate').value=today();
+      if($('#aiCategory')) $('#aiCategory').value='operations';
+      if($('#aiWorkType')) $('#aiWorkType').value='regular';
+      populateAiAppSelect('Obecná agenda AI');
+    }
+    function editAiForm(id){
+      const a=state.aiEntries.find(x=>x.id===id); if(!a)return;
+      if(isAiMonthClosed(String(a.date||'').slice(0,7))){ toast('Měsíc je uzavřen – pro úpravy ho nejdřív znovu otevřete.','warn'); return; }
+      showTab('ailog'); toggleAddCard('aiAddCard',true); $('#aiId').value=a.id; $('#aiDate').value=a.date; $('#aiMinutes').value=a.minutes;
+      $('#aiCategory').value=Object.prototype.hasOwnProperty.call(AI_WORK_CATEGORIES,a.category)?a.category:'operations';
+      populateAiAppSelect(a.app||'Obecná agenda AI'); $('#aiWorkType').value=a.workType==='exceptional'?'exceptional':'regular';
+      $('#aiActivity').value=a.activity; $('#aiNote').value=a.note||''; $('#aiPrivateNote').value=a.privateNote||'';
+    }
     async function toggleAiMonthClosed(){
       const month=$('#aiMonth')?.value||monthNow();
       if(isAiMonthClosed(month)){
@@ -4475,9 +4538,9 @@ Co chceš udělat teď?`,
         state.aiClosedMonths=state.aiClosedMonths.filter(c=>c.month!==month);
         save(); toast(`Měsíc ${monthLabel(month)} znovu otevřen.`);
       }else{
-        if(!await confirmDialog(`Uzavřít měsíc ${monthLabel(month)}? Záznamy pak nepůjde přidávat ani upravovat, dokud měsíc znovu neotevřete. Po uzavření vygenerujte PDF výkaz.`, {title:'Uzavřít měsíc', confirmText:'Uzavřít'})) return;
+        if(!await confirmDialog(`Uzavřít měsíc ${monthLabel(month)}? Záznamy pak nepůjde přidávat ani upravovat, dokud měsíc znovu neotevřete. Po uzavření vygenerujte měsíční report.`, {title:'Uzavřít měsíc', confirmText:'Uzavřít'})) return;
         state.aiClosedMonths.unshift({month, closedAt:new Date().toISOString()});
-        save(); toast(`Měsíc ${monthLabel(month)} uzavřen. Nyní můžete vygenerovat PDF výkaz.`);
+        save(); toast(`Měsíc ${monthLabel(month)} uzavřen. Nyní můžete vygenerovat měsíční report.`);
       }
     }
     function renderAiLog(){
@@ -4488,15 +4551,17 @@ Co chceš udělat teď?`,
       const yearMin=sumMinutes(state.aiEntries,year);
       const entries=state.aiEntries.filter(a=>String(a.date||'').startsWith(month)).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
       const closed=isAiMonthClosed(month);
+      const apps=new Set(entries.map(a=>a.app).filter(Boolean));
+      const exceptional=entries.filter(a=>a.workType==='exceptional').reduce((sum,a)=>sum+Math.max(0,Math.round(number(a.minutes))),0);
       $('#aiKpis').innerHTML=[
         kpi('Tento měsíc',minutesLabel(monthMin),monthLabel(month)),
-        kpi('Záznamů',entries.length,monthLabel(month)),
-        kpi(`Za rok ${year}`,minutesLabel(yearMin),'Celkový čas nad AI'),
-        kpiHtml('Stav měsíce', closed?'<span class="money-minus">Uzavřeno</span>':'<span class="money-plus">Otevřeno</span>', closed?'Pro úpravy měsíc znovu otevřete':'Záznamy lze přidávat')
+        kpi('Záznamů / oblastí',`${entries.length} / ${apps.size}`,apps.size?'Zapojené aplikace a agendy':'Bez záznamů'),
+        kpi('Mimořádné úkoly',minutesLabel(exceptional),'Odděleno od pravidelné agendy'),
+        kpiHtml('Stav měsíce', closed?'<span class="money-minus">Uzavřeno</span>':'<span class="money-plus">Otevřeno</span>', closed?'Report je připraven k předání':`Za rok ${year}: ${minutesLabel(yearMin)}`)
       ].join('');
       const closeBtn=$('#aiCloseBtn'); if(closeBtn) closeBtn.textContent=closed?'Otevřít měsíc':'Uzavřít měsíc';
-      renderAiChart(year);
-      $('#aiList').innerHTML=entries.map(a=>`<article class="item"><div class="item-top"><div><h4>${esc(a.activity)}</h4><p>${esc(a.date)} • <strong>${minutesLabel(a.minutes)}</strong></p>${a.note?`<p>${esc(a.note)}</p>`:''}</div><div class="actions">${closed?'':`<button class="mini-btn" data-edit-ai="${attr(a.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-ai="${attr(a.id)}" type="button">Smazat</button>`}</div></div></article>`).join('')||empty('V tomto měsíci zatím nejsou záznamy. Zapisujte průběžně – na konci měsíce z nich vznikne výkaz.');
+      populateAiAppSelect(); renderAiMonthSummary(month); renderAiChart(year);
+      $('#aiList').innerHTML=entries.map(a=>`<article class="item"><div class="item-top"><div><div class="meta"><span class="tag">${esc(aiCategoryLabel(a.category))}</span><span class="tag">${esc(a.app||'Obecná agenda AI')}</span><span class="tag ${a.workType==='exceptional'?'bad':'good'}">${esc(aiWorkTypeLabel(a.workType))}</span></div><h4>${esc(a.activity)}</h4><p>${esc(a.date)} • <strong>${minutesLabel(a.minutes)}</strong></p>${a.note?`<p><strong>Výsledek:</strong> ${esc(a.note)}</p>`:''}${a.privateNote?`<p class="small"><strong>Soukromě:</strong> ${esc(a.privateNote)}</p>`:''}</div><div class="actions">${closed?'':`<button class="mini-btn" data-edit-ai="${attr(a.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-ai="${attr(a.id)}" type="button">Smazat</button>`}</div></div></article>`).join('')||empty('V tomto měsíci zatím nejsou záznamy. Zapisuj průběžně skutečný čas, oblast a konkrétní výsledek.');
     }
     function renderAiChart(year){
       const el=$('#aiChart'); if(!el) return;
@@ -4504,7 +4569,7 @@ Co chceš udělat teď?`,
       const values=months.map(m=>sumMinutes(state.aiEntries,m));
       const max=Math.max(60,...values);
       const w=760,h=250,p=34;
-      let svg=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Čas strávený prací s AI po měsících"><defs><linearGradient id="gAi" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#6ee7ff"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs>`;
+      let svg=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Skutečný rozsah AI agendy po měsících"><defs><linearGradient id="gAi" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#6ee7ff"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs>`;
       for(let i=0;i<5;i++){const gy=p+i*(h-p*2)/4;svg+=`<line x1="${p}" y1="${gy}" x2="${w-p}" y2="${gy}" stroke="var(--chart-grid)"/>`;}
       values.forEach((v,i)=>{const x=p+i*((w-p*2)/12)+12,bw=32,bh=Math.max(2,(v/max)*(h-p*2));svg+=`<rect x="${x}" y="${h-p-bh}" width="${bw}" height="${bh}" rx="9" fill="url(#gAi)"><title>${monthLabel(months[i])}: ${minutesLabel(v)}</title></rect><text x="${x+bw/2}" y="${h-10}" text-anchor="middle" fill="var(--muted)" font-size="11">${i+1}</text>`;});
       svg+='</svg>';
@@ -5718,15 +5783,11 @@ Pokračovat ve vytvoření šifrovaného souboru?`,{title:'Obsah rodinného soub
     function aiReportGroups(entries){
       const grouped=new Map();
       entries.forEach(entry=>{
-        const key=String(entry.activity||'Bez názvu').trim()||'Bez názvu';
+        const key=aiCategoryLabel(entry.category);
         grouped.set(key,(grouped.get(key)||0)+Math.max(0,Math.round(number(entry.minutes))));
       });
       const sorted=[...grouped.entries()].map(([label,minutes])=>({label,minutes})).sort((a,b)=>b.minutes-a.minutes);
-      const visible=sorted.slice(0,7);
-      if(sorted.length>7){
-        visible.push({label:'Ostatní činnosti',minutes:sorted.slice(7).reduce((sum,item)=>sum+item.minutes,0)});
-      }
-      return visible.map((item,index)=>({...item,color:AI_REPORT_COLORS[index%AI_REPORT_COLORS.length]}));
+      return sorted.map((item,index)=>({...item,color:AI_REPORT_COLORS[index%AI_REPORT_COLORS.length]}));
     }
     function aiReportDonut(groups,total){
       if(!(total>0)) return 'conic-gradient(#dce5f2 0 100%)';
@@ -5740,44 +5801,61 @@ Pokračovat ve vytvoření šifrovaného souboru?`,{title:'Obsah rodinného soub
       if(start<100) stops.push(`#dce5f2 ${start.toFixed(2)}% 100%`);
       return `conic-gradient(${stops.join(',')})`;
     }
+    function reportTextBlock(title,text,tone='neutral'){
+      if(!String(text||'').trim()) return '';
+      const items=String(text).split(/\n+/).map(line=>line.trim()).filter(Boolean);
+      return `<article class="report-management-card ${attr(tone)}"><span>${esc(title)}</span><ul>${items.map(item=>`<li>${esc(item.replace(/^[-•]\s*/,''))}</li>`).join('')}</ul></article>`;
+    }
     function buildAiReportHtml(month){
       const entries=state.aiEntries.filter(a=>String(a.date||'').startsWith(month)).sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.activity).localeCompare(String(b.activity),'cs'));
       const total=entries.reduce((sum,entry)=>sum+Math.max(0,Math.round(number(entry.minutes))),0);
+      const exceptional=entries.filter(entry=>entry.workType==='exceptional').reduce((sum,entry)=>sum+Math.max(0,Math.round(number(entry.minutes))),0);
+      const apps=[...new Set(entries.map(entry=>entry.app).filter(Boolean))];
       const owner=reportOwner();
       const closed=(state.aiClosedMonths||[]).find(c=>c.month===month);
+      const summary=aiMonthSummary(month)||{};
       const groups=aiReportGroups(entries);
       const donut=aiReportDonut(groups,total);
       const rows=entries.map((entry,index)=>{
         const color=AI_REPORT_COLORS[index%AI_REPORT_COLORS.length];
-        return `<tr><td class="report-index"><span ${cssVar("--row-color",color)}>${index+1}</span></td><td class="report-date">${esc(fmtDate(`${entry.date}T00:00:00`))}</td><td><strong>${esc(entry.activity)}</strong>${entry.note?`<div class="report-note">${esc(entry.note)}</div>`:''}</td><td class="report-time">${esc(minutesLabel(entry.minutes))}</td></tr>`;
-      }).join('')||'<tr><td colspan="4" class="report-empty">V tomto měsíci nejsou žádné záznamy.</td></tr>';
+        return `<tr><td class="report-index"><span ${cssVar("--row-color",color)}>${index+1}</span></td><td class="report-date">${esc(fmtDate(`${entry.date}T00:00:00`))}</td><td><strong>${esc(aiCategoryLabel(entry.category))}</strong><div class="report-note">${esc(aiWorkTypeLabel(entry.workType))}</div></td><td><strong>${esc(entry.app||'Obecná agenda AI')}</strong></td><td><strong>${esc(entry.activity)}</strong>${entry.note?`<div class="report-note"><b>Výsledek:</b> ${esc(entry.note)}</div>`:''}</td><td class="report-time">${esc(minutesLabel(entry.minutes))}</td></tr>`;
+      }).join('')||'<tr><td colspan="6" class="report-empty">V tomto měsíci nejsou žádné záznamy.</td></tr>';
       const legend=groups.map(group=>{
         const percent=total>0?group.minutes/total*100:0;
         return `<li><span class="report-legend-dot" ${cssVar("--legend-color",group.color)}></span><span class="report-legend-label">${esc(group.label)}</span><strong>${esc(minutesLabel(group.minutes))}</strong><em>${percent.toLocaleString('cs-CZ',{maximumFractionDigits:1})} %</em></li>`;
       }).join('')||'<li class="report-empty">Bez záznamů</li>';
       const status=closed?'Připraveno k předání':'Pracovní verze';
       const statusClass=closed?'ready':'draft';
+      const management=[
+        reportTextBlock('Nejdůležitější výsledky',summary.keyResults,'good'),
+        reportTextBlock('Rizika nebo problémy',summary.risks,'risk'),
+        reportTextBlock('Potřebná rozhodnutí vedení',summary.decisions,'decision'),
+        reportTextBlock('Priority na příští měsíc',summary.priorities,'priority')
+      ].join('');
+      const managementSection=management?`<section class="report-management-grid">${management}</section>`:'';
       return `<main class="lh-report">
         <header class="report-header">
           <div class="report-school"><img src="${SCHOOL_LOGO_DATA_URI}" alt="Logo Gymnázia Ostrava-Hrabůvka"><div><strong>${SCHOOL_OFFICIAL_NAME}</strong><span>${SCHOOL_LEGAL_FORM}</span></div></div>
-          <div class="report-heading"><p>LifeHub · měsíční pracovní výkaz</p><h1>Měsíční výkaz činností pedagoga</h1></div>
+          <div class="report-heading"><p>AI Studio GHRAB · měsíční report</p><h1>Měsíční report činností v oblasti AI</h1></div>
         </header>
         <section class="report-meta-grid">
-          <article><span>Jméno</span><strong>${esc(owner.name)}</strong></article>
+          <article><span>Zpracoval</span><strong>${esc(owner.name)}</strong></article>
+          <article><span>Pracovní zařazení</span><strong>Pedagog</strong></article>
           <article><span>Období</span><strong>${esc(monthLabel(month))}</strong></article>
-          <article><span>Počet položek</span><strong>${entries.length.toLocaleString('cs-CZ')}</strong></article>
-          <article class="report-status ${statusClass}"><span>Stav výkazu</span><strong>${status}</strong></article>
+          <article class="report-status ${statusClass}"><span>Stav reportu</span><strong>${status}</strong></article>
         </section>
+        ${managementSection}
         <section class="report-section">
-          <div class="report-section-title"><div><span>Přehled vykázaných činností</span><h2>Co bylo v průběhu měsíce provedeno</h2></div><strong>${esc(minutesLabel(total))}</strong></div>
-          <div class="report-table-wrap"><table class="report-table"><thead><tr><th>#</th><th>Datum</th><th>Činnost a popis</th><th>Čas</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="3">Celkem vykázáno za měsíc</td><td class="report-time">${esc(minutesLabel(total))}</td></tr></tfoot></table></div>
+          <div class="report-section-title"><div><span>Podrobná evidence</span><h2>Provedené činnosti a dosažené výsledky</h2></div><strong>${esc(minutesLabel(total))}</strong></div>
+          <div class="report-table-wrap"><table class="report-table report-ai-table"><thead><tr><th>#</th><th>Datum</th><th>Kategorie</th><th>Aplikace / oblast</th><th>Činnost a výsledek</th><th>Čas</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="5">Celkem evidováno za měsíc</td><td class="report-time">${esc(minutesLabel(total))}</td></tr></tfoot></table></div>
         </section>
         <section class="report-summary-grid">
-          <article class="report-distribution"><div class="report-section-title compact"><div><span>Rozložení času</span><h2>Podíl jednotlivých činností</h2></div></div><div class="report-chart-layout"><div class="report-donut" ${cssVar("--report-donut",donut)}><div><strong>${esc(minutesLabel(total))}</strong><span>celkem</span></div></div><ul class="report-legend">${legend}</ul></div></article>
-          <article class="report-total-card"><span>Celkem za měsíc</span><strong>${esc(minutesLabel(total))}</strong><p>${entries.length?`Výkaz obsahuje ${entries.length} ${entries.length===1?'položku':entries.length<5?'položky':'položek'} s uvedeným dílčím časem.`:'Výkaz zatím neobsahuje žádnou položku.'}</p></article>
+          <article class="report-distribution"><div class="report-section-title compact"><div><span>Rozložení času</span><h2>Podíl pracovních kategorií</h2></div></div><div class="report-chart-layout"><div class="report-donut" ${cssVar("--report-donut",donut)}><div><strong>${esc(minutesLabel(total))}</strong><span>celkem</span></div></div><ul class="report-legend">${legend}</ul></div></article>
+          <article class="report-total-card"><span>Souhrn měsíce</span><strong>${esc(minutesLabel(total))}</strong><p>${entries.length.toLocaleString('cs-CZ')} záznamů · ${apps.length.toLocaleString('cs-CZ')} aplikací/oblastí<br>Mimořádné úkoly: ${esc(minutesLabel(exceptional))}</p></article>
         </section>
-        <section class="report-signatures"><div><span>Zpracoval</span><strong>${esc(owner.name)}</strong><i>datum a podpis</i></div><div><span>Převzala</span><strong>Vedení školy</strong><i>datum a podpis</i></div></section>
-        <footer class="report-footer"><span>${SCHOOL_OFFICIAL_NAME}, ${SCHOOL_LEGAL_FORM}</span><span>Vygenerováno v LifeHubu ${esc(VERSION)} dne ${esc(fmtDate(new Date().toISOString()))}${closed?` · uzavřeno ${esc(fmtDate(closed.closedAt))}`:''}</span></footer>
+        <section class="report-notice"><strong>Účel dokumentu:</strong> informační podklad pro vyhodnocení skutečného rozsahu, výsledků a priorit práce v oblasti AI. Samotný report nepředstavuje automatický nárok na odměnu ani hodinovou fakturaci.</section>
+        <section class="report-signatures"><div><span>Zpracoval</span><strong>${esc(owner.name)}</strong><i>datum</i></div><div><span>Předloženo</span><strong>Vedení školy</strong><i>datum</i></div></section>
+        <footer class="report-footer"><span>${SCHOOL_OFFICIAL_NAME}, ${SCHOOL_LEGAL_FORM}</span><span>Zpracováno dne ${esc(fmtDate(new Date().toISOString()))}${closed?` · měsíc uzavřen ${esc(fmtDate(closed.closedAt))}`:''}</span></footer>
       </main>`;
     }
     function buildRewardReportHtml(period){
@@ -5806,14 +5884,14 @@ Pokračovat ve vytvoření šifrovaného souboru?`,{title:'Obsah rodinného soub
     function reportDocumentHtml(title, bodyHtml){
       return `<!doctype html><html lang="cs"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>${esc(title)}</title><style>
       :root{--report-navy:#082e67;--report-blue:#1f5fbf;--report-red:#cf2e3a;--report-ink:#10213d;--report-muted:#65738a;--report-line:#d7e0ec;--report-soft:#f2f6fb;--report-green:#238a45}
-      *{box-sizing:border-box}body{margin:0;padding:28px;background:linear-gradient(145deg,#e8eef7,#f7f9fc);color:var(--report-ink);font-family:Inter,"Segoe UI",Arial,sans-serif;line-height:1.45}.lh-report{width:min(1180px,100%);margin:0 auto;background:#fff;border:1px solid #d9e1ec;border-radius:24px;box-shadow:0 24px 70px rgba(20,43,79,.16);overflow:hidden}.report-header{display:grid;grid-template-columns:minmax(300px,.9fr) minmax(360px,1.1fr);align-items:center;gap:28px;padding:30px 38px;background:linear-gradient(112deg,#fff 0 48%,#eef4ff 48% 67%,#0a3778 67% 100%);border-bottom:4px solid var(--report-red)}.report-school{display:flex;align-items:center;gap:18px;min-width:0}.report-school img{width:82px;height:68px;object-fit:contain;flex:0 0 auto}.report-school div{display:grid;gap:2px}.report-school strong{font-size:1.12rem;line-height:1.2}.report-school span{font-size:.9rem;color:var(--report-muted)}.report-heading{text-align:right;color:#fff}.report-heading p{margin:0 0 4px;font-size:.82rem;font-weight:800;text-transform:uppercase;letter-spacing:.11em;color:#d7e6ff}.report-heading h1{margin:0;font-size:clamp(1.75rem,3vw,2.65rem);line-height:1.08;letter-spacing:-.035em}.report-meta-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;padding:22px 38px}.report-meta-grid article{display:grid;gap:3px;padding:15px 17px;border:1px solid var(--report-line);border-radius:16px;background:linear-gradient(145deg,#fff,#f6f9fd)}.report-meta-grid span{font-size:.76rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--report-muted)}.report-meta-grid strong{font-size:1.05rem}.report-status.ready{border-color:#b9dfc3;background:#f0fbf3}.report-status.ready strong{color:var(--report-green)}.report-status.draft{border-color:#f0d49d;background:#fff9eb}.report-status.draft strong{color:#9a6712}.report-section{padding:6px 38px 22px}.report-section-title{display:flex;align-items:end;justify-content:space-between;gap:20px;margin:0 0 12px}.report-section-title.compact{margin-bottom:14px}.report-section-title span{display:block;margin-bottom:2px;font-size:.76rem;font-weight:900;text-transform:uppercase;letter-spacing:.1em;color:var(--report-blue)}.report-section-title h2{margin:0;font-size:1.25rem;letter-spacing:-.02em}.report-section-title>strong{font-size:1.35rem;color:var(--report-navy)}.report-table-wrap{overflow:auto;border:1px solid var(--report-line);border-radius:16px}.report-table{width:100%;border-collapse:separate;border-spacing:0;min-width:720px}.report-table th{padding:11px 12px;background:var(--report-navy);color:#fff;text-align:left;font-size:.78rem;text-transform:uppercase;letter-spacing:.055em}.report-table th:first-child{width:54px;text-align:center}.report-table th:nth-child(2){width:142px}.report-table th:last-child{text-align:right;width:112px}.report-table td{padding:12px;border-bottom:1px solid var(--report-line);vertical-align:top;font-size:.9rem}.report-table tbody tr:last-child td{border-bottom:0}.report-table tbody tr:nth-child(even){background:#f8fafd}.report-index{text-align:center}.report-index span{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--row-color,#082e67);color:#fff;font-weight:900}.report-date{white-space:nowrap;color:var(--report-muted)}.report-time{text-align:right;white-space:nowrap;font-weight:900;color:var(--report-navy)}.report-note{margin-top:4px;color:var(--report-muted);font-size:.82rem;white-space:pre-wrap}.report-table tfoot td{padding:13px 12px;background:#eaf2ff;border-top:2px solid #b8ccec;border-bottom:0;font-weight:900}.report-empty{text-align:center;color:var(--report-muted);padding:26px!important}.report-summary-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,.7fr);gap:18px;padding:0 38px 26px}.report-distribution,.report-total-card{border:1px solid var(--report-line);border-radius:18px;padding:20px;background:#fff}.report-chart-layout{display:grid;grid-template-columns:190px minmax(0,1fr);gap:22px;align-items:center}.report-donut{width:178px;aspect-ratio:1;border-radius:50%;background:var(--report-donut,conic-gradient(#dce5f2 0 100%));display:grid;place-items:center;position:relative}.report-donut::after{content:"";position:absolute;inset:25%;border-radius:50%;background:#fff;box-shadow:0 0 0 1px #e2e8f0}.report-donut div{position:relative;z-index:1;display:grid;text-align:center}.report-donut strong{font-size:1.18rem;color:var(--report-navy)}.report-donut span{font-size:.72rem;color:var(--report-muted);text-transform:uppercase;letter-spacing:.08em}.report-legend{list-style:none;margin:0;padding:0;display:grid;gap:7px}.report-legend li{display:grid;grid-template-columns:12px minmax(0,1fr) auto 54px;align-items:center;gap:8px;font-size:.78rem}.report-legend-dot{width:10px;height:10px;border-radius:50%;background:var(--legend-color,#64748b)}.report-legend-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.report-legend strong{white-space:nowrap}.report-legend em{text-align:right;font-style:normal;color:var(--report-muted)}.report-total-card{display:flex;flex-direction:column;justify-content:center;background:linear-gradient(145deg,#eef9f1,#fff);border-color:#b9dfc3}.report-total-card>span{font-size:.82rem;font-weight:900;text-transform:uppercase;letter-spacing:.09em;color:#467454}.report-total-card>strong{margin:5px 0;font-size:2.45rem;line-height:1;color:var(--report-green)}.report-total-card p{margin:7px 0 0;color:#5b6a60;font-size:.86rem}.report-signatures{display:grid;grid-template-columns:1fr 1fr;gap:46px;padding:18px 38px 30px}.report-signatures div{display:grid;grid-template-columns:1fr auto;gap:5px 14px;border-top:1px solid #8fa0b6;padding-top:8px}.report-signatures span{font-size:.76rem;text-transform:uppercase;letter-spacing:.08em;color:var(--report-muted)}.report-signatures strong{grid-row:2;grid-column:1}.report-signatures i{grid-row:2;grid-column:2;font-size:.72rem;font-style:normal;color:var(--report-muted)}.report-footer{display:flex;justify-content:space-between;gap:24px;padding:16px 38px;background:var(--report-navy);color:#dbe8fb;font-size:.74rem}.report-footer span:last-child{text-align:right}body>h1{font-size:24px;margin:0 0 4px}body>.report-sub{color:#444;margin:0 0 14px;font-size:17px}body>.report-meta{margin:0 0 16px;font-size:15px;color:#333}body>table{width:100%;border-collapse:collapse;margin:0 0 16px;background:#fff}body>table th,body>table td{border:1px solid #999;padding:7px 9px;text-align:left;font-size:14px;vertical-align:top}body>table th{background:#f0f0f0}body>table td.num,body>table th.num{text-align:right;white-space:nowrap}body>table tfoot td{font-weight:700;background:#f7f7f7}.report-sign{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:44px;font-size:15px}.report-sign div{border-top:1px solid #111;padding-top:6px}.report-foot{margin-top:22px;font-size:12px;color:#555}small{color:#555}
-      @media(max-width:760px){body{padding:0;background:#fff}.lh-report{border:0;border-radius:0;box-shadow:none}.report-header{grid-template-columns:1fr;gap:18px;padding:24px 18px;background:linear-gradient(150deg,#fff 0 58%,#eef4ff 58% 72%,#0a3778 72% 100%)}.report-heading{text-align:left;color:var(--report-ink);padding-top:12px}.report-heading p{color:var(--report-blue)}.report-heading h1{font-size:1.9rem}.report-school img{width:66px;height:56px}.report-meta-grid{grid-template-columns:1fr 1fr;padding:18px;gap:10px}.report-section{padding:4px 18px 18px}.report-section-title{align-items:flex-start}.report-section-title>strong{font-size:1.1rem}.report-table-wrap{border:0;overflow:visible}.report-table{min-width:0}.report-table thead{display:none}.report-table,.report-table tbody,.report-table tr,.report-table td{display:block;width:100%}.report-table tbody{display:grid;gap:10px}.report-table tbody tr{position:relative;padding:13px 14px 13px 58px;border:1px solid var(--report-line);border-radius:14px;background:#fff!important}.report-table td{padding:2px 0;border:0}.report-table .report-index{position:absolute;left:14px;top:14px;width:32px}.report-table .report-date{font-size:.76rem}.report-table .report-time{text-align:left;margin-top:7px;font-size:1rem}.report-table tfoot{display:block;margin-top:12px}.report-table tfoot tr{display:flex;align-items:center;justify-content:space-between;padding:14px;background:#eaf2ff;border-radius:14px}.report-table tfoot td{display:block;width:auto;padding:0;background:transparent;border:0}.report-summary-grid{grid-template-columns:1fr;padding:0 18px 20px}.report-chart-layout{grid-template-columns:130px minmax(0,1fr);gap:14px}.report-donut{width:126px}.report-legend li{grid-template-columns:10px minmax(0,1fr) auto}.report-legend em{display:none}.report-signatures{grid-template-columns:1fr;gap:32px;padding:12px 18px 26px}.report-footer{display:grid;padding:15px 18px}.report-footer span:last-child{text-align:left}}
-      @page{size:A4 portrait;margin:8mm}@media print{body{padding:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}.lh-report{width:100%;border:0;border-radius:0;box-shadow:none}.report-header{grid-template-columns:42% 58%;padding:9mm 8mm 7mm;gap:8mm}.report-school img{width:18mm;height:15mm}.report-school strong{font-size:10.5pt}.report-school span{font-size:8pt}.report-heading p{font-size:7pt}.report-heading h1{font-size:18pt}.report-meta-grid{padding:5mm 8mm;gap:3mm}.report-meta-grid article{padding:3mm 3.5mm;border-radius:3mm}.report-meta-grid span{font-size:6.5pt}.report-meta-grid strong{font-size:8.5pt}.report-section{padding:1mm 8mm 4mm}.report-section-title{margin-bottom:3mm}.report-section-title span{font-size:6.5pt}.report-section-title h2{font-size:10.5pt}.report-section-title>strong{font-size:11pt}.report-table-wrap{border-radius:3mm;overflow:hidden}.report-table{min-width:0}.report-table th{padding:2.2mm 2.4mm;font-size:6.5pt}.report-table td{padding:2.2mm 2.4mm;font-size:7.4pt}.report-index span{width:6mm;height:6mm;font-size:6.5pt}.report-note{font-size:6.5pt}.report-summary-grid{grid-template-columns:1.55fr .75fr;gap:4mm;padding:0 8mm 4mm;break-inside:avoid}.report-distribution,.report-total-card{padding:4mm;border-radius:3.5mm}.report-chart-layout{grid-template-columns:34mm minmax(0,1fr);gap:4mm}.report-donut{width:32mm}.report-donut strong{font-size:8pt}.report-legend{gap:1.2mm}.report-legend li{font-size:6.2pt;grid-template-columns:2.5mm minmax(0,1fr) auto 10mm;gap:1.5mm}.report-total-card>strong{font-size:20pt}.report-total-card p{font-size:6.5pt}.report-signatures{padding:4mm 8mm 6mm;gap:12mm}.report-signatures span,.report-signatures i{font-size:6pt}.report-signatures strong{font-size:7.5pt}.report-footer{padding:3mm 8mm;font-size:5.8pt}.report-table tr,.report-distribution,.report-total-card{break-inside:avoid}body>h1{font-size:18pt}body>table th,body>table td{font-size:9pt}}
+      *{box-sizing:border-box}body{margin:0;padding:28px;background:linear-gradient(145deg,#e8eef7,#f7f9fc);color:var(--report-ink);font-family:Inter,"Segoe UI",Arial,sans-serif;line-height:1.45}.lh-report{width:min(1180px,100%);margin:0 auto;background:#fff;border:1px solid #d9e1ec;border-radius:24px;box-shadow:0 24px 70px rgba(20,43,79,.16);overflow:hidden}.report-header{display:grid;grid-template-columns:minmax(300px,.9fr) minmax(360px,1.1fr);align-items:center;gap:28px;padding:30px 38px;background:linear-gradient(112deg,#fff 0 48%,#eef4ff 48% 67%,#0a3778 67% 100%);border-bottom:4px solid var(--report-red)}.report-school{display:flex;align-items:center;gap:18px;min-width:0}.report-school img{width:82px;height:68px;object-fit:contain;flex:0 0 auto}.report-school div{display:grid;gap:2px}.report-school strong{font-size:1.12rem;line-height:1.2}.report-school span{font-size:.9rem;color:var(--report-muted)}.report-heading{text-align:right;color:#fff}.report-heading p{margin:0 0 4px;font-size:.82rem;font-weight:800;text-transform:uppercase;letter-spacing:.11em;color:#d7e6ff}.report-heading h1{margin:0;font-size:clamp(1.75rem,3vw,2.65rem);line-height:1.08;letter-spacing:-.035em}.report-meta-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;padding:22px 38px}.report-meta-grid article{display:grid;gap:3px;padding:15px 17px;border:1px solid var(--report-line);border-radius:16px;background:linear-gradient(145deg,#fff,#f6f9fd)}.report-meta-grid span{font-size:.76rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--report-muted)}.report-meta-grid strong{font-size:1.05rem}.report-status.ready{border-color:#b9dfc3;background:#f0fbf3}.report-status.ready strong{color:var(--report-green)}.report-status.draft{border-color:#f0d49d;background:#fff9eb}.report-status.draft strong{color:#9a6712}.report-section{padding:6px 38px 22px}.report-section-title{display:flex;align-items:end;justify-content:space-between;gap:20px;margin:0 0 12px}.report-section-title.compact{margin-bottom:14px}.report-section-title span{display:block;margin-bottom:2px;font-size:.76rem;font-weight:900;text-transform:uppercase;letter-spacing:.1em;color:var(--report-blue)}.report-section-title h2{margin:0;font-size:1.25rem;letter-spacing:-.02em}.report-section-title>strong{font-size:1.35rem;color:var(--report-navy)}.report-table-wrap{overflow:auto;border:1px solid var(--report-line);border-radius:16px}.report-table{width:100%;border-collapse:separate;border-spacing:0;min-width:720px}.report-ai-table{min-width:980px}.report-ai-table th:nth-child(3){width:150px}.report-ai-table th:nth-child(4){width:170px}.report-table th{padding:11px 12px;background:var(--report-navy);color:#fff;text-align:left;font-size:.78rem;text-transform:uppercase;letter-spacing:.055em}.report-table th:first-child{width:54px;text-align:center}.report-table th:nth-child(2){width:142px}.report-table th:last-child{text-align:right;width:112px}.report-table td{padding:12px;border-bottom:1px solid var(--report-line);vertical-align:top;font-size:.9rem}.report-table tbody tr:last-child td{border-bottom:0}.report-table tbody tr:nth-child(even){background:#f8fafd}.report-index{text-align:center}.report-index span{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--row-color,#082e67);color:#fff;font-weight:900}.report-date{white-space:nowrap;color:var(--report-muted)}.report-time{text-align:right;white-space:nowrap;font-weight:900;color:var(--report-navy)}.report-note{margin-top:4px;color:var(--report-muted);font-size:.82rem;white-space:pre-wrap}.report-table tfoot td{padding:13px 12px;background:#eaf2ff;border-top:2px solid #b8ccec;border-bottom:0;font-weight:900}.report-empty{text-align:center;color:var(--report-muted);padding:26px!important}.report-management-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:0 38px 22px}.report-management-card{border:1px solid var(--report-line);border-radius:16px;padding:16px 18px;background:#fff}.report-management-card>span{display:block;margin-bottom:8px;font-size:.76rem;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:var(--report-blue)}.report-management-card ul{margin:0;padding-left:18px}.report-management-card li{margin:4px 0;font-size:.88rem}.report-management-card.good{background:#f2fbf5;border-color:#b9dfc3}.report-management-card.risk{background:#fff5f5;border-color:#efc3c7}.report-management-card.decision{background:#fff9eb;border-color:#f0d49d}.report-management-card.priority{background:#f2f6ff;border-color:#c6d5ef}.report-notice{margin:0 38px 24px;padding:14px 16px;border-left:4px solid var(--report-blue);background:#f2f6fb;color:#42516a;font-size:.82rem}.report-summary-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,.7fr);gap:18px;padding:0 38px 26px}.report-distribution,.report-total-card{border:1px solid var(--report-line);border-radius:18px;padding:20px;background:#fff}.report-chart-layout{display:grid;grid-template-columns:190px minmax(0,1fr);gap:22px;align-items:center}.report-donut{width:178px;aspect-ratio:1;border-radius:50%;background:var(--report-donut,conic-gradient(#dce5f2 0 100%));display:grid;place-items:center;position:relative}.report-donut::after{content:"";position:absolute;inset:25%;border-radius:50%;background:#fff;box-shadow:0 0 0 1px #e2e8f0}.report-donut div{position:relative;z-index:1;display:grid;text-align:center}.report-donut strong{font-size:1.18rem;color:var(--report-navy)}.report-donut span{font-size:.72rem;color:var(--report-muted);text-transform:uppercase;letter-spacing:.08em}.report-legend{list-style:none;margin:0;padding:0;display:grid;gap:7px}.report-legend li{display:grid;grid-template-columns:12px minmax(0,1fr) auto 54px;align-items:center;gap:8px;font-size:.78rem}.report-legend-dot{width:10px;height:10px;border-radius:50%;background:var(--legend-color,#64748b)}.report-legend-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.report-legend strong{white-space:nowrap}.report-legend em{text-align:right;font-style:normal;color:var(--report-muted)}.report-total-card{display:flex;flex-direction:column;justify-content:center;background:linear-gradient(145deg,#eef9f1,#fff);border-color:#b9dfc3}.report-total-card>span{font-size:.82rem;font-weight:900;text-transform:uppercase;letter-spacing:.09em;color:#467454}.report-total-card>strong{margin:5px 0;font-size:2.45rem;line-height:1;color:var(--report-green)}.report-total-card p{margin:7px 0 0;color:#5b6a60;font-size:.86rem}.report-signatures{display:grid;grid-template-columns:1fr 1fr;gap:46px;padding:18px 38px 30px}.report-signatures div{display:grid;grid-template-columns:1fr auto;gap:5px 14px;border-top:1px solid #8fa0b6;padding-top:8px}.report-signatures span{font-size:.76rem;text-transform:uppercase;letter-spacing:.08em;color:var(--report-muted)}.report-signatures strong{grid-row:2;grid-column:1}.report-signatures i{grid-row:2;grid-column:2;font-size:.72rem;font-style:normal;color:var(--report-muted)}.report-footer{display:flex;justify-content:space-between;gap:24px;padding:16px 38px;background:var(--report-navy);color:#dbe8fb;font-size:.74rem}.report-footer span:last-child{text-align:right}body>h1{font-size:24px;margin:0 0 4px}body>.report-sub{color:#444;margin:0 0 14px;font-size:17px}body>.report-meta{margin:0 0 16px;font-size:15px;color:#333}body>table{width:100%;border-collapse:collapse;margin:0 0 16px;background:#fff}body>table th,body>table td{border:1px solid #999;padding:7px 9px;text-align:left;font-size:14px;vertical-align:top}body>table th{background:#f0f0f0}body>table td.num,body>table th.num{text-align:right;white-space:nowrap}body>table tfoot td{font-weight:700;background:#f7f7f7}.report-sign{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:44px;font-size:15px}.report-sign div{border-top:1px solid #111;padding-top:6px}.report-foot{margin-top:22px;font-size:12px;color:#555}small{color:#555}
+      @media(max-width:760px){body{padding:0;background:#fff}.lh-report{border:0;border-radius:0;box-shadow:none}.report-header{grid-template-columns:1fr;gap:18px;padding:24px 18px;background:linear-gradient(150deg,#fff 0 58%,#eef4ff 58% 72%,#0a3778 72% 100%)}.report-heading{text-align:left;color:var(--report-ink);padding-top:12px}.report-heading p{color:var(--report-blue)}.report-heading h1{font-size:1.9rem}.report-school img{width:66px;height:56px}.report-meta-grid{grid-template-columns:1fr 1fr;padding:18px;gap:10px}.report-section{padding:4px 18px 18px}.report-section-title{align-items:flex-start}.report-section-title>strong{font-size:1.1rem}.report-table-wrap{border:0;overflow:visible}.report-table{min-width:0}.report-table thead{display:none}.report-table,.report-table tbody,.report-table tr,.report-table td{display:block;width:100%}.report-table tbody{display:grid;gap:10px}.report-table tbody tr{position:relative;padding:13px 14px 13px 58px;border:1px solid var(--report-line);border-radius:14px;background:#fff!important}.report-table td{padding:2px 0;border:0}.report-table .report-index{position:absolute;left:14px;top:14px;width:32px}.report-table .report-date{font-size:.76rem}.report-table .report-time{text-align:left;margin-top:7px;font-size:1rem}.report-table tfoot{display:block;margin-top:12px}.report-table tfoot tr{display:flex;align-items:center;justify-content:space-between;padding:14px;background:#eaf2ff;border-radius:14px}.report-table tfoot td{display:block;width:auto;padding:0;background:transparent;border:0}.report-management-grid{grid-template-columns:1fr;padding:0 18px 18px}.report-notice{margin:0 18px 20px}.report-summary-grid{grid-template-columns:1fr;padding:0 18px 20px}.report-chart-layout{grid-template-columns:130px minmax(0,1fr);gap:14px}.report-donut{width:126px}.report-legend li{grid-template-columns:10px minmax(0,1fr) auto}.report-legend em{display:none}.report-signatures{grid-template-columns:1fr;gap:32px;padding:12px 18px 26px}.report-footer{display:grid;padding:15px 18px}.report-footer span:last-child{text-align:left}}
+      @page{size:A4 portrait;margin:8mm}@media print{body{padding:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}.lh-report{width:100%;border:0;border-radius:0;box-shadow:none}.report-header{grid-template-columns:42% 58%;padding:9mm 8mm 7mm;gap:8mm}.report-school img{width:18mm;height:15mm}.report-school strong{font-size:10.5pt}.report-school span{font-size:8pt}.report-heading p{font-size:7pt}.report-heading h1{font-size:18pt}.report-meta-grid{padding:5mm 8mm;gap:3mm}.report-meta-grid article{padding:3mm 3.5mm;border-radius:3mm}.report-meta-grid span{font-size:6.5pt}.report-meta-grid strong{font-size:8.5pt}.report-section{padding:1mm 8mm 4mm}.report-section-title{margin-bottom:3mm}.report-section-title span{font-size:6.5pt}.report-section-title h2{font-size:10.5pt}.report-section-title>strong{font-size:11pt}.report-table-wrap{border-radius:3mm;overflow:hidden}.report-table{min-width:0}.report-table th{padding:2.2mm 2.4mm;font-size:6.5pt}.report-table td{padding:2.2mm 2.4mm;font-size:7.4pt}.report-index span{width:6mm;height:6mm;font-size:6.5pt}.report-note{font-size:6.5pt}.report-management-grid{grid-template-columns:1fr 1fr;gap:3mm;padding:0 8mm 4mm}.report-management-card{padding:3mm;border-radius:3mm;break-inside:avoid}.report-management-card li{font-size:6.5pt}.report-notice{margin:0 8mm 4mm;padding:3mm;font-size:6.5pt}.report-summary-grid{grid-template-columns:1.55fr .75fr;gap:4mm;padding:0 8mm 4mm;break-inside:avoid}.report-distribution,.report-total-card{padding:4mm;border-radius:3.5mm}.report-chart-layout{grid-template-columns:34mm minmax(0,1fr);gap:4mm}.report-donut{width:32mm}.report-donut strong{font-size:8pt}.report-legend{gap:1.2mm}.report-legend li{font-size:6.2pt;grid-template-columns:2.5mm minmax(0,1fr) auto 10mm;gap:1.5mm}.report-total-card>strong{font-size:20pt}.report-total-card p{font-size:6.5pt}.report-signatures{padding:4mm 8mm 6mm;gap:12mm}.report-signatures span,.report-signatures i{font-size:6pt}.report-signatures strong{font-size:7.5pt}.report-footer{padding:3mm 8mm;font-size:5.8pt}.report-table tr,.report-distribution,.report-total-card{break-inside:avoid}body>h1{font-size:18pt}body>table th,body>table td{font-size:9pt}}
       </style></head><body>${bodyHtml}</body></html>`;
     }
     function downloadAiReportHtml(){
       const month=$('#aiMonth')?.value||monthNow();
-      download(`lifehub-mesicni-vykaz-${month}.html`, reportDocumentHtml(`Měsíční výkaz činností pedagoga – ${monthLabel(month)}`, buildAiReportHtml(month)), 'text/html;charset=utf-8');
+      download(`mesicni-report-ai-studio-ghrab-${month}.html`, reportDocumentHtml(`Měsíční report činností v oblasti AI – ${monthLabel(month)}`, buildAiReportHtml(month)), 'text/html;charset=utf-8');
     }
     function downloadRewardReportHtml(){
       const period=selectedRewardPeriod();

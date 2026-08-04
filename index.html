@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#11152f">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'none'; worker-src 'self' blob:; child-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
-  <title>LifeHub 5.2.2 | osobní digitální centrum</title>
+  <title>LifeHub 5.3.0 | osobní digitální centrum</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./lifehub-icon-v2.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./lifehub-icon-192-v2.png">
@@ -16,7 +16,7 @@
       <div class="brand">
         <div class="brand-mark" aria-hidden="true"><span>LH</span></div>
         <div class="brand-copy">
-          <h1>LifeHub <span id="appTitleVersion">5.2.2</span></h1>
+          <h1>LifeHub <span id="appTitleVersion">5.3.0</span></h1>
           <p>Soukromé centrum · offline · šifrované</p>
         </div>
       </div>
@@ -61,7 +61,7 @@
           <button data-tab="vehicle" type="button"><span class="emoji">🚗</span><span class="label">Moje Fabia</span></button>
           <button data-tab="electricity" type="button"><span class="emoji">⚡</span><span class="label">Elektřina – Marek</span></button>
           <div class="nav-group-label">Práce a AI</div>
-          <button data-tab="ailog" type="button"><span class="emoji">🤖</span><span class="label">AI výkaz</span></button>
+          <button data-tab="ailog" type="button"><span class="emoji">🤖</span><span class="label">AI odměňování</span></button>
           <button data-tab="rewards" type="button"><span class="emoji">🏅</span><span class="label">Odměny</span></button>
           <button data-tab="partner" type="button"><span class="emoji">👥</span><span class="label">Rodina</span></button>
           <button data-tab="apps" type="button"><span class="emoji">🧩</span><span class="label">Aplikace</span></button>
@@ -1085,10 +1085,10 @@
           <div class="section-head">
             <div class="head-main">
               <div>
-                <h2 class="tab-title">AI výkaz</h2>
-                <p class="tab-sub">Evidence času stráveného prací s AI pro měsíční výkaz vedení</p>
+                <h2 class="tab-title">AI odměňování</h2>
+                <p class="tab-sub">Soukromá evidence práce na ekosystému AI Studio GHRAB a tvorba měsíčního reportu pro vedení</p>
               </div>
-              <button class="info-dot" type="button" data-tip="Zapisuj, co jsi s AI dělal a jak dlouho (v minutách). Graf ukazuje celkový čas po měsících. Na konci měsíce měsíc uzavři a vygeneruj profesionální výkaz pro vedení školy. PDF se vytvoří přes tiskový dialog volbou Uložit jako PDF; HTML se stáhne jako samostatný barevný dokument s logem školy.">i</button>
+              <button class="info-dot" type="button" data-tip="Tato část je pouze tvůj soukromý pracovní nástroj. Eviduje skutečný čas, kategorii, aplikaci a výsledek práce. Vygenerovaný report neobsahuje název LifeHub ani soukromé poznámky. Měsíční report je informační podklad pro vedení, nikoli automatická žádost o konkrétní částku.">i</button>
             </div>
             <div class="actions">
               <input id="aiMonth" type="month" class="control-w-170" title="Měsíc">
@@ -1099,9 +1099,23 @@
 
           <article class="panel">
             <div class="panel-head">
-              <div><p class="eyebrow">Roční přehled</p><h3>Čas nad AI po měsících</h3></div>
+              <div><p class="eyebrow">Roční přehled</p><h3>Skutečný rozsah AI agendy po měsících</h3></div>
             </div>
             <div class="chart" id="aiChart"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div><p class="eyebrow">Manažerská část reportu</p><h3>Měsíční souhrn pro vedení</h3></div>
+              <span class="status">Do reportu, bez soukromých poznámek</span>
+            </div>
+            <form class="form form-two" id="aiSummaryForm">
+              <label class="wide">Nejdůležitější výsledky<textarea id="aiSummaryResults" rows="4" maxlength="5000" placeholder="Každý výsledek napiš na samostatný řádek. Např. Dokončeno bezpečné serverové napojení Generátoru testů."></textarea></label>
+              <label class="wide">Rizika nebo problémy<textarea id="aiSummaryRisks" rows="3" maxlength="4000" placeholder="Pouze podstatné skutečnosti pro vedení; bez osobních údajů žáků."></textarea></label>
+              <label class="wide">Rozhodnutí nebo součinnost potřebná od vedení<textarea id="aiSummaryDecisions" rows="3" maxlength="4000" placeholder="Např. schválit limit API, určit správce serveru, potvrdit termín školení."></textarea></label>
+              <label class="wide">Priority na příští měsíc<textarea id="aiSummaryPriorities" rows="3" maxlength="4000" placeholder="Co bude následovat a co má nejvyšší prioritu."></textarea></label>
+              <div class="actions wide"><button class="btn primary" type="submit">Uložit měsíční souhrn</button></div>
+            </form>
           </article>
 
           <article class="panel">
@@ -1110,21 +1124,34 @@
               <div class="actions">
                 <button class="btn secondary" id="aiCloseBtn" type="button">Uzavřít měsíc</button>
                 <button class="btn primary" id="aiPrintBtn" type="button">Vygenerovat PDF (tisk)</button>
-                <button class="btn" id="aiHtmlBtn" type="button">Stáhnout výkaz HTML</button>
+                <button class="btn" id="aiHtmlBtn" type="button">Stáhnout report HTML</button>
               </div>
             </div>
             <div class="list" id="aiList"></div>
           </article>
 
           <article class="panel add-card" id="aiAddCard" data-collapsed="true">
-            <button class="add-card-head" type="button" data-toggle-add="aiAddCard"><span>➕ Zapsat činnost s AI</span><span class="chev">▾</span></button>
+            <button class="add-card-head" type="button" data-toggle-add="aiAddCard"><span>➕ Zapsat činnost v oblasti AI</span><span class="chev">▾</span></button>
             <div class="add-card-body">
               <form class="form form-two" id="aiForm">
                 <input type="hidden" id="aiId">
                 <label>Datum<input id="aiDate" type="date" required></label>
                 <label>Trvání (minuty)<input id="aiMinutes" type="number" min="1" max="1440" step="1" required placeholder="Např. 90 = 1,5 h"></label>
-                <label class="wide">Činnost<input id="aiActivity" required maxlength="300" placeholder="Např. příprava testu z AJ v generátoru, tvorba hry LUDUS, konzultace metodiky…"></label>
-                <label class="wide">Poznámka<input id="aiNote" placeholder="Volitelný detail (nástroj, předmět, výstup…)"></label>
+                <label>Kategorie<select id="aiCategory" required>
+                  <option value="operations">Provoz a správa</option>
+                  <option value="support">Podpora uživatelů</option>
+                  <option value="training">Školení a metodika</option>
+                  <option value="security">Bezpečnost, GDPR a spolupráce s IT</option>
+                  <option value="documentation">Dokumentace a reporting</option>
+                  <option value="development">Rozvoj existující aplikace</option>
+                  <option value="new_project">Nová aplikace / mimořádný projekt</option>
+                  <option value="representation">Prezentace a reprezentace školy</option>
+                </select></label>
+                <label>Aplikace / oblast<select id="aiApp" required></select></label>
+                <label>Typ práce<select id="aiWorkType"><option value="regular">Pravidelná agenda</option><option value="exceptional">Mimořádný úkol</option></select></label>
+                <label class="wide">Činnost<input id="aiActivity" required maxlength="300" placeholder="Co bylo konkrétně provedeno"></label>
+                <label class="wide">Výsledek / výstup pro report<textarea id="aiNote" rows="3" maxlength="3000" placeholder="Co vzniklo, co bylo dokončeno nebo jaký problém byl vyřešen"></textarea></label>
+                <label class="wide">Soukromá poznámka – do reportu se nepřenáší<textarea id="aiPrivateNote" rows="2" maxlength="3000" placeholder="Interní detail pouze pro tebe; nezapisuj zbytečné osobní údaje"></textarea></label>
                 <div class="actions wide">
                   <button class="btn primary" type="submit">Uložit záznam</button>
                   <button class="btn" id="resetAi" type="button">Vyčistit</button>
@@ -1133,7 +1160,7 @@
             </div>
           </article>
           <div class="section-head-actions">
-            <button class="btn" data-action="export-ailog-csv" type="button">Export CSV</button>
+            <button class="btn" data-action="export-ailog-csv" type="button">Export soukromé evidence CSV</button>
           </div>
         </section>
 
@@ -1383,7 +1410,7 @@
             </div>
           </article>
           <article class="panel production-panel">
-            <div class="panel-head"><div><p class="eyebrow">Produkční režim</p><h3>Oficiální osobní nástroj</h3></div><span class="status good">LifeHub 5.2.2</span></div>
+            <div class="panel-head"><div><p class="eyebrow">Produkční režim</p><h3>Oficiální osobní nástroj</h3></div><span class="status good">LifeHub 5.3.0</span></div>
             <p>Data zůstávají v tomto zařízení a po odemčení se ukládají šifrovaně. Přenos mezi telefonem a počítačem je záměrně ruční přes kompletní šifrovanou zálohu; automatická cloudová synchronizace není součástí aplikace.</p>
           </article>
           <article class="panel">
@@ -1409,7 +1436,7 @@
           </div>
           <article class="panel manual-intro-panel">
             <div>
-              <p class="eyebrow">LifeHub 5.2.2</p>
+              <p class="eyebrow">LifeHub 5.3.0</p>
               <h3>Celá aplikace vysvětlená na jednom místě</h3>
               <p class="small">Manuál je součástí instalačního balíčku, funguje i offline a nečte žádná osobní data z tvého trezoru. Níže ho můžeš používat přímo uvnitř LifeHubu.</p>
             </div>
@@ -1457,7 +1484,7 @@
         </div>
       </div>
       <div class="lock-content">
-        <p class="eyebrow">LifeHub <span id="lockVersion">5.2.2</span></p>
+        <p class="eyebrow">LifeHub <span id="lockVersion">5.3.0</span></p>
         <h2 id="lockTitle">Odemknout LifeHub</h2>
         <p id="lockIntro">Zadej své heslo. Poznámky, finance ani dokumenty se před odemčením nenačtou.</p>
         <div class="lock-note" id="lockNote">Při prvním spuštění si nastavíš bezpečné heslo. Starší data lze jednorázově převést do šifrovaného úložiště.</div>

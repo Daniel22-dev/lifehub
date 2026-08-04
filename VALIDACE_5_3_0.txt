@@ -1,0 +1,10 @@
+LifeHub 5.3.0 – validace vydání
+Datum: 4. 8. 2026
+
+Úspěšně provedeno:
+- syntaktická kontrola JavaScriptu,
+- kontrola citlivých dat ve zdrojovém balíčku,
+- 163 automatických testů (163/163),
+- smoke kontrola verzí, PWA, manuálu a workflow.
+
+Produkční build nebyl v pracovním prostředí spuštěn do konce, protože dostupné interní npm zrcadlo neposkytlo jednu z uzamčených závislostí. Zdrojový kód, konfigurace buildu a GitHub workflow zůstávají součástí balíčku. Před ostrým nasazením se doporučuje spustit `npm ci && npm run check` v běžném vývojovém nebo CI prostředí.

@@ -5,7 +5,7 @@ export const STATE_COLLECTIONS_WITH_IDS = Object.freeze([
   'projects','htmlPlans','householdPayments','budgetEntries','groceries','aiEntries','rewards','gardenItems','gardenLogs','electricalNotes','maintenanceLogs','vehicleLogs'
 ]);
 
-export function migrateStateSchema(input, targetSchema = 14){
+export function migrateStateSchema(input, targetSchema = 15){
   const migrated = JSON.parse(JSON.stringify(input || {}));
   const current = Math.max(1, Math.round(Number(migrated.schemaVersion) || 1));
   if(current < 6 && Array.isArray(migrated.payrolls)){
@@ -129,6 +129,17 @@ export function migrateStateSchema(input, targetSchema = 14){
       if(row.trackFinance===undefined) row.trackFinance=true;
       if(row.transactionId===undefined) row.transactionId='';
       if(row.financeDetached===undefined) row.financeDetached=false;
+    }
+  }
+  if(current < 15){
+    if(!Array.isArray(migrated.aiMonthSummaries)) migrated.aiMonthSummaries=[];
+    if(!Array.isArray(migrated.aiEntries)) migrated.aiEntries=[];
+    for(const row of migrated.aiEntries){
+      if(!row || typeof row!=='object') continue;
+      if(row.category===undefined) row.category='operations';
+      if(row.app===undefined) row.app='Obecná agenda AI';
+      if(row.workType===undefined) row.workType='regular';
+      if(row.privateNote===undefined) row.privateNote='';
     }
   }
   if(current < targetSchema) migrated.schemaVersion = targetSchema;

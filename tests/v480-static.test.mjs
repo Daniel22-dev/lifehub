@@ -17,7 +17,7 @@ test('AI výkaz je mobilně lehký a exportuje prémiový dokument s logem škol
   assert.ok(!html.includes('id="aiReportPreview"'));
   assert.ok(!app.includes('function renderAiReportPreview()'));
   assert.ok(app.includes('SCHOOL_LOGO_DATA_URI'));
-  assert.ok(app.includes('Měsíční výkaz činností pedagoga'));
+  assert.ok(app.includes('Měsíční report činností v oblasti AI'));
   assert.ok(app.includes('report-donut'));
 });
 
