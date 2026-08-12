@@ -134,7 +134,7 @@ test('úprava propojeného výdaje z Moje Fabia zachová vazbu na servisní udá
   assert.equal(result.amount,2450);
 });
 
-test('aktivní finanční cyklus začíná poslední skutečně přijatou výplatou', () => {
+test('aktivní finanční období po načtení výplaty začíná prvním dnem jejího kalendářního měsíce', () => {
   const summary=summarizeSalaryCycle({
     asOf:'2026-08-15',
     transactions:[
@@ -150,12 +150,40 @@ test('aktivní finanční cyklus začíná poslední skutečně přijatou výpla
       {date:'2026-08-08',kind:'fuel',amount:900,paidBy:'wife'}
     ]
   });
-  assert.equal(summary.startDate,'2026-07-31');
+  assert.equal(summary.startDate,'2026-07-01');
+  assert.equal(summary.salaryDate,'2026-07-31');
+  assert.equal(summary.myExpenses,17300);
   assert.equal(summary.salaryAmount,40000);
   assert.equal(summary.otherIncome,1200);
-  assert.equal(summary.myExpenses,8300);
   assert.equal(summary.wifeExpenses,3000);
-  assert.equal(summary.balance,32900);
+  assert.equal(summary.balance,23900);
+});
+
+test('nová výplata přijatá 11. dne převezme všechny výdaje od prvního dne měsíce', () => {
+  const before=summarizeSalaryCycle({
+    asOf:'2026-08-10',
+    transactions:[
+      {date:'2026-07-10',kind:'income',source:'payroll',category:'mzda',amount:40000},
+      {date:'2026-08-03',kind:'expense',amount:5000,paidBy:'me'}
+    ]
+  });
+  assert.equal(before.startDate,'2026-07-01');
+  assert.equal(before.balance,35000);
+
+  const after=summarizeSalaryCycle({
+    asOf:'2026-08-12',
+    transactions:[
+      {date:'2026-07-10',kind:'income',source:'payroll',category:'mzda',amount:40000},
+      {date:'2026-08-03',kind:'expense',amount:5000,paidBy:'me'},
+      {date:'2026-08-11',kind:'income',source:'payroll',category:'mzda',amount:42000},
+      {date:'2026-08-12',kind:'expense',amount:2000,paidBy:'me'}
+    ]
+  });
+  assert.equal(after.startDate,'2026-08-01');
+  assert.equal(after.salaryDate,'2026-08-11');
+  assert.equal(after.salaryAmount,42000);
+  assert.equal(after.myExpenses,7000);
+  assert.equal(after.balance,35000);
 });
 
 test('nesouvisející platba ani výplata pojistky neotevřou mzdový cyklus', () => {
@@ -180,7 +208,8 @@ test('nulová mzdová položka nepřepíše poslední skutečně přijatou výpl
       {date:'2026-08-16',kind:'expense',paidBy:'me',amount:5000}
     ]
   });
-  assert.equal(summary.startDate,'2026-08-10');
+  assert.equal(summary.startDate,'2026-08-01');
+  assert.equal(summary.salaryDate,'2026-08-10');
   assert.equal(summary.balance,35000);
 });
 

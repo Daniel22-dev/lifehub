@@ -4,16 +4,16 @@ import fs from 'node:fs';
 
 const manual = fs.readFileSync(new URL('../public/manual.html', import.meta.url), 'utf8');
 
-test('interaktivní manuál odpovídá funkcím LifeHubu 5.3.0', () => {
+test('interaktivní manuál odpovídá funkcím LifeHubu 5.4.0', () => {
   for (const text of [
-    'LifeHub 5.3.0',
+    'LifeHub 5.4.0',
     'Moje Fabia',
     'Škodu Fabia I 1.2 HTP',
     'Garanční servis',
     'STK + emise',
     'Započítat do finanční evidence',
     'Z poslední výplaty zbývá',
-    'skutečným připsáním mzdy',
+    'od 1. dne daného kalendářního měsíce',
     'skutečného data pohybu',
     'bez dvojího zapisování',
     'Jídlo & benzín',
@@ -23,6 +23,9 @@ test('interaktivní manuál odpovídá funkcím LifeHubu 5.3.0', () => {
     'Projekty domu',
     'Elektřina – Marek',
     'Stáhnout PDF pro Honzu Marka',
+    'Stáhnout PDF v Odměnách',
+    'Přílohy poznámek',
+    'PDF, DOCX nebo interaktivní HTML',
     'Servis a údržba',
     'bezpečně odděleném sandboxu',
     'kompletní šifrovanou zálohu',

@@ -218,9 +218,10 @@ export function isSalaryIncome(row){
 }
 
 /**
- * Summarises the currently active cash-flow cycle. The cycle starts on the
- * date when the latest salary was actually credited, not in the payroll
- * period to which the payslip belongs.
+ * Summarises the currently active salary-backed calendar period. As soon as a
+ * new salary is recorded, all expenses from the first day of its receipt month
+ * are recalculated against it. Until then, the previous salary period remains
+ * active and can temporarily include the first days of the following month.
  */
 export function summarizeSalaryCycle({transactions=[],budgetEntries=[],asOf}={}){
   const end=isoDate(asOf)||new Date().toISOString().slice(0,10);
@@ -228,9 +229,10 @@ export function summarizeSalaryCycle({transactions=[],budgetEntries=[],asOf}={})
     .filter(row=>isSalaryIncome(row) && amount(row?.amount)>0 && isoDate(row?.date) && isoDate(row.date)<=end)
     .sort((a,b)=>isoDate(b.date).localeCompare(isoDate(a.date)) || String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
   if(!salaryRows.length){
-    return {startDate:'',endDate:end,salaryAmount:0,otherIncome:0,totalIncome:0,myTransactionExpenses:0,wifeTransactionExpenses:0,myBudgetExpenses:0,wifeBudgetExpenses:0,myExpenses:0,wifeExpenses:0,householdExpenses:0,balance:0,transactionCount:0,budgetCount:0};
+    return {startDate:'',salaryDate:'',endDate:end,salaryAmount:0,otherIncome:0,totalIncome:0,myTransactionExpenses:0,wifeTransactionExpenses:0,myBudgetExpenses:0,wifeBudgetExpenses:0,myExpenses:0,wifeExpenses:0,householdExpenses:0,balance:0,transactionCount:0,budgetCount:0};
   }
-  const startDate=isoDate(salaryRows[0].date);
+  const salaryDate=isoDate(salaryRows[0].date);
+  const startDate=`${salaryDate.slice(0,7)}-01`;
   const inCycle=row=>{
     const date=isoDate(row?.date);
     return !!date && date>=startDate && date<=end;
@@ -250,7 +252,7 @@ export function summarizeSalaryCycle({transactions=[],budgetEntries=[],asOf}={})
   const wifeExpenses=wifeTransactionExpenses+wifeBudgetExpenses;
   const totalIncome=salaryAmount+otherIncome;
   return {
-    startDate,endDate:end,salaryAmount,otherIncome,totalIncome,
+    startDate,salaryDate,endDate:end,salaryAmount,otherIncome,totalIncome,
     myTransactionExpenses,wifeTransactionExpenses,myBudgetExpenses,wifeBudgetExpenses,
     myExpenses,wifeExpenses,householdExpenses:myExpenses+wifeExpenses,
     balance:totalIncome-myExpenses,

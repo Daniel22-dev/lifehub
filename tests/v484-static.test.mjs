@@ -6,11 +6,13 @@ const app=fs.readFileSync(new URL('../src/app/lifehub-app.js',import.meta.url),'
 const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 
 
-test('Přehled obsahuje skutečný cyklus od poslední přijaté výplaty',()=>{
+test('Přehled obsahuje kalendářní období aktuální přijaté výplaty',()=>{
   assert.ok(html.includes('id="dashboardMonthlyFinance"'));
   assert.ok(html.includes('Z poslední výplaty zbývá'));
   assert.ok(app.includes('summarizeSalaryCycle'));
-  assert.ok(app.includes('Aktuální cyklus od poslední přijaté výplaty'));
+  assert.ok(app.includes('Kalendářní období aktuální výplaty'));
+  assert.ok(app.includes('výdaje se po jejím načtení přepočítají od 1. dne měsíce'));
+  assert.ok(app.includes('Dokud není načtena nová výplata, pokračuje předchozí období'));
   assert.ok(app.includes('Přijatá výplata'));
   assert.ok(app.includes('Další příjmy'));
   assert.ok(app.includes('Zaplatil jsem'));

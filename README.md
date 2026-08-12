@@ -1,12 +1,12 @@
-# LifeHub 5.3.0
+# LifeHub 5.4.0
 
 Lokální šifrované osobní centrum pro skutečné cashflow, servisní historii vozu, poznámky, dokumenty, úkoly, domácnost, zahradu, pracovní výkazy, interaktivní postupy a větší projekty domu.
 
-## Novinky 5.3.0
+## Novinky 5.4.0
 
-- **AI odměňování 2.0:** soukromá strukturovaná evidence práce na AI Studiu GHRAB, rozlišení kategorií, aplikací, pravidelné a mimořádné agendy a konkrétních výsledků.
-- **Manažerský měsíční report:** výsledky, rizika, požadavky na vedení a priority; výstup neuvádí LifeHub a nikdy nepřenáší soukromé poznámky.
-- **Beze změny modulu Odměny:** nadále slouží výhradně pro ostatní ne-AI činnosti.
+- **Přímé PDF odměn:** skutečný lokálně vytvořený PDF soubor se stáhne bez tiskového dialogu a delší report se automaticky stránkuje.
+- **Přílohy poznámek:** k poznámkám lze šifrovaně uložit PDF, DOCX a interaktivní HTML; kompletní záloha je přenese mezi zařízeními.
+- **Kalendářní výplata:** po načtení nové pásky se zůstatek přepočítá od 1. dne měsíce jejího skutečného připsání.
 
 
 - sekce **Elektřina – Marek** má jediné tlačítko **Stáhnout PDF pro Honzu Marka**,
@@ -33,7 +33,7 @@ npm run check
 - izolovaný prohlížeč nahraných HTML plánů bez přístupu k datům LifeHubu,
 - whitelistová sanitizace importovaného stavu,
 - nouzová šifrovaná záloha při selhání ukládání,
-- kompletní šifrovaná záloha včetně dokumentů, PDF, projektových příloh a HTML plánů,
+- kompletní šifrovaná záloha včetně dokumentů, PDF, příloh poznámek, projektových příloh a HTML plánů,
 - automatický zámek a podpora WebAuthn PRF na kompatibilních zařízeních.
 
 Podrobný přehled změn je v `CHANGELOG.md`. Interaktivní uživatelský návod je v `public/manual.html`.

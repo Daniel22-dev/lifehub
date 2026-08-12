@@ -50,3 +50,11 @@ test('kompletní záloha vyžaduje a přijímá uložený HTML plán', () => {
   assert.equal(result.records.length,1);
   assert.throws(()=>validateBackupFileSet([],state),/neúplná/);
 });
+
+test('kompletní záloha vyžaduje a přijímá přílohy poznámek', () => {
+  const state={payrolls:[],documents:[],projects:[],htmlPlans:[],notes:[{id:'note_1',attachments:[{id:'note_file_1',storedFile:true,fileName:'metodika.docx',kind:'docx'}]}]};
+  const file={id:'note_file_1',store:VAULT_STORE,size:4,data:base64('docx')};
+  const result=validateBackupFileSet([file],state);
+  assert.equal(result.records.length,1);
+  assert.throws(()=>validateBackupFileSet([],state),/neúplná/);
+});

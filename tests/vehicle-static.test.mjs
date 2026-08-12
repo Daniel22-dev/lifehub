@@ -47,7 +47,7 @@ test('historie Fabie má hledání, filtry, statistiky a export',()=>{
 
 test('schéma a sanitizace zahrnují vehicleLogs a vehicleLogId',()=>{
   assert.ok(integrity.includes("'vehicleLogs'"));
-  assert.ok(integrity.includes('targetSchema = 15'));
+  assert.ok(integrity.includes('targetSchema = 16'));
   assert.ok(app.includes('clean.vehicleLogs'));
   assert.ok(app.includes('vehicleLogId:textLimit'));
 });

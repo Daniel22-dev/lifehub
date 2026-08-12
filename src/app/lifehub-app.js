@@ -63,6 +63,8 @@ import { backupRecordToFile, fileToBackupRecord } from '../features/backup.js';
 import { assertBackupFileSize, validateBackupFileSet } from '../features/backup-validation.js';
 import { buildAnnualCashflowData, buildTransactionRecord, summarizeSalaryCycle } from '../features/finance.js';
 import { buildElectricityPdfBlob } from '../features/electricity-pdf.js';
+import { buildRewardPdfBlob } from '../features/reward-pdf.js';
+import { noteAttachmentIcon, noteAttachmentKind, noteAttachmentMetadata } from '../features/note-attachments.js';
 import { isElanorPayslip, parseElanorPayslip } from '../features/payroll-elanor.js';
 import {
   DEFAULT_FOOD_BUDGET,
@@ -110,7 +112,7 @@ export function bootLifeHub(){
     const VERSION = APP_VERSION;
     const SHORT_VERSION = String(VERSION).split('-')[0]; // např. "3.1.8" – nadpis, titulek, zámek
     const FORBIDDEN_IMPORT_KEYS = new Set(['__proto__','constructor','prototype']);
-    const STATE_SCHEMA_VERSION = 15;
+    const STATE_SCHEMA_VERSION = 16;
     const SHOPPING_BOUGHT_FEEDBACK_MS = 650;
     const GARDEN_BOUGHT_FEEDBACK_MS = 650;
     const BIOMETRIC_META_KEY = 'biometricUnlock';
@@ -557,6 +559,7 @@ export function bootLifeHub(){
       document.addEventListener('webkitfullscreenchange',handleFullscreenChange);
       $('#noteForm').addEventListener('submit', saveNote);
       $('#resetNote').addEventListener('click', resetNoteForm);
+      $('#noteAttachmentInput')?.addEventListener('change',updateNoteAttachmentSelection);
       ['noteSearch','noteSourceFilter','noteTypeFilter','noteTagFilter','noteSort'].forEach(id=>$('#'+id).addEventListener('input',renderNotes));
       $('#globalSearch').addEventListener('input',renderGlobalSearch);
       $('#parsePayrollBtn').addEventListener('click',parsePayrollPdf);
@@ -660,7 +663,7 @@ export function bootLifeHub(){
       $('#partnerImportFile')?.addEventListener('change',importPartnerShare);
       $('#partnerDeleteBtn')?.addEventListener('click',deletePartnerData);
       $('#rewardPeriodSelect')?.addEventListener('input',renderRewards);
-      $('#rewardPrintBtn')?.addEventListener('click',()=>printReport(buildRewardReportHtml(selectedRewardPeriod())));
+      $('#rewardPrintBtn')?.addEventListener('click',downloadRewardReportPdf);
       $('#rewardHtmlBtn')?.addEventListener('click',downloadRewardReportHtml);
       $('#fab')?.addEventListener('click',handleFabClick);
       document.addEventListener('click',handleInfoAndAddCards,true);
@@ -741,6 +744,9 @@ export function bootLifeHub(){
       }
       const editNote = e.target.closest('[data-edit-note]')?.dataset.editNote;
       const delNote = e.target.closest('[data-delete-note]')?.dataset.deleteNote;
+      const openNoteAttachment = e.target.closest('[data-open-note-attachment]')?.dataset.openNoteAttachment;
+      const downloadNoteAttachment = e.target.closest('[data-download-note-attachment]')?.dataset.downloadNoteAttachment;
+      const deleteNoteAttachment = e.target.closest('[data-delete-note-attachment]')?.dataset.deleteNoteAttachment;
       const editTrans = e.target.closest('[data-edit-trans]')?.dataset.editTrans;
       const delTrans = e.target.closest('[data-delete-trans]')?.dataset.deleteTrans;
       const delPayroll = e.target.closest('[data-delete-payroll]')?.dataset.deletePayroll;
@@ -807,7 +813,8 @@ export function bootLifeHub(){
       const editReward = e.target.closest('[data-edit-reward]')?.dataset.editReward;
       const delReward = e.target.closest('[data-delete-reward]')?.dataset.deleteReward;
       const showChlog = e.target.closest('[data-show-changelog]');
-      if(editNote) editNoteForm(editNote); if(delNote) deleteItem('notes',delNote); if(viewNote) openNoteDetail(viewNote);
+      if(editNote) editNoteForm(editNote); if(delNote) deleteNote(delNote); if(viewNote) openNoteDetail(viewNote);
+      if(openNoteAttachment) openNoteAttachmentFile(openNoteAttachment); if(downloadNoteAttachment) downloadNoteAttachmentFile(downloadNoteAttachment); if(deleteNoteAttachment) deleteNoteAttachmentFile(deleteNoteAttachment);
       if(editTrans) editTransactionForm(editTrans); if(delTrans) deleteTransaction(delTrans);
       if(delPayroll) deletePayroll(delPayroll); if(downPayroll) downloadPayrollPdf(downPayroll); if(purgePayroll) purgePayrollPdf(purgePayroll);
       if(delDoc) deleteVaultDoc(delDoc); if(downDoc) downloadVaultDoc(downDoc);
@@ -1561,6 +1568,9 @@ export function bootLifeHub(){
       for(const plan of state.htmlPlans.filter(x=>x.storedFile !== false)){
         try{ const file=await idbGet(plan.id,VAULT_STORE); if(file&&file.kind!=='LifeHub encrypted blob'){ await idbPut(plan.id,file,VAULT_STORE); changed++; } }catch(e){ console.warn(e); }
       }
+      for(const attachment of noteAttachmentMetadata(state.notes).filter(file=>file.storedFile!==false)){
+        try{ const file=await idbGet(attachment.id,VAULT_STORE); if(file&&file.kind!=='LifeHub encrypted blob'){ await idbPut(attachment.id,file,VAULT_STORE); changed++; } }catch(e){ console.warn(e); }
+      }
       if(changed) toast(`Převedeno ${changed} lokálních souborů do šifrovaného úložiště.`);
       return changed;
     }
@@ -1587,7 +1597,7 @@ export function bootLifeHub(){
       const urgentTasks = state.tasks.filter(t=>!t.done && t.priority==='high').length;
       const urgentShop = state.shopping.filter(s=>s.status!=='bought' && s.priority==='urgent').reduce((a,s)=>a+number(s.price),0);
       const balanceClass = cycle.balance>=0?'money-plus':'money-minus';
-      const cycleSub=cycle.startDate?`Od ${fmtDate(`${cycle.startDate}T00:00:00`)} · příjmy ${fmt(cycle.totalIncome)}`:'Nejprve zapiš nebo načti skutečně přijatou výplatu';
+      const cycleSub=cycle.startDate?`Od 1. ${monthLabel(cycle.startDate.slice(0,7))} · výplata připsána ${fmtDate(`${cycle.salaryDate}T00:00:00`)}`:'Nejprve zapiš nebo načti skutečně přijatou výplatu';
       $('#dashboardKpis').innerHTML = [
         kpi('Uložené poznámky', state.notes.length, 'AI vlákna, zdroje a nápady'),
         kpiHtml('Z poslední výplaty zbývá', `<span class="${balanceClass}">${esc(cycle.startDate?fmt(cycle.balance):'—')}</span>`, cycleSub),
@@ -1612,7 +1622,7 @@ export function bootLifeHub(){
       box.innerHTML=`
         <div class="salary-cycle-card">
           <div class="salary-cycle-hero">
-            <div><span>Aktuální cyklus od poslední přijaté výplaty</span><h4>${esc(period)}</h4><small>Počítáno podle skutečných dat připsání a zaplacení.</small></div>
+            <div><span>Kalendářní období aktuální výplaty</span><h4>${esc(period)}</h4><small>Výplata připsána ${esc(fmtDate(`${cycle.salaryDate}T00:00:00`))}; výdaje se po jejím načtení přepočítají od 1. dne měsíce.</small></div>
             <strong class="${remainingClass}">${esc(fmt(cycle.balance))}</strong>
           </div>
           <div class="salary-cycle-grid">
@@ -1622,7 +1632,7 @@ export function bootLifeHub(){
             <div class="salary-cycle-stat"><span>Zaplatila manželka</span><strong class="money-minus">${esc(fmt(cycle.wifeExpenses))}</strong></div>
           </div>
           ${renderMonthlyActualSpentDetail(cycle.startDate,cycle.endDate)}
-          <p class="small monthly-finance-note"><strong>Zůstatek</strong> = všechny skutečné příjmy od poslední výplaty − výdaje zaplacené tebou. Výdaje manželky zůstávají v nákladech domácnosti, ale nesnižují tvůj osobní zůstatek. Jídlo a benzín jsou zahrnuty.</p>
+          <p class="small monthly-finance-note"><strong>Zůstatek</strong> = příjmy v aktivním kalendářním období − výdaje zaplacené tebou od jeho 1. dne. Dokud není načtena nová výplata, pokračuje předchozí období; po načtení nové pásky se celý její kalendářní měsíc automaticky přepočítá. Výdaje manželky zůstávají v nákladech domácnosti, ale nesnižují tvůj osobní zůstatek. Jídlo a benzín jsou zahrnuty.</p>
         </div>`;
     }
     function renderDashboardFocus(){
@@ -1762,7 +1772,7 @@ export function bootLifeHub(){
       const box = $('#globalResults'); if(!box) return;
       if(!q){box.innerHTML='<div class="empty">Začněte psát a aplikace bude hledat v poznámkách, financích, úkolech i nákupech.</div>'; return;}
       const res = [];
-      state.notes.forEach(n=>{const text=strip([n.title,n.summary,n.content,n.tags,n.source,n.type].join(' ')); if(text.includes(q)) res.push(['Poznámka',n.title,n.summary,'notes']);});
+      state.notes.forEach(n=>{const text=strip([n.title,n.summary,n.content,n.tags,n.source,n.type,...(n.attachments||[]).map(file=>file.fileName)].join(' ')); if(text.includes(q)) res.push(['Poznámka',n.title,n.summary,'notes']);});
       state.transactions.forEach(t=>{const text=strip([t.category,t.description,t.amount,t.date].join(' ')); if(text.includes(q)) res.push(['Příjmy a výdaje',`${t.kind==='income'?'Příjem':'Výdaj'}: ${t.category}`,`${fmt(t.amount)} • ${t.date} • ${t.description||''}`,'finance']);});
       state.payrolls.forEach(p=>{const text=strip([p.month,p.employer,p.note,p.fileName,p.rawText].join(' ')); if(text.includes(q)) res.push(['Výplatní páska',`${p.month} ${p.employer||''}`,`Čistá mzda: ${fmt(payrollCleanAmount(p))} • Na účet: ${fmt(payrollAccountAmount(p))} • ${p.fileName || ''}`,'finance']);});
       state.documents.forEach(d=>{const text=strip([d.title,d.category,d.note,d.fileName].join(' ')); if(text.includes(q)) res.push(['Archiv',d.title,`${docCategoryLabel(d.category)} • ${d.fileName||''}`,'vault']);});
@@ -1784,31 +1794,76 @@ export function bootLifeHub(){
       box.innerHTML = res.slice(0,30).map(r=>`<button class="result" type="button" data-jump="${r[3]}"><strong>${esc(r[0])}: ${esc(r[1])}</strong><span class="small">${esc(r[2])}</span></button>`).join('') || empty('Nic jsem nenašel. Zkuste jiné slovo nebo tag.');
     }
 
-    function saveNote(e){
-      e.preventDefault();
-      const id = $('#noteId').value || uid('note');
-      const existing = state.notes.find(n=>n.id===id);
-      const n = {
-        id, title:$('#noteTitle').value.trim(), source:$('#noteSource').value, priority:Number($('#notePriority').value), type:$('#noteType').value,
-        model:$('#noteModel').value.trim(), url:safeUrl($('#noteUrl').value), tags:$('#noteTags').value.split(',').map(t=>t.trim()).filter(Boolean).slice(0,30),
-        summary:$('#noteSummary').value.trim(), content:$('#noteContent').value.trim(), next:$('#noteNext').value.trim(),
-        createdAt: existing?.createdAt || new Date().toISOString(), updatedAt:new Date().toISOString()
-      };
-      if(existing) Object.assign(existing,n); else state.notes.unshift(n);
-      save(); resetNoteForm(); toast('Poznámka uložena.');
+    function validateNoteAttachmentFile(file){
+      const kind=noteAttachmentKind(file);
+      if(!kind) throw new Error(`Soubor ${file?.name||''} není PDF, DOCX ani HTML.`);
+      const limit=kind==='html'?MAX_HTML_PLAN_SIZE_BYTES:MAX_COMPLETE_BACKUP_FILE_BYTES;
+      if(!(Number(file?.size)>0)) throw new Error(`Soubor ${file?.name||''} je prázdný.`);
+      if(file.size>limit) throw new Error(`Soubor ${file.name} překračuje limit ${formatBytes(limit)}.`);
+      return kind;
     }
-    function resetNoteForm(){ $('#noteForm').reset(); $('#noteId').value=''; $('#notePriority').value='3'; }
+    function updateNoteAttachmentSelection(){
+      const input=$('#noteAttachmentInput'),box=$('#noteAttachmentSelection'); if(!box) return;
+      const files=Array.from(input?.files||[]);
+      box.textContent=files.length?`${files.length===1?'Vybrán 1 soubor':`Vybrány ${files.length} soubory`}: ${files.map(file=>file.name).join(', ')}`:'PDF, DOCX nebo interaktivní HTML; soubory se uloží šifrovaně.';
+    }
+    function renderNoteFormAttachments(note=null){
+      const box=$('#noteExistingAttachments'); if(!box) return;
+      const files=Array.isArray(note?.attachments)?note.attachments:[];
+      box.innerHTML=files.length?`<strong>Stávající přílohy zůstanou připojené:</strong> ${files.map(file=>`<span class="tag">${noteAttachmentIcon(file.kind)} ${esc(file.fileName)}</span>`).join('')}`:'';
+    }
+    async function saveNote(e){
+      e.preventDefault();
+      const id=$('#noteId').value||uid('note');
+      const existing=state.notes.find(n=>n.id===id);
+      const input=$('#noteAttachmentInput');
+      const files=Array.from(input?.files||[]);
+      if(files.length>10){ toast('K jedné poznámce lze najednou přidat maximálně 10 souborů.','warn'); return; }
+      if((existing?.attachments?.length||0)+files.length>50){ toast('Jedna poznámka může mít maximálně 50 příloh.','warn'); return; }
+      const stored=[];
+      const previous=existing?JSON.parse(JSON.stringify(existing)):null;
+      const submit=e.submitter||$('#noteForm button[type="submit"]');
+      if(submit) submit.disabled=true;
+      try{
+        for(const file of files){
+          const kind=validateNoteAttachmentFile(file);
+          await assertStorageHeadroom(file.size);
+          const fileId=uid('nfile');
+          await idbPut(fileId,file,VAULT_STORE);
+          stored.push({id:fileId,fileName:String(file.name||'příloha').slice(0,220),mime:String(file.type||'application/octet-stream').slice(0,120),size:file.size,kind,storedFile:true,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
+        }
+        const n={
+          id,title:$('#noteTitle').value.trim(),source:$('#noteSource').value,priority:Number($('#notePriority').value),type:$('#noteType').value,
+          model:$('#noteModel').value.trim(),url:safeUrl($('#noteUrl').value),tags:$('#noteTags').value.split(',').map(t=>t.trim()).filter(Boolean).slice(0,30),
+          summary:$('#noteSummary').value.trim(),content:$('#noteContent').value.trim(),next:$('#noteNext').value.trim(),
+          attachments:[...(existing?.attachments||[]),...stored],
+          createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()
+        };
+        if(existing) Object.assign(existing,n); else state.notes.unshift(n);
+        const saved=await save();
+        if(!saved) throw new Error('Změny se nepodařilo zapsat do šifrovaného trezoru.');
+        resetNoteForm();
+        toast(stored.length?`Poznámka uložena včetně ${stored.length} ${stored.length===1?'přílohy':'příloh'}.`:'Poznámka uložena.');
+      }catch(error){
+        console.error(error);
+        for(const file of stored){ try{ await idbDelete(file.id,VAULT_STORE); }catch(cleanupError){ console.warn(cleanupError); } }
+        if(existing&&previous) Object.assign(existing,previous); else state.notes=state.notes.filter(note=>note.id!==id);
+        toast('Poznámku se nepodařilo uložit: '+(error.message||error),'bad');
+      }finally{ if(submit) submit.disabled=false; }
+    }
+    function resetNoteForm(){ $('#noteForm').reset(); $('#noteId').value=''; $('#notePriority').value='3'; updateNoteAttachmentSelection(); renderNoteFormAttachments(); }
     function editNoteForm(id){
       const n=state.notes.find(x=>x.id===id); if(!n) return;
       showTab('notes'); toggleAddCard('noteAddCard',true); $('#noteId').value=n.id; $('#noteTitle').value=n.title; $('#noteSource').value=n.source; $('#notePriority').value=n.priority; $('#noteType').value=n.type;
       $('#noteModel').value=n.model||''; $('#noteUrl').value=n.url||''; $('#noteTags').value=(n.tags||[]).join(', '); $('#noteSummary').value=n.summary||''; $('#noteContent').value=n.content||''; $('#noteNext').value=n.next||'';
+      if($('#noteAttachmentInput')) $('#noteAttachmentInput').value=''; updateNoteAttachmentSelection(); renderNoteFormAttachments(n);
       $('#noteTitle').focus();
     }
     function renderNotes(){
       populateNoteFilters();
       const q=strip($('#noteSearch')?.value||''), source=$('#noteSourceFilter')?.value||'all', type=$('#noteTypeFilter')?.value||'all', tag=$('#noteTagFilter')?.value||'all', sort=$('#noteSort')?.value||'new';
       let arr=state.notes.filter(n=>{
-        const text=strip([n.title,n.summary,n.content,n.model,(n.tags||[]).join(' ')].join(' '));
+        const text=strip([n.title,n.summary,n.content,n.model,(n.tags||[]).join(' '),...(n.attachments||[]).map(file=>file.fileName)].join(' '));
         return (!q||text.includes(q)) && (source==='all'||n.source===source) && (type==='all'||n.type===type) && (tag==='all'||(n.tags||[]).includes(tag));
       });
       arr.sort((a,b)=> sort==='priority' ? b.priority-a.priority : sort==='title' ? a.title.localeCompare(b.title,'cs') : new Date(b.updatedAt)-new Date(a.updatedAt));
@@ -1817,7 +1872,9 @@ export function bootLifeHub(){
     function noteCard(n){
       const stars='★'.repeat(Number(n.priority)||0);
       const url=safeUrl(n.url);
-      return `<article class="item"><div class="item-top"><div><h4>${esc(n.title)}</h4><p>${esc(n.summary||'Bez shrnutí')}</p></div><div class="actions"><button class="mini-btn" data-view-note="${attr(n.id)}" type="button">Zobrazit</button><button class="mini-btn" data-edit-note="${attr(n.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-note="${attr(n.id)}" type="button">Smazat</button></div></div><div class="meta"><span class="priority ${n.priority>=4?'high':n.priority>=3?'mid':'low'}">${stars||'★'} ${esc(n.source)}</span><span class="tag">${esc(n.type)}</span>${n.model?`<span class="tag">${esc(n.model)}</span>`:''}${(n.tags||[]).map(t=>`<span class="tag">#${esc(t)}</span>`).join('')}</div>${n.next?`<p><strong>Další krok:</strong> ${esc(n.next)}</p>`:''}${url?`<p><a href="${attr(url)}" target="_blank" rel="noopener noreferrer">Otevřít zdroj ↗</a></p>`:''}</article>`;
+      const attachments=Array.isArray(n.attachments)?n.attachments:[];
+      const attachmentHtml=attachments.length?`<div class="note-attachment-list">${attachments.map(file=>`<div class="note-attachment-row"><span>${noteAttachmentIcon(file.kind)} <strong>${esc(file.fileName)}</strong> <small>${esc(formatBytes(file.size))}</small></span><div class="actions"><button class="mini-btn" data-open-note-attachment="${attr(file.id)}" type="button">${file.kind==='docx'?'Stáhnout':'Otevřít'}</button><button class="mini-btn" data-delete-note-attachment="${attr(file.id)}" type="button">Odebrat</button></div></div>`).join('')}</div>`:'';
+      return `<article class="item"><div class="item-top"><div><h4>${esc(n.title)}</h4><p>${esc(n.summary||'Bez shrnutí')}</p></div><div class="actions"><button class="mini-btn" data-view-note="${attr(n.id)}" type="button">Zobrazit</button><button class="mini-btn" data-edit-note="${attr(n.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-note="${attr(n.id)}" type="button">Smazat</button></div></div><div class="meta"><span class="priority ${n.priority>=4?'high':n.priority>=3?'mid':'low'}">${stars||'★'} ${esc(n.source)}</span><span class="tag">${esc(n.type)}</span>${n.model?`<span class="tag">${esc(n.model)}</span>`:''}${(n.tags||[]).map(t=>`<span class="tag">#${esc(t)}</span>`).join('')}${attachments.length?`<span class="tag">📎 ${attachments.length}</span>`:''}</div>${n.next?`<p><strong>Další krok:</strong> ${esc(n.next)}</p>`:''}${url?`<p><a href="${attr(url)}" target="_blank" rel="noopener noreferrer">Otevřít zdroj ↗</a></p>`:''}${attachmentHtml}</article>`;
     }
     function openNoteDetail(id){
       const n = state.notes.find(x=>x.id===id); if(!n) return;
@@ -1829,8 +1886,78 @@ export function bootLifeHub(){
         + block('Krátké shrnutí', n.summary)
         + block('Obsah / prompt / výstup', n.content)
         + block('Další krok', n.next)
-        + (url ? `<div class="detail-block"><h4>Odkaz</h4><p class="detail-text"><a href="${attr(url)}" target="_blank" rel="noopener noreferrer">${esc(url)}</a></p></div>` : '');
+        + (url ? `<div class="detail-block"><h4>Odkaz</h4><p class="detail-text"><a href="${attr(url)}" target="_blank" rel="noopener noreferrer">${esc(url)}</a></p></div>` : '')
+        + ((n.attachments||[]).length?`<div class="detail-block"><h4>Přílohy</h4><div class="note-attachment-list">${n.attachments.map(file=>`<div class="note-attachment-row"><span>${noteAttachmentIcon(file.kind)} <strong>${esc(file.fileName)}</strong> <small>${esc(formatBytes(file.size))}</small></span><div class="actions"><button class="mini-btn" data-open-note-attachment="${attr(file.id)}" type="button">${file.kind==='docx'?'Stáhnout':'Otevřít'}</button><button class="mini-btn" data-download-note-attachment="${attr(file.id)}" type="button">Stáhnout</button></div></div>`).join('')}</div></div>`:'');
       openDetailModal(n.title || 'Poznámka', html);
+    }
+    function findNoteAttachment(id){
+      for(const note of state.notes){ const attachment=(note.attachments||[]).find(file=>file.id===id); if(attachment) return {note,attachment}; }
+      return null;
+    }
+    async function downloadNoteAttachmentFile(id){
+      const found=findNoteAttachment(id); if(!found) return;
+      try{ const file=await idbGet(id,VAULT_STORE); if(!file){ toast('Příloha nebyla v lokálním úložišti nalezena.','bad'); return; } download(found.attachment.fileName||file.name||`priloha-${id}`,file,file.type||found.attachment.mime||'application/octet-stream'); }
+      catch(error){ console.error(error); toast('Přílohu se nepodařilo stáhnout.','bad'); }
+    }
+    function openInteractiveNoteHtml(file,title){
+      const screen=document.createElement('div');
+      screen.className='modal-screen note-html-modal active';
+      screen.setAttribute('role','dialog'); screen.setAttribute('aria-modal','true');
+      screen.innerHTML=`<div class="modal-card"><div class="panel-head"><div><p class="eyebrow">Bezpečně oddělená příloha</p><h2>${esc(title)}</h2></div><button class="btn" type="button" data-note-html-close="1">Zavřít</button></div><iframe title="${attr(title)}" src="./plan-viewer.html?note=${encodeURIComponent(title)}&v=${Date.now()}" sandbox="allow-scripts allow-forms allow-modals allow-downloads" referrerpolicy="no-referrer"></iframe></div>`;
+      const frame=screen.querySelector('iframe');
+      frame.addEventListener('load',async()=>{ try{ frame.contentWindow?.postMessage({type:'lifehub-plan-load',html:await file.text(),title},'*'); }catch(error){ console.error(error); toast('HTML přílohu se nepodařilo spustit.','bad'); } },{once:true});
+      const close=()=>screen.remove();
+      screen.addEventListener('click',event=>{ if(event.target===screen||event.target.closest('[data-note-html-close]')) close(); });
+      screen.addEventListener('keydown',event=>{ if(event.key==='Escape'){ event.preventDefault(); close(); } });
+      document.body.appendChild(screen);
+      setTimeout(()=>screen.querySelector('[data-note-html-close]')?.focus(),0);
+    }
+    async function openNoteAttachmentFile(id){
+      const found=findNoteAttachment(id); if(!found) return;
+      try{
+        const file=await idbGet(id,VAULT_STORE); if(!file){ toast('Příloha nebyla v lokálním úložišti nalezena.','bad'); return; }
+        if(found.attachment.kind==='html'){ openInteractiveNoteHtml(file,found.attachment.fileName||'Interaktivní HTML příloha'); return; }
+        if(found.attachment.kind==='pdf'){
+          const url=URL.createObjectURL(file); window.open(url,'_blank','noopener,noreferrer');
+          setTimeout(()=>URL.revokeObjectURL(url),60000); return;
+        }
+        await downloadNoteAttachmentFile(id);
+      }catch(error){ console.error(error); toast('Přílohu se nepodařilo otevřít.','bad'); }
+    }
+    async function deleteNoteAttachmentFile(id){
+      const found=findNoteAttachment(id); if(!found) return;
+      if(!await confirmDialog(`Odebrat přílohu „${found.attachment.fileName}“ z poznámky?`,{title:'Odebrat přílohu',confirmText:'Odebrat',danger:true})) return;
+      const previousAttachments=[...(found.note.attachments||[])];
+      const previousUpdatedAt=found.note.updatedAt;
+      found.note.attachments=previousAttachments.filter(file=>file.id!==id);
+      found.note.updatedAt=new Date().toISOString();
+      if(!await save()){
+        found.note.attachments=previousAttachments;
+        found.note.updatedAt=previousUpdatedAt;
+        renderNotes(); renderNoteFormAttachments($('#noteId')?.value===found.note.id?found.note:null);
+        toast('Přílohu se nepodařilo bezpečně odebrat z poznámky.','bad'); return;
+      }
+      try{ await idbDelete(id,VAULT_STORE); }
+      catch(error){ console.error(error); toast('Příloha byla odebrána z poznámky, ale její šifrovanou kopii se nepodařilo uklidit z úložiště.','warn'); return; }
+      renderNoteFormAttachments($('#noteId')?.value===found.note.id?found.note:null); toast('Příloha byla odebrána.','warn');
+    }
+    async function deleteNote(id){
+      const note=state.notes.find(item=>item.id===id); if(!note) return;
+      const files=note.attachments||[];
+      const message=files.length?`Opravdu smazat tuto poznámku včetně ${files.length} uložených ${files.length===1?'přílohy':'příloh'}?`:'Opravdu smazat tuto poznámku?';
+      if(!await confirmDialog(message,{title:'Smazat poznámku',confirmText:'Smazat',danger:true})) return;
+      const index=state.notes.findIndex(item=>item.id===id);
+      state.notes.splice(index,1);
+      if(!await save()){
+        state.notes.splice(index,0,note);
+        renderNotes();
+        toast('Poznámku se nepodařilo bezpečně smazat.','bad'); return;
+      }
+      const cleanup=await Promise.allSettled(files.map(file=>idbDelete(file.id,VAULT_STORE)));
+      const failed=cleanup.filter(result=>result.status==='rejected');
+      failed.forEach(result=>console.error(result.reason));
+      resetNoteForm();
+      toast(failed.length?'Poznámka byla smazána, ale část nepoužívaných šifrovaných souborů se nepodařilo uklidit.':'Poznámka včetně příloh byla smazána.',failed.length?'warn':'good');
     }
     function openDetailModal(title, innerHtml){
       const prev = document.activeElement;
@@ -2292,7 +2419,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       const payerView=$('#financePayerView')?.value||'me';
       const m=monthSummary(month), cycle=currentSalaryCycle(), goal=number(state.settings.savingGoal);
       const cycleSub=cycle?.startDate
-        ? `Aktuální cyklus od ${fmtDate(`${cycle.startDate}T00:00:00`)} do dneška`
+        ? `Kalendářní období od ${fmtDate(`${cycle.startDate}T00:00:00`)} · výplata připsána ${fmtDate(`${cycle.salaryDate}T00:00:00`)}`
         : 'Po zapsání první výplaty se zobrazí skutečný zůstatek';
       const cycleValue=cycle?.startDate?cycle.balance:0;
       $('#financeKpis').innerHTML = [
@@ -2525,6 +2652,12 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       }
       for(const project of state.projects){
         for(const file of project.attachments||[]){
+          const exists=vaultSet.has(String(file.id));
+          if((file.storedFile!==false)!==exists){ file.storedFile=exists; changed++; }
+        }
+      }
+      for(const note of state.notes){
+        for(const file of note.attachments||[]){
           const exists=vaultSet.has(String(file.id));
           if((file.storedFile!==false)!==exists){ file.storedFile=exists; changed++; }
         }
@@ -2941,8 +3074,9 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       const docs=state.documents.filter(d=>d.storedFile!==false);
       const plans=state.htmlPlans.filter(plan=>plan.storedFile!==false);
       const projectFiles=projectAttachmentMetadata(state.projects).filter(file=>file.storedFile!==false);
-      const bytes=payrolls.reduce((sum,p)=>sum+number(p.fileSize),0)+docs.reduce((sum,d)=>sum+number(d.size),0)+plans.reduce((sum,plan)=>sum+number(plan.size),0)+projectFiles.reduce((sum,file)=>sum+number(file.size),0);
-      return {payrollCount:payrolls.length,docCount:docs.length,planCount:plans.length,projectFileCount:projectFiles.length,fileCount:payrolls.length+docs.length+plans.length+projectFiles.length,bytes};
+      const noteFiles=noteAttachmentMetadata(state.notes).filter(file=>file.storedFile!==false);
+      const bytes=payrolls.reduce((sum,p)=>sum+number(p.fileSize),0)+docs.reduce((sum,d)=>sum+number(d.size),0)+plans.reduce((sum,plan)=>sum+number(plan.size),0)+projectFiles.reduce((sum,file)=>sum+number(file.size),0)+noteFiles.reduce((sum,file)=>sum+number(file.size),0);
+      return {payrollCount:payrolls.length,docCount:docs.length,planCount:plans.length,projectFileCount:projectFiles.length,noteFileCount:noteFiles.length,fileCount:payrolls.length+docs.length+plans.length+projectFiles.length+noteFiles.length,bytes};
     }
     function formatBackupTime(iso){
       if(!iso) return 'zatím nikdy';
@@ -2965,7 +3099,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
     function renderBackupStatus(){
       const box = $('#backupStatus'); if(!box) return;
       const est = estimateStoredFileBackup();
-      box.innerHTML = `<div class="security-list"><div class="security-item"><strong>Šifrovaná datová záloha</strong><span class="small">Poslední: ${esc(formatBackupTime(state.settings.lastDataBackupAt))}<br>Obsahuje poznámky, finance, úkoly, nákupy a metadata dokumentů. Nepřenáší PDF ani soubory.</span></div><div class="security-item"><strong>Kompletní šifrovaná záloha</strong><span class="small">Poslední: ${esc(formatBackupTime(state.settings.lastCompleteBackupAt))}<br>${esc(backupFreshnessText())}<br>Přenese i ${est.fileCount} lokálních souborů (${esc(formatBytes(est.bytes))}) z výplatních pásek, trezoru dokumentů, interaktivních plánů a projektů domu.</span></div><div class="security-item"><strong>Ověření zálohy</strong><span class="small">Poslední ověření: ${esc(formatBackupTime(state.settings.lastVerifiedBackupAt))}<br>Ověření soubor načte a případně dešifruje, ale nic nepřepíše.</span></div><div class="security-item"><strong>Poslední obnova</strong><span class="small">${esc(formatBackupTime(state.settings.lastRestoreAt))}</span></div><div class="security-item"><strong>Zařízení</strong><span class="small">Název v zálohách: ${esc(currentDeviceName())}</span></div><div class="security-item"><strong>Doporučení pro mobil ↔ PC</strong><span class="small">Pro přenos z hlavního telefonu do PC použij kompletní zálohu. Datová záloha je lehčí, ale bez souborů.</span></div></div>`;
+      box.innerHTML = `<div class="security-list"><div class="security-item"><strong>Šifrovaná datová záloha</strong><span class="small">Poslední: ${esc(formatBackupTime(state.settings.lastDataBackupAt))}<br>Obsahuje poznámky, finance, úkoly, nákupy a metadata dokumentů. Nepřenáší PDF ani soubory.</span></div><div class="security-item"><strong>Kompletní šifrovaná záloha</strong><span class="small">Poslední: ${esc(formatBackupTime(state.settings.lastCompleteBackupAt))}<br>${esc(backupFreshnessText())}<br>Přenese i ${est.fileCount} lokálních souborů (${esc(formatBytes(est.bytes))}) z výplatních pásek, trezoru dokumentů, příloh poznámek, interaktivních plánů a projektů domu.</span></div><div class="security-item"><strong>Ověření zálohy</strong><span class="small">Poslední ověření: ${esc(formatBackupTime(state.settings.lastVerifiedBackupAt))}<br>Ověření soubor načte a případně dešifruje, ale nic nepřepíše.</span></div><div class="security-item"><strong>Poslední obnova</strong><span class="small">${esc(formatBackupTime(state.settings.lastRestoreAt))}</span></div><div class="security-item"><strong>Zařízení</strong><span class="small">Název v zálohách: ${esc(currentDeviceName())}</span></div><div class="security-item"><strong>Doporučení pro mobil ↔ PC</strong><span class="small">Pro přenos z hlavního telefonu do PC použij kompletní zálohu. Datová záloha je lehčí, ale bez souborů.</span></div></div>`;
     }
     async function exportEncryptedJson(){
       try{
@@ -3004,6 +3138,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       for(const d of state.documents.filter(d=>d.storedFile !== false)) await addFile(d, VAULT_STORE, 'vaultFile', d.fileName || d.title);
       for(const plan of state.htmlPlans.filter(plan=>plan.storedFile!==false)) await addFile(plan,VAULT_STORE,'htmlPlan',plan.fileName||plan.title);
       for(const file of projectAttachmentMetadata(state.projects)) await addFile(file, VAULT_STORE, 'projectAttachment', file.fileName || file.projectTitle || file.id);
+      for(const file of noteAttachmentMetadata(state.notes).filter(file=>file.storedFile!==false)) await addFile(file,VAULT_STORE,'noteAttachment',file.fileName||file.noteTitle||file.id);
       return {files, missing, totalBytes};
     }
     async function exportCompleteEncryptedBackup(){
@@ -3104,7 +3239,9 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       };
       const asArray=(value,max)=>Array.isArray(value)?value.slice(0,max):[];
       clean.notes = asArray(data.notes,5000).map(n=>({
-        id:safeId(n?.id,'note'), title:textLimit(n?.title,180), source:textLimit(n?.source,40)||'Vlastní', priority:Math.min(5,Math.max(1,Number(n?.priority)||3)), type:textLimit(n?.type,40)||'jiné', model:textLimit(n?.model,80), url:safeUrl(n?.url), tags:sanitizeTags(n?.tags), summary:textLimit(n?.summary,3000), content:textLimit(n?.content,50000), next:textLimit(n?.next,1000), createdAt:textLimit(n?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(n?.updatedAt,40)||new Date().toISOString()
+        id:safeId(n?.id,'note'), title:textLimit(n?.title,180), source:textLimit(n?.source,40)||'Vlastní', priority:Math.min(5,Math.max(1,Number(n?.priority)||3)), type:textLimit(n?.type,40)||'jiné', model:textLimit(n?.model,80), url:safeUrl(n?.url), tags:sanitizeTags(n?.tags), summary:textLimit(n?.summary,3000), content:textLimit(n?.content,50000), next:textLimit(n?.next,1000),
+        attachments:asArray(n?.attachments,50).map(file=>({id:safeId(file?.id,'nfile'),fileName:textLimit(file?.fileName,220)||'příloha',mime:textLimit(file?.mime,120)||'application/octet-stream',size:Math.max(0,number(file?.size)),kind:['pdf','docx','html'].includes(file?.kind)?file.kind:'',storedFile:preserveStoredFiles?file?.storedFile!==false:false,createdAt:textLimit(file?.createdAt,40)||new Date().toISOString(),updatedAt:textLimit(file?.updatedAt,40)||new Date().toISOString()})).filter(file=>file.kind),
+        createdAt:textLimit(n?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(n?.updatedAt,40)||new Date().toISOString()
       })).filter(n=>n.title || n.summary || n.content);
       clean.transactions = asArray(data.transactions,10000).map(t=>({
         id:safeId(t?.id,'trans'), date:textLimit(t?.date,10), kind:t?.kind==='expense'?'expense':'income', category:textLimit(t?.category,80)||'bez kategorie', amount:Math.max(0, number(t?.amount)), description:textLimit(t?.description,1000), source:['payroll','payment','installment','shopping','garden-item','garden-log','maintenance','vehicle'].includes(t?.source)?t.source:'manual', payrollId:textLimit(t?.payrollId,100), payrollMonth:textLimit(t?.payrollMonth,7), paymentId:textLimit(t?.paymentId,100), paymentHistoryId:textLimit(t?.paymentHistoryId,100), installmentId:textLimit(t?.installmentId,100), installmentHistoryId:textLimit(t?.installmentHistoryId,100), shoppingId:textLimit(t?.shoppingId,100), gardenItemId:textLimit(t?.gardenItemId,100), gardenLogId:textLimit(t?.gardenLogId,100), maintenanceId:textLimit(t?.maintenanceId,100), vehicleLogId:textLimit(t?.vehicleLogId,100), paidBy:t?.kind==='expense'&&t?.paidBy==='wife'?'wife':(t?.kind==='expense'?'me':''), shared:(t?.source==='payroll'||t?.source==='vehicle')?false:t?.shared!==false, createdAt:textLimit(t?.createdAt,40)||new Date().toISOString(), updatedAt:textLimit(t?.updatedAt,40)||new Date().toISOString()
@@ -3199,7 +3336,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
     async function exportCsv(kind){
       if(!await confirmPrivateExport(`CSV export: ${kind}`)) return;
       const maps={
-        notes:[['id','title','source','type','priority','model','url','tags','summary','content','next','createdAt','updatedAt'], ...state.notes.map(n=>[n.id,n.title,n.source,n.type,n.priority,n.model,n.url,(n.tags||[]).join('; '),n.summary,n.content,n.next,n.createdAt,n.updatedAt])],
+        notes:[['id','title','source','type','priority','model','url','tags','summary','content','next','attachments','createdAt','updatedAt'], ...state.notes.map(n=>[n.id,n.title,n.source,n.type,n.priority,n.model,n.url,(n.tags||[]).join('; '),n.summary,n.content,n.next,(n.attachments||[]).map(file=>file.fileName).join('; '),n.createdAt,n.updatedAt])],
         transactions:[['id','date','kind','category','amount','paidBy','description','source','payrollMonth','paymentId','shoppingId','gardenItemId','gardenLogId','maintenanceId','vehicleLogId'], ...state.transactions.map(t=>[t.id,t.date,t.kind,t.category,t.amount,t.paidBy||'',t.description,t.source,t.payrollMonth||'',t.paymentId||'',t.shoppingId||'',t.gardenItemId||'',t.gardenLogId||'',t.maintenanceId||'',t.vehicleLogId||''])],
         payrolls:[['id','month','paymentDate','employer','fileName','cleanPay','netPay','grossPay','taxBase','incomeTax','taxpayerDiscount','childDiscount','socialInsurance','healthInsurance','deductions','bonus','note','storedPdf'], ...state.payrolls.map(p=>[p.id,p.month,p.paymentDate||'',p.employer,p.fileName,p.fields?.cleanPay||p.fields?.netPay,p.fields?.netPay||p.fields?.cleanPay,p.fields?.grossPay,p.fields?.taxBase,p.fields?.incomeTax,p.fields?.taxpayerDiscount,p.fields?.childDiscount,p.fields?.socialInsurance,p.fields?.healthInsurance,p.fields?.deductions,p.fields?.bonus,p.note,p.storedPdf])],
         tasks:[['id','title','priority','horizon','due','area','note','done','createdAt'], ...state.tasks.map(t=>[t.id,t.title,t.priority,t.horizon,t.due,t.area,t.note,t.done,t.createdAt])],
@@ -3218,7 +3355,7 @@ Pokračovat?`, {title:'Nahradit mzdový příjem', confirmText:'Nahradit', dange
       };
       download(`lifehub-${kind}-${today()}.csv`, csv(maps[kind]), 'text/csv;charset=utf-8');
     }
-    function notesMarkdown(){return ['# Poznámky LifeHub',...state.notes.map(n=>`\n## ${n.title}\n- Zdroj: ${n.source}\n- Typ: ${n.type}\n- Priorita: ${n.priority}/5\n- Model: ${n.model||''}\n- URL: ${n.url||''}\n- Tagy: ${(n.tags||[]).join(', ')}\n\n${mdEscape(n.summary)}\n\n${mdEscape(n.content)}\n\n**Další krok:** ${mdEscape(n.next)}`)].join('\n');}
+    function notesMarkdown(){return ['# Poznámky LifeHub',...state.notes.map(n=>`\n## ${n.title}\n- Zdroj: ${n.source}\n- Typ: ${n.type}\n- Priorita: ${n.priority}/5\n- Model: ${n.model||''}\n- URL: ${n.url||''}\n- Tagy: ${(n.tags||[]).join(', ')}\n- Přílohy: ${(n.attachments||[]).map(file=>file.fileName).join(', ')}\n\n${mdEscape(n.summary)}\n\n${mdEscape(n.content)}\n\n**Další krok:** ${mdEscape(n.next)}`)].join('\n');}
     function tasksMarkdown(){return ['# Úkoly LifeHub',...state.tasks.map(t=>`\n- [${t.done?'x':' '}] **${t.title}** (${taskPriorityLabel(t.priority)}, ${taskHorizonLabel(t.horizon)}${t.due?', '+t.due:''}) — ${t.area||''}\n  ${t.note||''}`)].join('\n');}
     function shoppingMarkdown(){return ['# Velké nákupy LifeHub',...state.shopping.map(s=>`\n- **${s.name}**${s.store?' ('+s.store+')':''} — ${shopPriorityLabel(s.priority)}, ${fmt(s.price)}, ${s.status==='bought'?(s.purchaseDate||s.month||'bez data'):(s.month||'bez měsíce')}, ${shopStatusLabel(s.status)}${s.status==='bought'?` – ${payerLabel(s.paidBy)}`:''}\n  ${s.note||''}${s.url?'\n  '+s.url:''}`)].join('\n');}
     function appsMarkdown(){return ['# Moje aplikace',...state.apps.map(a=>`\n## ${a.name}${a.tag?' ('+a.tag+')':''}\n${a.note||''}${a.url?'\n'+a.url:''}\n${(a.notes||[]).map(n=>`- ${mdEscape(n.text)}`).join('\n')}`)].join('\n');}
@@ -3532,6 +3669,7 @@ Poslední pojistka: pro potvrzení importu napiš ${word}.`,
       imported.documents.forEach(d=>{ d.storedFile = prepared.docIds.has(d.id); d.updatedAt = d.updatedAt || new Date().toISOString(); });
       imported.htmlPlans.forEach(plan=>{ plan.storedFile=prepared.docIds.has(plan.id); plan.updatedAt=plan.updatedAt||new Date().toISOString(); });
       imported.projects.forEach(project=>{ (project.attachments||[]).forEach(file=>{ file.storedFile=prepared.docIds.has(file.id); file.updatedAt=file.updatedAt||new Date().toISOString(); }); });
+      imported.notes.forEach(note=>{ (note.attachments||[]).forEach(file=>{ file.storedFile=prepared.docIds.has(file.id); file.updatedAt=file.updatedAt||new Date().toISOString(); }); });
       imported.settings.lastRestoreAt = new Date().toISOString();
       const envelope = await createEncryptedStateEnvelope(imported, vaultKey, vaultSalt, vaultIterations);
       const restoreId = uid('restore');
@@ -3619,6 +3757,7 @@ Poslední pojistka: pro potvrzení importu napiš ${word}.`,
     function saveSettings(e){e.preventDefault(); state.settings.greetName=$('#greetName').value.trim(); state.settings.familyDisplayName=$('#familyDisplayName')?.value.trim()||''; state.settings.deviceName=$('#deviceName').value.trim(); state.settings.ownerName=$('#ownerName').value.trim(); state.settings.ownerFooter=$('#ownerFooter').value.trim(); state.settings.currency=sanitizeCurrency($('#currency').value); state.settings.savingGoal=number($('#savingGoal').value); state.settings.privateNotifications=$('#privateNotifications')?.checked!==false; state.settings.familySettingsUpdatedAt=new Date().toISOString(); save(); toast('Nastavení uloženo.');}
     // Krátký changelog (nejnovější nahoře, drž ~5 položek). Zobrazí se klepnutím na verzi v patičce.
     const CHANGELOG = [
+      'v5.4.0 · Odměny nově vytvářejí a rovnou stahují skutečný vícestránkový PDF soubor bez tiskového dialogu. K poznámkám lze připojit šifrované PDF, DOCX a interaktivní HTML včetně kompletní zálohy. Po načtení nové výplaty se osobní zůstatek přepočítá od 1. dne jejího kalendářního měsíce, i když mzda dorazila později.',
       'v5.3.0 · AI odměňování je nově soukromou strukturovanou evidencí práce na ekosystému AI Studio GHRAB. Záznamy rozlišují kategorii, aplikaci, pravidelnou a mimořádnou agendu, konkrétní výsledek a soukromou poznámku. Měsíční report pro vedení neobsahuje název LifeHub ani soukromé poznámky a doplňuje manažerský souhrn, rizika, potřebná rozhodnutí a priority.',
       'v5.2.2 · V Elektřině – Marek je nyní jediné tlačítko Stáhnout PDF pro Honzu Marka. Dokument se vytvoří lokálně a stáhne přímo bez náhledu celé aplikace, bez tiskového dialogu a bez nepotřebného CSV exportu; delší podklady se automaticky rozdělí na více A4 stran.',
       'v5.2.1 · Rodinný šifrovaný soubor nyní vždy přenáší kompletní historii vozu z Moje Fabia. Manželka ji po načtení uvidí v rodinném náhledu včetně data, typu události, tachometru, popisu, ceny, plátce a poznámky; náhled zůstává pouze ke čtení.',
@@ -4625,6 +4764,26 @@ Co chceš udělat teď?`,
         kpi('Aktuální období',rewardPeriodLabel(currentRewardPeriod()),'Dvě období za školní rok')
       ].join('');
       $('#rewardList').innerHTML=items.map(r=>`<article class="item"><div class="item-top"><div><h4>${esc(r.title)}</h4><p><strong>${fmtHours(r.hours)}</strong> • ${esc(rewardPeriodLabel(r.period))}</p>${r.note?`<p>${esc(r.note)}</p>`:''}<p class="small">Aktualizováno ${esc(fmtDate(r.updatedAt||r.createdAt))}</p></div><div class="actions"><button class="mini-btn" data-edit-reward="${attr(r.id)}" type="button">Upravit</button><button class="mini-btn" data-delete-reward="${attr(r.id)}" type="button">Smazat</button></div></div></article>`).join('')||empty('V tomto období zatím nejsou položky. Přidávejte je průběžně během celého období.');
+    }
+    async function downloadRewardReportPdf(){
+      const button=$('#rewardPrintBtn'); if(!button) return;
+      const period=selectedRewardPeriod();
+      const originalText=button.textContent;
+      button.disabled=true; button.textContent='Vytvářím PDF…';
+      try{
+        const owner=reportOwner();
+        const blob=await buildRewardPdfBlob(state.rewards.filter(item=>normalizeRewardPeriod(item.period)===period),{
+          logoDataUrl:SCHOOL_LOGO_DATA_URI,
+          ownerName:owner.name,
+          organization:owner.org,
+          periodLabel:rewardPeriodLabel(period),
+          generatedAt:new Date(),
+          version:VERSION
+        });
+        download(`lifehub-odmeny-${period}.pdf`,blob,'application/pdf');
+        toast('PDF s podklady pro odměny bylo staženo.','good');
+      }catch(error){ console.error(error); toast('PDF s podklady pro odměny se nepodařilo vytvořit. Zkuste akci zopakovat.','bad'); }
+      finally{ button.disabled=false; button.textContent=originalText; }
     }
 
     // ===== Projekty domu – rekonstrukce, rozpočty, AI vlákna a náčrty =====

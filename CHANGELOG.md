@@ -1,3 +1,30 @@
+## 5.4.0
+
+### Přímé PDF pro odměny
+
+- Tlačítko v záložce **Odměny** nyní vytváří a okamžitě stahuje skutečný PDF soubor bez systémového tiskového dialogu.
+- Lokální generátor používá stejný princip jako osvědčený export **Elektřina – Marek**, podporuje češtinu a automaticky rozdělí delší obsah na více A4 stran.
+- HTML export zůstává dostupný jako doplňková varianta.
+
+### Přílohy poznámek
+
+- K poznámce lze připojit PDF, DOCX nebo interaktivní HTML, najednou až 10 souborů a celkem až 50 příloh.
+- Soubory se šifrují stejným trezorovým klíčem jako ostatní dokumenty.
+- PDF lze otevřít nebo stáhnout, DOCX stáhnout a HTML spustit v bezpečně odděleném sandboxu bez přístupu k datům LifeHubu.
+- Přílohy jsou zahrnuty do kompletní šifrované zálohy a obnovy; datové exporty obsahují pouze jejich názvy a metadata.
+
+### Kalendářní přepočet výplaty
+
+- Po načtení nové výplatní pásky se zůstatek aktuální výplaty přepočítá od 1. dne kalendářního měsíce, ve kterém mzda skutečně přišla.
+- Pokud mzda dorazí například 11. srpna, odečtou se od ní i výdaje z 1.–10. srpna.
+- Dokud nová páska není načtena, zůstává aktivní předchozí období; po načtení se přepočet provede automaticky.
+- Měsíční bilance a roční graf nadále používají pevné kalendářní měsíce a skutečná data pohybů.
+
+### Data a ověření
+
+- Datové schéma zvýšeno na verzi 16 a migrace doplní starším poznámkám prázdný seznam příloh.
+- Přidány regresní testy PDF odměn, příloh poznámek, kompletní zálohy a přepočtu výplaty přijaté uprostřed měsíce.
+
 ## 5.3.0
 - AI výkaz přepracován na soukromou sekci AI odměňování pro ekosystém AI Studio GHRAB.
 - Záznamy obsahují kategorii, aplikaci/oblast, typ práce, výsledek a neveřejnou soukromou poznámku.

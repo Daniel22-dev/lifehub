@@ -1,0 +1,27 @@
+LifeHub 5.4.0 – validační protokol
+Datum kontroly: 12. 8. 2026
+
+Rozsah změn
+- Odměny: přímé stažení skutečného vícestránkového PDF bez tiskového dialogu.
+- Poznámky: šifrované přílohy PDF, DOCX a interaktivní HTML.
+- Zálohy: kompletní záloha, ověření a obnova zahrnují přílohy poznámek.
+- Finance: po načtení nové výplaty začíná její aktivní období 1. dnem kalendářního měsíce; do té doby pokračuje předchozí období.
+- Datové schéma: migrace na verzi 16 zachová stávající poznámky a doplní jim seznam příloh.
+
+Spuštěná kontrola
+  npm run check
+
+Výsledek
+- ESLint: OK
+- Kontrola syntaxe všech modulů: OK
+- Kontrola citlivých dat: OK
+- Automatické testy: 171 prošlo, 0 selhalo
+- Smoke test verze, manuálu, PWA a workflow: OK
+- Produkční sestavení Vite: OK
+
+Regresní scénáře
+- Výplata přijatá 11. dne odečítá po načtení i výdaje od 1. do 10. dne stejného měsíce.
+- Bez nové výplaty zůstává aktivní předchozí období.
+- Přílohy poznámek jsou validovány, ukládány do šifrovaného úložiště a vyžadovány v kompletní záloze.
+- Interaktivní HTML příloha běží v sandboxovaném prohlížeči bez přístupu k datům LifeHubu.
+- Odměny vytvářejí jeden platný vícestránkový PDF soubor přímo v zařízení.

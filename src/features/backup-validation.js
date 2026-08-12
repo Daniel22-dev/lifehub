@@ -7,6 +7,7 @@ import {
   VAULT_STORE
 } from '../config/constants.js';
 import { estimateBase64Bytes } from './backup.js';
+import { noteAttachmentMetadata } from './note-attachments.js';
 
 const BASE64_RE = /^[A-Za-z0-9+/]*={0,2}$/;
 
@@ -49,7 +50,8 @@ export function validateBackupFileSet(files, importedState){
   const expectedDocs = new Set((importedState?.documents || []).filter(item => item.storedFile !== false).map(item => item.id));
   const expectedProjectFiles = new Set((importedState?.projects || []).flatMap(project => (project?.attachments || []).filter(item => item?.storedFile !== false).map(item => item.id)));
   const expectedPlanFiles = new Set((importedState?.htmlPlans || []).filter(item=>item?.storedFile!==false).map(item=>item.id));
-  const expectedVaultFiles = new Set([...expectedDocs, ...expectedProjectFiles, ...expectedPlanFiles]);
+  const expectedNoteFiles = new Set(noteAttachmentMetadata(importedState?.notes).filter(item=>item?.storedFile!==false).map(item=>item.id));
+  const expectedVaultFiles = new Set([...expectedDocs, ...expectedProjectFiles, ...expectedPlanFiles, ...expectedNoteFiles]);
   const seen = new Set();
   const validated = [];
   let totalBytes = 0;
@@ -60,7 +62,7 @@ export function validateBackupFileSet(files, importedState){
     if(seen.has(composite)) throw new Error(`Záloha obsahuje duplicitní soubor ${record.name || record.id}.`);
     seen.add(composite);
     if(record.store === PDF_STORE && !expectedPayrolls.has(record.id)) throw new Error(`PDF ${record.name || record.id} nemá odpovídající záznam výplatní pásky.`);
-    if(record.store === VAULT_STORE && !expectedVaultFiles.has(record.id)) throw new Error(`Dokument, projektová příloha nebo interaktivní plán ${record.name || record.id} nemá odpovídající metadata.`);
+    if(record.store === VAULT_STORE && !expectedVaultFiles.has(record.id)) throw new Error(`Dokument, příloha poznámky, projektová příloha nebo interaktivní plán ${record.name || record.id} nemá odpovídající metadata.`);
     totalBytes += record.size;
     if(totalBytes > MAX_COMPLETE_BACKUP_TOTAL_BYTES){
       throw new Error(`Kompletní záloha překračuje limit ${formatBytes(MAX_COMPLETE_BACKUP_TOTAL_BYTES)}.`);
@@ -72,8 +74,9 @@ export function validateBackupFileSet(files, importedState){
   const missingDocs = [...expectedDocs].filter(id => !seen.has(`${VAULT_STORE}:${id}`));
   const missingProjectFiles = [...expectedProjectFiles].filter(id => !seen.has(`${VAULT_STORE}:${id}`));
   const missingPlanFiles = [...expectedPlanFiles].filter(id=>!seen.has(`${VAULT_STORE}:${id}`));
-  if(missingPayrolls.length || missingDocs.length || missingProjectFiles.length || missingPlanFiles.length){
-    throw new Error(`Kompletní záloha je neúplná: chybí ${missingPayrolls.length + missingDocs.length + missingProjectFiles.length + missingPlanFiles.length} očekávaných souborů.`);
+  const missingNoteFiles = [...expectedNoteFiles].filter(id=>!seen.has(`${VAULT_STORE}:${id}`));
+  if(missingPayrolls.length || missingDocs.length || missingProjectFiles.length || missingPlanFiles.length || missingNoteFiles.length){
+    throw new Error(`Kompletní záloha je neúplná: chybí ${missingPayrolls.length + missingDocs.length + missingProjectFiles.length + missingPlanFiles.length + missingNoteFiles.length} očekávaných souborů.`);
   }
   return {records:validated, totalBytes};
 }

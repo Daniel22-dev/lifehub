@@ -5,7 +5,7 @@ export const STATE_COLLECTIONS_WITH_IDS = Object.freeze([
   'projects','htmlPlans','householdPayments','budgetEntries','groceries','aiEntries','rewards','gardenItems','gardenLogs','electricalNotes','maintenanceLogs','vehicleLogs'
 ]);
 
-export function migrateStateSchema(input, targetSchema = 15){
+export function migrateStateSchema(input, targetSchema = 16){
   const migrated = JSON.parse(JSON.stringify(input || {}));
   const current = Math.max(1, Math.round(Number(migrated.schemaVersion) || 1));
   if(current < 6 && Array.isArray(migrated.payrolls)){
@@ -142,6 +142,12 @@ export function migrateStateSchema(input, targetSchema = 15){
       if(row.privateNote===undefined) row.privateNote='';
     }
   }
+  if(current < 16){
+    if(!Array.isArray(migrated.notes)) migrated.notes=[];
+    for(const note of migrated.notes){
+      if(note&&typeof note==='object'&&!Array.isArray(note.attachments)) note.attachments=[];
+    }
+  }
   if(current < targetSchema) migrated.schemaVersion = targetSchema;
   return migrated;
 }
@@ -149,6 +155,7 @@ export function migrateStateSchema(input, targetSchema = 15){
 export function ensureUniqueIds(clean, idFactory = uid){
   for(const collection of STATE_COLLECTIONS_WITH_IDS){
     const seen = new Set();
+    const noteAttachmentSeen = collection==='notes' ? new Set() : null;
     for(const item of clean?.[collection] || []){
       if(!item.id || seen.has(item.id)) item.id = idFactory(collection.slice(0,5));
       seen.add(item.id);
@@ -166,6 +173,12 @@ export function ensureUniqueIds(clean, idFactory = uid){
             if(!row.id || nestedSeen.has(row.id)) row.id=idFactory(keyPrefix);
             nestedSeen.add(row.id);
           }
+        }
+      }
+      if(collection==='notes'){
+        for(const file of Array.isArray(item.attachments)?item.attachments:[]){
+          if(!file.id||noteAttachmentSeen.has(file.id)) file.id=idFactory('nfile');
+          noteAttachmentSeen.add(file.id);
         }
       }
     }

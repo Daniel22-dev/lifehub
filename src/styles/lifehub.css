@@ -471,6 +471,16 @@
     .detail-block{border:1px solid var(--border);border-radius:16px;padding:13px 14px;background:var(--surface-soft);margin-top:10px}
     .detail-block h4{margin:0 0 6px;font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--primary-2)}
     .detail-block .detail-text{white-space:pre-wrap;line-height:1.55;color:var(--text);margin:0;word-break:break-word}
+    .note-attachment-picker{gap:7px}
+    .note-attachment-picker small{display:block;color:var(--muted);font-weight:600;line-height:1.35;overflow-wrap:anywhere}
+    .note-existing-attachments{display:flex;flex-wrap:wrap;align-items:center;gap:7px;color:var(--muted);font-size:.78rem}
+    .note-attachment-list{display:grid;gap:8px;margin-top:12px}
+    .note-attachment-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 11px;border:1px solid var(--border);border-radius:13px;background:var(--surface-soft);min-width:0}
+    .note-attachment-row>span{min-width:0;overflow-wrap:anywhere}.note-attachment-row small{color:var(--muted)}
+    .note-attachment-row .actions{flex:0 0 auto}
+    .note-html-modal .modal-card{width:min(1180px,96vw);height:min(860px,92vh);display:grid;grid-template-rows:auto 1fr;overflow:hidden}
+    .note-html-modal iframe{display:block;width:100%;height:100%;border:1px solid var(--border);border-radius:14px;background:#fff}
+    @media(max-width:680px){.note-attachment-row{align-items:flex-start;flex-direction:column}.note-attachment-row .actions{width:100%;display:grid;grid-template-columns:1fr 1fr}.note-html-modal .modal-card{width:100%;height:96vh}}
     .item.clickable{cursor:pointer}
     .item .item-open-hint{font-size:.78rem;color:var(--muted-2);font-weight:700}
 
