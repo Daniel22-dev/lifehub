@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lifehub-vite-shell-v5-4-0-notes-rewards-finance';
+const CACHE_NAME = 'lifehub-vite-shell-v5-4-0-android-pwa-fullscreen';
 const STATIC_SHELL = [
   './', './index.html', './manifest.json', './lifehub-icon-v2.svg', './lifehub-icon-192-v2.png', './lifehub-icon-512-v2.png',
   './vendor/pdf.min.mjs', './vendor/pdf.worker.min.mjs', './manual.html', './plan-viewer.html', './school-logo.png'
