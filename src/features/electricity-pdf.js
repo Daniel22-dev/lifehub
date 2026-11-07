@@ -1,3 +1,5 @@
+import { drawSchoolLogoOnHeader } from './school-logo-pdf.js';
+
 const PAGE_WIDTH_PX = 1240;
 const PAGE_HEIGHT_PX = 1754;
 const PAGE_WIDTH_PT = 595.28;
@@ -222,7 +224,7 @@ function drawMainHeader(ctx, logo, ownerName, recipientName){
   ctx.fillRect(0, 0, PAGE_WIDTH_PX, 214);
   ctx.fillStyle = '#cf2e3a';
   ctx.fillRect(0, 204, PAGE_WIDTH_PX, 10);
-  if(logo) ctx.drawImage(logo, MARGIN_X, 44, 126, 104);
+  if(logo) drawSchoolLogoOnHeader(ctx,logo,MARGIN_X,36);
   ctx.fillStyle = '#ffffff';
   ctx.font = '700 27px Arial, sans-serif';
   ctx.fillText('PODKLADY PRO ELEKTROINSTALACI', logo ? 226 : MARGIN_X, 76);
