@@ -1,4 +1,5 @@
 import { createImagePdf } from './electricity-pdf.js';
+import { drawSchoolLogoOnHeader } from './school-logo-pdf.js';
 
 const PAGE_WIDTH_PX=1240;
 const PAGE_HEIGHT_PX=1754;
@@ -112,7 +113,7 @@ function drawMainHeader(ctx,{logo,ownerName,organization,periodLabel}){
   ctx.fillRect(0,0,PAGE_WIDTH_PX,222);
   ctx.fillStyle='#cf2e3a';
   ctx.fillRect(0,212,PAGE_WIDTH_PX,10);
-  if(logo) ctx.drawImage(logo,MARGIN_X,48,126,104);
+  if(logo) drawSchoolLogoOnHeader(ctx,logo,MARGIN_X,41);
   const left=logo?226:MARGIN_X;
   ctx.fillStyle='#ffffff';
   ctx.font='800 28px Arial, sans-serif';
