@@ -64,6 +64,7 @@ import { assertBackupFileSize, validateBackupFileSet } from '../features/backup-
 import { buildAnnualCashflowData, buildTransactionRecord, summarizeSalaryCycle } from '../features/finance.js';
 import { buildElectricityPdfBlob } from '../features/electricity-pdf.js';
 import { buildRewardPdfBlob } from '../features/reward-pdf.js';
+import { avoidNativeFullscreenOnAndroid } from '../features/fullscreen-platform.js';
 import { noteAttachmentIcon, noteAttachmentKind, noteAttachmentMetadata } from '../features/note-attachments.js';
 import { isElanorPayslip, parseElanorPayslip } from '../features/payroll-elanor.js';
 import {
@@ -1390,7 +1391,7 @@ export function bootLifeHub(){
       const btn=$('#fullscreenBtn');
       if(!btn) return;
       btn.setAttribute('aria-pressed',String(active));
-      btn.title=nativeActive?'Ukončit celou obrazovku':fallbackActive?'Ukončit rozšířený režim':'Celá obrazovka';
+      btn.title=nativeActive?'Ukončit celou obrazovku':fallbackActive?'Ukončit rozšířený režim':avoidNativeFullscreenOnAndroid(navigator.userAgent)?'Rozšířit obsah bez systémové hlášky':'Celá obrazovka';
       btn.setAttribute('aria-label',btn.title);
       btn.textContent=active?'▣':'⛶';
     }
@@ -1447,6 +1448,15 @@ export function bootLifeHub(){
         return;
       }
 
+      // Android Chrome shows a long security banner for each Fullscreen API entry.
+      // Use CSS focus mode instead; installed PWAs enter fullscreen through the manifest.
+      if(avoidNativeFullscreenOnAndroid(navigator.userAgent)){
+        fullscreenMode='fallback';
+        document.body.classList.add('focus-mode');
+        updateFullscreenButton();
+        requestAnimationFrame(()=>window.dispatchEvent(new Event('resize')));
+        return;
+      }
       document.body.classList.add('focus-mode');
       fullscreenMode='native-pending';
       updateFullscreenButton();
@@ -5172,6 +5182,7 @@ Co chceš udělat teď?`,
       const shell=$('#planFrameShell'); if(!shell) return;
       try{
         if(document.fullscreenElement) await document.exitFullscreen();
+        else if(avoidNativeFullscreenOnAndroid(navigator.userAgent)) shell.classList.toggle('plan-frame-expanded');
         else if(shell.requestFullscreen) await shell.requestFullscreen();
         else shell.classList.toggle('plan-frame-expanded');
       }catch(error){ shell.classList.toggle('plan-frame-expanded'); }
