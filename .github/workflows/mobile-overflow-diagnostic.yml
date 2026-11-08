@@ -5,6 +5,7 @@ on:
       - fix/mobile-horizontal-scroll-lifehub-2026-11
     paths:
       - .github/workflows/mobile-overflow-diagnostic.yml
+      - src/styles/lifehub.css
 permissions:
   contents: read
 jobs:
@@ -30,6 +31,7 @@ jobs:
           node --input-type=module <<'JS'
           import { chromium } from 'playwright-core';
           const browser = await chromium.launch({headless:true, executablePath:'/usr/bin/google-chrome', args:['--no-sandbox']});
+          let failures=0;
           for (const width of [320,360,390,412,480,680,768,1024]) {
             const context = await browser.newContext({viewport:{width,height:840},deviceScaleFactor:1,isMobile:width<700,hasTouch:width<700,serviceWorkers:'block'});
             const page = await context.newPage();
@@ -52,7 +54,9 @@ jobs:
               return {viewport,root:document.documentElement.scrollWidth,body:document.body.scrollWidth,scrollAfter:window.scrollX,offenders:els.slice(0,28)};
             });
             console.log('MOBILE_LAYOUT '+JSON.stringify({requestedWidth:width,...result}));
+            if(result.root>width+1 || result.body>width+1 || result.scrollAfter>1){failures++; console.error('MOBILE_OVERFLOW '+width+': '+JSON.stringify(result));}
             await context.close();
           }
           await browser.close();
+          if(failures) { console.error('MOBILE_LAYOUT_FAILED: '+failures+' viewport(s)'); process.exitCode=1; }
           JS
