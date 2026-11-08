@@ -1121,3 +1121,52 @@ html:fullscreen body,html:-webkit-full-screen body{min-height:100%;padding-botto
 .monthly-finance-note{margin:0;color:var(--muted)}
 @media(max-width:860px){.vehicle-profile-card{grid-template-columns:auto 1fr}.vehicle-odometer{grid-column:1/-1;text-align:left}.salary-cycle-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:560px){.vehicle-profile-card{grid-template-columns:1fr;text-align:center}.vehicle-profile-icon{margin:auto}.vehicle-odometer{text-align:center}.salary-cycle-hero{display:grid}.salary-cycle-hero>strong{white-space:normal}.salary-cycle-grid{grid-template-columns:1fr}}
+
+
+/* ===== Mobile viewport containment: fixed navigation must not size the document =====
+   A two-column nav and the five-button dock used intrinsic min-content tracks:
+   on a 390px phone they widened the root document to 527px, even while hidden.
+   Constrain grid tracks and their children, keeping local scroll only in actual
+   scrolling widgets (tables, charts, etc.). Fullscreen mode is not required. */
+@media (max-width:1080px){
+  html,body{max-width:100%;overflow-x:clip}
+  .layout,.content,.view,.panel,.sidebar,.nav{min-width:0;max-width:100%}
+  .layout{grid-template-columns:minmax(0,1fr)}
+  .nav{min-width:0;max-width:100%}
+}
+@media (max-width:680px){
+  html,body{max-width:100%;overflow-x:clip}
+  .app,.layout,.content,.view,.section-head,.panel,.item{min-width:0;max-width:100%}
+  .sidebar{
+    box-sizing:border-box;
+    min-width:0!important;
+    width:auto!important;
+    max-width:calc(100vw - 16px)!important;
+    overflow-x:hidden;
+  }
+  .sidebar .nav{
+    min-width:0;
+    max-width:100%;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  .sidebar .nav button{
+    min-width:0;
+    max-width:100%;
+    overflow-wrap:anywhere;
+  }
+  .sidebar .nav button .label{min-width:0;overflow-wrap:anywhere}
+  .mobile-dock{
+    box-sizing:border-box;
+    min-width:0!important;
+    width:auto!important;
+    max-width:calc(100vw - 14px);
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    overflow:hidden;
+  }
+  .mobile-dock button{min-width:0;max-width:100%;overflow:hidden}
+  .mobile-dock button small{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #rewardPeriodSelect{min-width:0;width:100%;max-width:100%}
+  #rewards .section-head>.actions{min-width:0;width:100%}
+  #rewards .panel-head>.actions{min-width:0}
+  #rewards .panel-head>.actions .btn{min-width:0;white-space:normal;overflow-wrap:anywhere}
+}
