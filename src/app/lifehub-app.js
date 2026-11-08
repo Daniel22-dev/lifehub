@@ -4791,7 +4791,7 @@ Co chceš udělat teď?`,
           version:VERSION
         });
         download(`lifehub-odmeny-${period}.pdf`,blob,'application/pdf');
-        toast('PDF s podklady pro odměny bylo staženo.','good');
+        // Android opens its own file-download confirmation; no overlapping toast.
       }catch(error){ console.error(error); toast('PDF s podklady pro odměny se nepodařilo vytvořit. Zkuste akci zopakovat.','bad'); }
       finally{ button.disabled=false; button.textContent=originalText; }
     }
