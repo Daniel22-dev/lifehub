@@ -1129,6 +1129,7 @@ html:fullscreen body,html:-webkit-full-screen body{min-height:100%;padding-botto
    Constrain grid tracks and their children, keeping local scroll only in actual
    scrolling widgets (tables, charts, etc.). Fullscreen mode is not required. */
 @media (max-width:1080px){
+  html,body{max-width:100%;overflow-x:clip}
   .layout,.content,.view,.panel,.sidebar,.nav{min-width:0;max-width:100%}
   .layout{grid-template-columns:minmax(0,1fr)}
   .nav{min-width:0;max-width:100%}
